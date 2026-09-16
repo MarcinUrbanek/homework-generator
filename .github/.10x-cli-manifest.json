@@ -2,7 +2,7 @@
   "package": "@przeprogramowani/10x-cli",
   "version": "1.22.0",
   "manifestVersion": 3,
-  "lastApplied": "2026-09-16T05:46:35.637Z",
+  "lastApplied": "2026-09-16T12:48:25.347Z",
   "lessonId": "m1l3",
   "course": "10xdevs4",
   "tool": "copilot",
@@ -238,7 +238,7 @@
       "installedManifestHash": "1ec3800cfa5c5d37754debba7e9172f32e71330ee1a29531d6ec8fff1c4bfaaa"
     },
     "m1l3": {
-      "appliedAt": "2026-09-16T05:46:35.637Z",
+      "appliedAt": "2026-09-16T12:48:25.347Z",
       "skills": {
         "10x-idea-check": {
           "files": [
