@@ -209,11 +209,11 @@ This is the first domain migration, so it must be forward-only, runnable on an e
 
 #### Automated
 
-- [x] 3.1 `npx supabase db reset` applies the migration to a clean local Supabase database.
-- [x] 3.2 The new database-test script passes all pgTAP role, RLS, constraint, and immutability cases locally.
-- [x] 3.3 `npm run lint` passes.
-- [x] 3.4 `npm run build` passes.
+- [x] 3.1 `npx supabase db reset` applies the migration to a clean local Supabase database. — 0cba7b6
+- [x] 3.2 The new database-test script passes all pgTAP role, RLS, constraint, and immutability cases locally. — 0cba7b6
+- [x] 3.3 `npm run lint` passes. — 0cba7b6
+- [x] 3.4 `npm run build` passes. — 0cba7b6
 
 #### Manual
 
-- [x] 3.5 Using separate local teacher and student test accounts, confirm teachers share read access, only the creator can remove a record, and a student cannot retrieve exercise answers.
+- [x] 3.5 Using separate local teacher and student test accounts, confirm teachers share read access, only the creator can remove a record, and a student cannot retrieve exercise answers. — 0cba7b6
