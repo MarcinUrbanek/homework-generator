@@ -85,7 +85,7 @@ What's already in place in the codebase as of `2026-09-21` (auto-researched and 
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** Keep this contract limited to evidence needed by the first approved pool; completing the wider data model here would delay user feedback.
-- **Status:** in-progress
+- **Status:** done
 
 ## Slices
 
@@ -211,3 +211,4 @@ What's already in place in the codebase as of `2026-09-21` (auto-researched and 
 ## Milestone History
 
 ## Done
+- **F-01: (foundation) approved exercises and their answer, grade, topic, and difficulty evidence can be stored and checked safely** — Archived 2026-09-23 → `context/archive/2026-09-23-verified-exercise-persistence/`. Lesson: —.
