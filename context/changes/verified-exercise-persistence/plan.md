@@ -188,22 +188,22 @@ This is the first domain migration, so it must be forward-only, runnable on an e
 
 #### Automated
 
-- [x] 1.1 The local migration creates and backfills the teacher-profile contract with `npx supabase db reset`.
+- [x] 1.1 The local migration creates and backfills the teacher-profile contract with `npx supabase db reset`. — dd5e7d8
 
 #### Manual
 
-- [x] 1.2 A newly registered local account receives the teacher role without a role value supplied by the browser.
+- [x] 1.2 A newly registered local account receives the teacher role without a role value supplied by the browser. — dd5e7d8
 
 ### Phase 2: Persist Immutable Approved Exercises
 
 #### Automated
 
-- [ ] 2.1 The local migration creates the approved-exercise schema, required constraints, and RLS policies with `npx supabase db reset`.
+- [x] 2.1 The local migration creates the approved-exercise schema, required constraints, and RLS policies with `npx supabase db reset`.
 
 #### Manual
 
-- [ ] 2.2 In local Supabase Studio, an approved exercise visibly contains its canonical answer, grade, topic, difficulty, and verifier evidence.
-- [ ] 2.3 A content correction is represented by a new approved row rather than a direct edit to the original row.
+- [x] 2.2 In local Supabase Studio, an approved exercise visibly contains its canonical answer, grade, topic, difficulty, and verifier evidence.
+- [x] 2.3 A content correction is represented by a new approved row rather than a direct edit to the original row.
 
 ### Phase 3: Verify Database Boundaries
 
