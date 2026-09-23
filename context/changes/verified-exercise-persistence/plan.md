@@ -198,22 +198,22 @@ This is the first domain migration, so it must be forward-only, runnable on an e
 
 #### Automated
 
-- [x] 2.1 The local migration creates the approved-exercise schema, required constraints, and RLS policies with `npx supabase db reset`.
+- [x] 2.1 The local migration creates the approved-exercise schema, required constraints, and RLS policies with `npx supabase db reset`. — 0252391
 
 #### Manual
 
-- [x] 2.2 In local Supabase Studio, an approved exercise visibly contains its canonical answer, grade, topic, difficulty, and verifier evidence.
-- [x] 2.3 A content correction is represented by a new approved row rather than a direct edit to the original row.
+- [x] 2.2 In local Supabase Studio, an approved exercise visibly contains its canonical answer, grade, topic, difficulty, and verifier evidence. — 0252391
+- [x] 2.3 A content correction is represented by a new approved row rather than a direct edit to the original row. — 0252391
 
 ### Phase 3: Verify Database Boundaries
 
 #### Automated
 
-- [ ] 3.1 `npx supabase db reset` applies the migration to a clean local Supabase database.
-- [ ] 3.2 The new database-test script passes all pgTAP role, RLS, constraint, and immutability cases locally.
-- [ ] 3.3 `npm run lint` passes.
-- [ ] 3.4 `npm run build` passes.
+- [x] 3.1 `npx supabase db reset` applies the migration to a clean local Supabase database.
+- [x] 3.2 The new database-test script passes all pgTAP role, RLS, constraint, and immutability cases locally.
+- [x] 3.3 `npm run lint` passes.
+- [x] 3.4 `npm run build` passes.
 
 #### Manual
 
-- [ ] 3.5 Using separate local teacher and student test accounts, confirm teachers share read access, only the creator can remove a record, and a student cannot retrieve exercise answers.
+- [x] 3.5 Using separate local teacher and student test accounts, confirm teachers share read access, only the creator can remove a record, and a student cannot retrieve exercise answers.
