@@ -3,7 +3,7 @@ project: "Homework generator"
 version: 1
 status: draft
 created: 2026-09-21
-updated: 2026-09-23
+updated: 2026-09-24
 prd_version: 1
 main_goal: market-feedback
 top_blocker: time
@@ -42,7 +42,7 @@ Primary-school classroom math teachers in Poland need many distinct exercises at
 | ID   | Change ID                     | Outcome (user can ...)                                                                                                   | Prerequisites | PRD refs                      | Status   |
 | ---- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------- | ----------------------------- | -------- |
 | F-01 | verified-exercise-persistence | (foundation) approved exercises and their answer, grade, topic, and difficulty evidence can be stored and checked safely | —             | FR-006, FR-008, FR-009        | done |
-| S-01 | request-polish-exercises      | teacher can choose a supported grade, topic, and difficulty and receive Polish exercise candidates                       | —             | FR-004, FR-005, FR-007        | ready    |
+| S-01 | request-polish-exercises      | teacher can choose a supported grade, topic, and difficulty and receive Polish exercise candidates                       | —             | FR-004, FR-005, FR-007        | in-progress |
 | S-02 | approve-first-exercise-pool   | teacher can verify a batch, approve valid exercises, and save the first exercise pool                                    | F-01, S-01    | FR-006, FR-007, FR-008        | proposed |
 | S-03 | reuse-saved-exercises         | teacher can find and reuse approved exercises by grade and topic                                                         | S-02          | FR-009                        | proposed |
 | S-04 | invite-students-to-class      | teacher can sign in, create a class, and invite students by email                                                        | —             | FR-001, FR-002                | blocked  |
@@ -99,7 +99,7 @@ What's already in place in the codebase as of `2026-09-21` (auto-researched and 
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** Generation may produce plausible wording without comparable difficulty, so candidates remain unapproved until S-02.
-- **Status:** ready
+- **Status:** in-progress
 
 ### S-02: Approve the first exercise pool
 

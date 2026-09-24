@@ -253,25 +253,25 @@ No database migration or persisted-data backfill is required. Local provider val
 
 #### Automated
 
-- [x] 1.1 `npm run test` passes catalog and schema tests for every supported topic/difficulty combination and rejects unsupported metadata or malformed envelopes.
-- [x] 1.2 `npm run lint` passes with the new contracts and configuration.
-- [x] 1.3 `npx astro check` passes with strict TypeScript enabled.
+- [x] 1.1 `npm run test` passes catalog and schema tests for every supported topic/difficulty combination and rejects unsupported metadata or malformed envelopes. — b22411d
+- [x] 1.2 `npm run lint` passes with the new contracts and configuration. — b22411d
+- [x] 1.3 `npx astro check` passes with strict TypeScript enabled. — b22411d
 
 #### Manual
 
-- [x] 1.4 The Grade 4 catalog's Polish labels and all twelve topic/difficulty guidance combinations match the approved natural-number scope and do not imply broader curriculum coverage.
+- [x] 1.4 The Grade 4 catalog's Polish labels and all twelve topic/difficulty guidance combinations match the approved natural-number scope and do not imply broader curriculum coverage. — b22411d
 
 ### Phase 2: Build the Secure Generation Boundary
 
 #### Automated
 
-- [ ] 2.1 `npm run test` passes provider-service cases for five valid candidates, non-retried subsets of one to four, duplicate filtering, zero-result retry, retryable HTTP failures, timeout exhaustion, malformed envelopes, and non-retryable failures.
-- [ ] 2.2 `npm run test` passes endpoint and authorization cases for `400`, `401`, `403`, `503`, `502`, `504`, complete success, and partial success without making live OpenRouter calls.
-- [ ] 2.3 `npm run lint`, `npx astro check`, and `npm run build` pass in the Cloudflare-targeted project without OpenRouter secrets present.
+- [x] 2.1 `npm run test` passes provider-service cases for five valid candidates, non-retried subsets of one to four, duplicate filtering, zero-result retry, retryable HTTP failures, timeout exhaustion, malformed envelopes, and non-retryable failures.
+- [x] 2.2 `npm run test` passes endpoint and authorization cases for `400`, `401`, `403`, `503`, `502`, `504`, complete success, and partial success without making live OpenRouter calls.
+- [x] 2.3 `npm run lint`, `npx astro check`, and `npm run build` pass in the Cloudflare-targeted project without OpenRouter secrets present.
 
 #### Manual
 
-- [ ] 2.4 Against the local server with provider settings absent, an authenticated teacher receives the Polish configuration error while the response and logs expose no secret or raw provider payload.
+- [x] 2.4 Against the local server with provider settings absent, an authenticated teacher receives the Polish configuration error while the response and logs expose no secret or raw provider payload.
 
 ### Phase 3: Deliver the Teacher Request Workflow
 
