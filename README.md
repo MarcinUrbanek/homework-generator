@@ -55,7 +55,8 @@ npm run dev
 - `npm run lint` - Run ESLint with type-checked rules
 - `npm run lint:fix` - Auto-fix ESLint issues
 - `npm run format` - Run Prettier
-- `npm run smoke` - Smoke test the auth flow against a running server (`BASE_URL`, defaults to `http://localhost:4321`)
+- `npm run test` - Run the Vitest suite once
+- `npm run smoke` - Smoke test auth and the teacher exercise-request boundary against a running server (`BASE_URL`, defaults to `http://localhost:4321`)
 
 ## Project Structure
 
@@ -102,7 +103,11 @@ npx supabase start
 ```
 SUPABASE_URL=http://127.0.0.1:54321
 SUPABASE_KEY=<anon key from CLI output>
+OPENROUTER_API_KEY=<OpenRouter API key>
+OPENROUTER_MODEL=<structured-output-capable model identifier>
 ```
+
+The OpenRouter values are required only when generating exercises. The rest of the app and the production build work without them.
 
 5. To stop the stack when done:
 
@@ -146,6 +151,7 @@ Users can then sign in immediately after sign-up without clicking a confirmation
 | `/auth/signup`        | Email/password sign-up form                                             |
 | `/auth/confirm-email` | Post-signup "check your inbox" page                                     |
 | `/dashboard`          | Example protected page (redirects to `/auth/signin` if unauthenticated) |
+| `/exercises/request`  | Teacher-only Polish exercise candidate request page                      |
 
 Route protection is handled in `src/middleware.ts`. Add paths to the `PROTECTED_ROUTES` array there to require authentication.
 
@@ -167,16 +173,40 @@ npx wrangler deploy
 
 Set `SUPABASE_URL` and `SUPABASE_KEY` as secrets in your Cloudflare dashboard or via `npx wrangler secret put`.
 
-## Smoke test
+## OpenRouter exercise generation
 
-`scripts/smoke.mjs` is a dependency-free Node script that walks the whole auth flow (sign-up, sign-in, protected page, sign-out) over HTTP. Run it against the dev server or the production preview after dependency upgrades:
+Exercise candidates are generated server-side. Keep provider values in the gitignored `.dev.vars` file for local Cloudflare development:
+
+```dotenv
+SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_KEY=<anon key from Supabase CLI>
+OPENROUTER_API_KEY=<OpenRouter API key>
+OPENROUTER_MODEL=<model identifier, for example provider/model-name>
+```
+
+`OPENROUTER_MODEL` must identify a model endpoint that supports strict structured JSON output. The request requires structured-output parameters, so an incompatible model fails without returning candidates.
+
+Local workflow:
 
 ```bash
-npm run dev            # or: npm run build && npm run preview
+npx supabase start
+npm run dev
+```
+
+For a manual live-provider check, sign in with a teacher profile, open `/exercises/request`, select a topic and difficulty, and generate a batch. Confirm that one to five Polish candidates appear, every proposed answer is marked `Niezweryfikowane`, and no key or raw provider response appears in the browser or server logs. A request attempt may take up to 30 seconds, with one retry for eligible failures.
+
+For deployment, provision `OPENROUTER_API_KEY` as a Cloudflare secret and `OPENROUTER_MODEL` as a server-only environment value. Do not add real provider credentials to committed files or CI variables used by the smoke job.
+
+## Smoke test
+
+`scripts/smoke.mjs` is a dependency-free Node script that walks the auth flow and the protected exercise-request boundary over HTTP. Run it against a server with local Supabase and without OpenRouter values so it verifies the typed missing-configuration response without making a paid provider call:
+
+```bash
+npm run build && npm run preview
 BASE_URL=http://localhost:4321 npm run smoke
 ```
 
-It needs a reachable Supabase instance (local or cloud) with email confirmation disabled.
+It needs a reachable Supabase instance (local or cloud) with email confirmation disabled and the repository migrations applied. The smoke signup receives the default teacher profile created by the database trigger.
 
 > **Note:** this script exists primarily to guard the development of the starter itself — it is a fast sanity check that dependency upgrades did not break the build, the Cloudflare adapter or the Supabase auth flow. It is **not** a substitute for a real test suite. Once you build your own product on top of this starter, add proper tests (unit, integration, end-to-end) suited to your application.
 

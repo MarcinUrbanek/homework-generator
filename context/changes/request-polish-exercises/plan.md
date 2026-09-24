@@ -265,25 +265,25 @@ No database migration or persisted-data backfill is required. Local provider val
 
 #### Automated
 
-- [x] 2.1 `npm run test` passes provider-service cases for five valid candidates, non-retried subsets of one to four, duplicate filtering, zero-result retry, retryable HTTP failures, timeout exhaustion, malformed envelopes, and non-retryable failures.
-- [x] 2.2 `npm run test` passes endpoint and authorization cases for `400`, `401`, `403`, `503`, `502`, `504`, complete success, and partial success without making live OpenRouter calls.
-- [x] 2.3 `npm run lint`, `npx astro check`, and `npm run build` pass in the Cloudflare-targeted project without OpenRouter secrets present.
+- [x] 2.1 `npm run test` passes provider-service cases for five valid candidates, non-retried subsets of one to four, duplicate filtering, zero-result retry, retryable HTTP failures, timeout exhaustion, malformed envelopes, and non-retryable failures. — 01fd360
+- [x] 2.2 `npm run test` passes endpoint and authorization cases for `400`, `401`, `403`, `503`, `502`, `504`, complete success, and partial success without making live OpenRouter calls. — 01fd360
+- [x] 2.3 `npm run lint`, `npx astro check`, and `npm run build` pass in the Cloudflare-targeted project without OpenRouter secrets present. — 01fd360
 
 #### Manual
 
-- [x] 2.4 Against the local server with provider settings absent, an authenticated teacher receives the Polish configuration error while the response and logs expose no secret or raw provider payload.
+- [x] 2.4 Against the local server with provider settings absent, an authenticated teacher receives the Polish configuration error while the response and logs expose no secret or raw provider payload. — 01fd360
 
 ### Phase 3: Deliver the Teacher Request Workflow
 
 #### Automated
 
-- [ ] 3.1 `npm run test` passes session-storage restoration, replacement, clearing, and invalid-version cleanup cases.
-- [ ] 3.2 `npm run smoke` passes the protected page and generation API boundary against the production preview without a live OpenRouter call.
-- [ ] 3.3 `npm run lint`, `npx astro check`, and `npm run build` pass after the complete UI workflow is wired.
+- [x] 3.1 `npm run test` passes session-storage restoration, replacement, clearing, and invalid-version cleanup cases.
+- [x] 3.2 `npm run smoke` passes the protected page and generation API boundary against the production preview without a live OpenRouter call.
+- [x] 3.3 `npm run lint`, `npx astro check`, and `npm run build` pass after the complete UI workflow is wired.
 
 #### Manual
 
-- [ ] 3.4 On desktop and mobile, a teacher can request Grade 4 candidates through a fully Polish interface with no overlapping controls, unstable layout, or inaccessible loading/error state.
-- [ ] 3.5 With a structured-output-capable `OPENROUTER_MODEL` configured, the `workerd` preview returns one to five Polish candidates within the agreed per-attempt timeout and labels every proposed answer `Niezweryfikowane`.
-- [ ] 3.6 Refreshing restores the latest successful batch in the same tab, clearing removes it, and a later failed request leaves the previous successful batch visible.
-- [ ] 3.7 A student profile cannot open the request workflow or invoke its API successfully.
+- [x] 3.4 On desktop and mobile, a teacher can request Grade 4 candidates through a fully Polish interface with no overlapping controls, unstable layout, or inaccessible loading/error state.
+- [x] 3.5 With a structured-output-capable `OPENROUTER_MODEL` configured, the `workerd` preview returns one to five Polish candidates within the agreed per-attempt timeout and labels every proposed answer `Niezweryfikowane`.
+- [x] 3.6 Refreshing restores the latest successful batch in the same tab, clearing removes it, and a later failed request leaves the previous successful batch visible.
+- [x] 3.7 A student profile cannot open the request workflow or invoke its API successfully.
