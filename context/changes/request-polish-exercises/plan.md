@@ -277,13 +277,13 @@ No database migration or persisted-data backfill is required. Local provider val
 
 #### Automated
 
-- [x] 3.1 `npm run test` passes session-storage restoration, replacement, clearing, and invalid-version cleanup cases.
-- [x] 3.2 `npm run smoke` passes the protected page and generation API boundary against the production preview without a live OpenRouter call.
-- [x] 3.3 `npm run lint`, `npx astro check`, and `npm run build` pass after the complete UI workflow is wired.
+- [x] 3.1 `npm run test` passes session-storage restoration, replacement, clearing, and invalid-version cleanup cases. — c6d470b
+- [x] 3.2 `npm run smoke` passes the protected page and generation API boundary against the production preview without a live OpenRouter call. — c6d470b
+- [x] 3.3 `npm run lint`, `npx astro check`, and `npm run build` pass after the complete UI workflow is wired. — c6d470b
 
 #### Manual
 
-- [x] 3.4 On desktop and mobile, a teacher can request Grade 4 candidates through a fully Polish interface with no overlapping controls, unstable layout, or inaccessible loading/error state.
-- [x] 3.5 With a structured-output-capable `OPENROUTER_MODEL` configured, the `workerd` preview returns one to five Polish candidates within the agreed per-attempt timeout and labels every proposed answer `Niezweryfikowane`.
-- [x] 3.6 Refreshing restores the latest successful batch in the same tab, clearing removes it, and a later failed request leaves the previous successful batch visible.
-- [x] 3.7 A student profile cannot open the request workflow or invoke its API successfully.
+- [x] 3.4 On desktop and mobile, a teacher can request Grade 4 candidates through a fully Polish interface with no overlapping controls, unstable layout, or inaccessible loading/error state. — c6d470b
+- [x] 3.5 With a structured-output-capable `OPENROUTER_MODEL` configured, the `workerd` preview returns one to five Polish candidates within the agreed per-attempt timeout and labels every proposed answer `Niezweryfikowane`. — c6d470b
+- [x] 3.6 Refreshing restores the latest successful batch in the same tab, clearing removes it, and a later failed request leaves the previous successful batch visible. — c6d470b
+- [x] 3.7 A student profile cannot open the request workflow or invoke its API successfully. — c6d470b
