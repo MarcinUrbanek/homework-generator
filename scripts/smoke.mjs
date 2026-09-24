@@ -20,7 +20,7 @@ function storeCookies(response) {
   }
 }
 
-async function request(path, { method = "GET", form } = {}) {
+async function request(path, { method = "GET", form, json } = {}) {
   const response = await fetch(BASE_URL + path, {
     method,
     redirect: "manual",
@@ -28,16 +28,29 @@ async function request(path, { method = "GET", form } = {}) {
       Cookie: cookieHeader(),
       Origin: BASE_URL,
       ...(form ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
+      ...(json ? { "Content-Type": "application/json" } : {}),
     },
-    body: form ? new URLSearchParams(form).toString() : undefined,
+    body: form ? new URLSearchParams(form).toString() : json ? JSON.stringify(json) : undefined,
   });
   storeCookies(response);
-  return { status: response.status, location: response.headers.get("location") ?? "" };
+  const responseBody = await response.text();
+  let errorCode = "";
+  try {
+    errorCode = JSON.parse(responseBody).error?.code ?? "";
+  } catch {
+    // Non-JSON page and redirect responses have no API error code.
+  }
+  return { status: response.status, location: response.headers.get("location") ?? "", errorCode };
 }
 
 const steps = [
   ["home renders", () => request("/"), { status: 200 }],
   ["dashboard redirects anonymous user", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
+  [
+    "exercise request redirects anonymous user",
+    () => request("/exercises/request"),
+    { status: 302, location: "/auth/signin" },
+  ],
   [
     "signup creates account",
     () => request("/api/auth/signup", { method: "POST", form: { email, password } }),
@@ -54,6 +67,22 @@ const steps = [
     { status: 302, location: "/" },
   ],
   ["dashboard renders for signed-in user", () => request("/dashboard"), { status: 200 }],
+  ["exercise request renders for teacher", () => request("/exercises/request"), { status: 200 }],
+  [
+    "exercise API rejects invalid metadata",
+    () =>
+      request("/api/exercises/request", { method: "POST", json: { grade: 5, topic: "invalid", difficulty: "easy" } }),
+    { status: 400, errorCode: "INVALID_REQUEST" },
+  ],
+  [
+    "exercise API reports missing provider configuration",
+    () =>
+      request("/api/exercises/request", {
+        method: "POST",
+        json: { grade: 4, topic: "addition-subtraction", difficulty: "easy" },
+      }),
+    { status: 503, errorCode: "PROVIDER_NOT_CONFIGURED" },
+  ],
   ["signout clears session", () => request("/api/auth/signout", { method: "POST" }), { status: 302, location: "/" }],
   ["dashboard redirects after signout", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
 ];
@@ -63,11 +92,12 @@ for (const [name, run, expected] of steps) {
   const actual = await run();
   const ok =
     actual.status === expected.status &&
-    (expected.location === undefined || actual.location.startsWith(expected.location));
-  console.log(`${ok ? "PASS" : "FAIL"}  ${name}  -> ${actual.status} ${actual.location}`);
+    (expected.location === undefined || actual.location.startsWith(expected.location)) &&
+    (expected.errorCode === undefined || actual.errorCode === expected.errorCode);
+  console.log(`${ok ? "PASS" : "FAIL"}  ${name}  -> ${actual.status} ${actual.location || actual.errorCode}`);
   if (!ok) {
     failed++;
-    console.log(`      expected ${expected.status} ${expected.location ?? ""}`);
+    console.log(`      expected ${expected.status} ${expected.location ?? expected.errorCode ?? ""}`);
   }
 }
 
