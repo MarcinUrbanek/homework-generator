@@ -20,6 +20,13 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --warning: oklch(0.43 0.11 70);
+  --warning-foreground: oklch(0.985 0 0);
+  --success: oklch(0.42 0.12 145);
+  --success-foreground: oklch(0.985 0 0);
+  --info: oklch(0.43 0.11 250);
+  --info-foreground: oklch(0.985 0 0);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -38,6 +45,22 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+[data-role="teacher"] {
+  --primary: oklch(0.43 0.105 235);
+  --primary-foreground: oklch(0.985 0 0);
+  --accent: oklch(0.94 0.035 220);
+  --accent-foreground: oklch(0.3 0.075 235);
+  --ring: oklch(0.5 0.12 235);
+}
+
+[data-role="student"] {
+  --primary: oklch(0.41 0.1 155);
+  --primary-foreground: oklch(0.985 0 0);
+  --accent: oklch(0.94 0.04 150);
+  --accent-foreground: oklch(0.28 0.07 155);
+  --ring: oklch(0.48 0.115 155);
+}
+
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -54,6 +77,13 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.18 0.02 250);
+  --warning: oklch(0.82 0.14 80);
+  --warning-foreground: oklch(0.18 0.02 250);
+  --success: oklch(0.78 0.14 145);
+  --success-foreground: oklch(0.18 0.02 250);
+  --info: oklch(0.78 0.11 245);
+  --info-foreground: oklch(0.18 0.02 250);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
@@ -70,6 +100,24 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+.dark [data-role="teacher"],
+[data-role="teacher"].dark {
+  --primary: oklch(0.78 0.1 220);
+  --primary-foreground: oklch(0.18 0.025 235);
+  --accent: oklch(0.3 0.055 230);
+  --accent-foreground: oklch(0.95 0.015 220);
+  --ring: oklch(0.76 0.11 220);
+}
+
+.dark [data-role="student"],
+[data-role="student"].dark {
+  --primary: oklch(0.78 0.12 150);
+  --primary-foreground: oklch(0.18 0.025 235);
+  --accent: oklch(0.3 0.06 155);
+  --accent-foreground: oklch(0.95 0.015 150);
+  --ring: oklch(0.76 0.12 150);
 }
 
 @theme inline {
@@ -92,6 +140,13 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
