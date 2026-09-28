@@ -1,10 +1,10 @@
 ---
 change_id: request-polish-exercises
 title: Request Polish exercise candidates
-status: impl_reviewed
+status: archived
 created: 2026-09-24
 updated: 2026-09-28
-archived_at: null
+archived_at: 2026-09-28T10:33:34Z
 ---
 
 ## Notes
