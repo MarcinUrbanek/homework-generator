@@ -45,6 +45,7 @@ async function request(path, { method = "GET", form, json } = {}) {
 
 const steps = [
   ["home renders", () => request("/"), { status: 200 }],
+  ["development gallery is unavailable", () => request("/dev/ui-exercise-request"), { status: 404 }],
   ["dashboard redirects anonymous user", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
   [
     "exercise request redirects anonymous user",

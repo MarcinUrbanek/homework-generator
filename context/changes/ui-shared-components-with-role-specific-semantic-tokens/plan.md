@@ -252,25 +252,25 @@ No database, API, or persisted browser-state migration is required. Existing raw
 
 #### Automated
 
-- [x] 2.1 `npm run test -- src/components/exercises/RequestExercisesForm.test.tsx` proves submit, loading, error, prior-result preservation, replacement, restoration, and clear behavior, and `npm run test` passes for the complete suite.
-- [x] 2.2 `npm run lint` and `npx astro check` pass for the shared components, Astro page, and React view/controller boundary.
-- [x] 2.3 `npm run build` passes, and `! grep -nE '(bg|text|border|ring|outline|decoration|divide|placeholder|from|via|to)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|white|black)(-|/|[^[:alnum:]_-]|$)' src/pages/exercises/request.astro src/components/exercises/RequestExercisesForm.tsx src/components/exercises/ExerciseRequestView.tsx src/components/exercises/ExerciseCandidateList.tsx` exits successfully with no raw-palette utility matches.
+- [x] 2.1 `npm run test -- src/components/exercises/RequestExercisesForm.test.tsx` proves submit, loading, error, prior-result preservation, replacement, restoration, and clear behavior, and `npm run test` passes for the complete suite. — cf15375
+- [x] 2.2 `npm run lint` and `npx astro check` pass for the shared components, Astro page, and React view/controller boundary. — cf15375
+- [x] 2.3 `npm run build` passes, and `! grep -nE '(bg|text|border|ring|outline|decoration|divide|placeholder|from|via|to)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|white|black)(-|/|[^[:alnum:]_-]|$)' src/pages/exercises/request.astro src/components/exercises/RequestExercisesForm.tsx src/components/exercises/ExerciseRequestView.tsx src/components/exercises/ExerciseCandidateList.tsx` exits successfully with no raw-palette utility matches. — cf15375
 
 #### Manual
 
-- [x] 2.4 A teacher can request, receive, clear, restore, and retry exercise batches with the same Polish behavior and messages as before; loading, error, partial, and prior-result preservation still work.
-- [x] 2.5 Anonymous visitors still redirect to sign-in, non-teachers still receive the denied view, and a direct request-page link renders the correct semantic shell without a role-style flash.
-- [x] 2.6 At desktop and one mobile width, labels, controls, result text, badges, and actions remain readable without overlap or layout shift.
+- [x] 2.4 A teacher can request, receive, clear, restore, and retry exercise batches with the same Polish behavior and messages as before; loading, error, partial, and prior-result preservation still work. — cf15375
+- [x] 2.5 Anonymous visitors still redirect to sign-in, non-teachers still receive the denied view, and a direct request-page link renders the correct semantic shell without a role-style flash. — cf15375
+- [x] 2.6 At desktop and one mobile width, labels, controls, result text, badges, and actions remain readable without overlap or layout shift. — cf15375
 
 ### Phase 3: Render and Verify Every State
 
 #### Automated
 
-- [ ] 3.1 `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` all pass after the gallery and final UI wiring are complete.
-- [ ] 3.2 `npm run smoke` passes against a provider-free production preview and confirms the development-only gallery is unavailable there.
+- [x] 3.1 `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` all pass after the gallery and final UI wiring are complete.
+- [x] 3.2 `npm run smoke` passes against a provider-free production preview and confirms the development-only gallery is unavailable there.
 
 #### Manual
 
-- [ ] 3.3 Retained desktop and mobile screenshots show teacher/student × light/dark specimens and every named default, hover, focus, disabled, error, empty, loading, partial, and populated state.
-- [ ] 3.4 Keyboard order, accessible names, visible focus, and recorded contrast checks satisfy the agreed WCAG AA state gate with no incoherent overlap or clipped text.
-- [ ] 3.5 The migrated production teacher view matches the approved quiet classroom utility direction, while unrelated views remain visually and behaviorally unchanged.
+- [x] 3.3 Retained desktop and mobile screenshots show teacher/student × light/dark specimens and every named default, hover, focus, disabled, error, empty, loading, partial, and populated state.
+- [x] 3.4 Keyboard order, accessible names, visible focus, and recorded contrast checks satisfy the agreed WCAG AA state gate with no incoherent overlap or clipped text.
+- [x] 3.5 The migrated production teacher view matches the approved quiet classroom utility direction, while unrelated views remain visually and behaviorally unchanged.
