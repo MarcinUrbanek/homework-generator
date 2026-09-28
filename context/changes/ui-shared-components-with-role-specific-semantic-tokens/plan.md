@@ -266,11 +266,11 @@ No database, API, or persisted browser-state migration is required. Existing raw
 
 #### Automated
 
-- [x] 3.1 `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` all pass after the gallery and final UI wiring are complete.
-- [x] 3.2 `npm run smoke` passes against a provider-free production preview and confirms the development-only gallery is unavailable there.
+- [x] 3.1 `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` all pass after the gallery and final UI wiring are complete. — ee1c41e
+- [x] 3.2 `npm run smoke` passes against a provider-free production preview and confirms the development-only gallery is unavailable there. — ee1c41e
 
 #### Manual
 
-- [x] 3.3 Retained desktop and mobile screenshots show teacher/student × light/dark specimens and every named default, hover, focus, disabled, error, empty, loading, partial, and populated state.
-- [x] 3.4 Keyboard order, accessible names, visible focus, and recorded contrast checks satisfy the agreed WCAG AA state gate with no incoherent overlap or clipped text.
-- [x] 3.5 The migrated production teacher view matches the approved quiet classroom utility direction, while unrelated views remain visually and behaviorally unchanged.
+- [x] 3.3 Retained desktop and mobile screenshots show teacher/student × light/dark specimens and every named default, hover, focus, disabled, error, empty, loading, partial, and populated state. — ee1c41e
+- [x] 3.4 Keyboard order, accessible names, visible focus, and recorded contrast checks satisfy the agreed WCAG AA state gate with no incoherent overlap or clipped text. — ee1c41e
+- [x] 3.5 The migrated production teacher view matches the approved quiet classroom utility direction, while unrelated views remain visually and behaviorally unchanged. — ee1c41e
