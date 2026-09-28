@@ -197,7 +197,9 @@ If no warnings were queued and no repoint mapping is proposed, skip the prompt a
 
    Skip this step entirely if `git` is unavailable or the repo is not a git repo (the pre-flight already warned).
 
-7. **Print confirmation**:
+7. **Synchronize the GitHub issue.** Run the single-item procedure in [`../10x-github-issue/SKILL.md`](../10x-github-issue/SKILL.md) after the roadmap close and archive commit. This is a required attempt when the archived Change ID maps to a roadmap item. A failure never rolls back the archive or commit; report `GitHub sync: failed - <reason>` in the confirmation.
+
+8. **Print confirmation**:
 
 ```
 ✓ Archived <change-id>

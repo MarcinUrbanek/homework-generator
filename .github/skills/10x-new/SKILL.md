@@ -93,6 +93,8 @@ archived_at: null
 <notes-body>
 ```
 
+5. **Create or synchronize the mapped GitHub issue immediately.** If the Change ID matches an item in `context/foundation/roadmap.md`, run the `<change-id> --create-missing` procedure in [`../10x-github-issue/SKILL.md`](../10x-github-issue/SKILL.md). This required attempt creates the issue when absent, records that the slice was selected, and preserves the roadmap-derived body status. Include the issue URL in the confirmation. If sync fails, keep the valid local change folder and report `GitHub sync: failed - <reason>`; never roll back creation. If the Change ID has no roadmap match, print `GitHub issue: skipped - change is not a roadmap item.`
+
 `<YYYY-MM-DD>` is today's date (use `date +%Y-%m-%d`).
 
 See `reference/change-md.md` for the full schema reference (allowed status values, transitions, what is intentionally NOT in `change.md`).
@@ -117,6 +119,7 @@ Then display:
 
 ```
 ✓ Created context/changes/<change-id>/change.md (status: new)
+GitHub issue: <created|synchronized|skipped> <issue-url when available>
 
 Next step:
   → <NEXT_CMD>  (✓ copied to clipboard)
