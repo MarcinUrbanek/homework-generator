@@ -18,7 +18,7 @@ const baseConfig = defineConfig({
   languageOptions: {
     parserOptions: {
       projectService: {
-        allowDefaultProject: [".github/skills/10x-plan/scripts/*.mjs"],
+        allowDefaultProject: [".github/skills/*/scripts/*.mjs"],
       },
       tsconfigRootDir: import.meta.dirname,
     },
@@ -79,8 +79,8 @@ const scriptsConfig = defineConfig({
   rules: { "no-console": "off" },
 });
 
-const planSkillScriptsConfig = defineConfig({
-  files: [".github/skills/10x-plan/scripts/*.mjs"],
+const skillScriptsConfig = defineConfig({
+  files: [".github/skills/*/scripts/*.mjs"],
   extends: [tseslint.configs.disableTypeChecked],
   languageOptions: {
     globals: {
@@ -104,5 +104,5 @@ export default defineConfig(
   astroConfig,
   scriptsConfig,
   eslintPluginPrettier,
-  planSkillScriptsConfig,
+  skillScriptsConfig,
 );
