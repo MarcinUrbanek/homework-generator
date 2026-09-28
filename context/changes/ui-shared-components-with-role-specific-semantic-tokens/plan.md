@@ -240,27 +240,27 @@ No database, API, or persisted browser-state migration is required. Existing raw
 
 #### Automated
 
-- [x] 1.1 `npx prettier --check src/styles/global.css context/changes/ui-shared-components-with-role-specific-semantic-tokens/ui-contract.md` passes.
-- [x] 1.2 `npm run build` compiles every new semantic utility for the Cloudflare SSR target.
+- [x] 1.1 `npx prettier --check src/styles/global.css context/changes/ui-shared-components-with-role-specific-semantic-tokens/ui-contract.md` passes. — d9fc90e
+- [x] 1.2 `npm run build` compiles every new semantic utility for the Cloudflare SSR target. — d9fc90e
 
 #### Manual
 
-- [x] 1.3 The UI contract records all four role/mode value sets, source attribution, charge dispositions, and role-neutral status meanings without unresolved placeholders.
-- [x] 1.4 Each documented foreground/background and focus-ring pair meets the agreed WCAG AA target in both modes.
+- [x] 1.3 The UI contract records all four role/mode value sets, source attribution, charge dispositions, and role-neutral status meanings without unresolved placeholders. — d9fc90e
+- [x] 1.4 Each documented foreground/background and focus-ring pair meets the agreed WCAG AA target in both modes. — d9fc90e
 
 ### Phase 2: Publish Primitives and Migrate the Teacher View
 
 #### Automated
 
-- [ ] 2.1 `npm run test -- src/components/exercises/RequestExercisesForm.test.tsx` proves submit, loading, error, prior-result preservation, replacement, restoration, and clear behavior, and `npm run test` passes for the complete suite.
-- [ ] 2.2 `npm run lint` and `npx astro check` pass for the shared components, Astro page, and React view/controller boundary.
-- [ ] 2.3 `npm run build` passes, and `! grep -nE '(bg|text|border|ring|outline|decoration|divide|placeholder|from|via|to)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|white|black)(-|/|[^[:alnum:]_-]|$)' src/pages/exercises/request.astro src/components/exercises/RequestExercisesForm.tsx src/components/exercises/ExerciseRequestView.tsx src/components/exercises/ExerciseCandidateList.tsx` exits successfully with no raw-palette utility matches.
+- [x] 2.1 `npm run test -- src/components/exercises/RequestExercisesForm.test.tsx` proves submit, loading, error, prior-result preservation, replacement, restoration, and clear behavior, and `npm run test` passes for the complete suite.
+- [x] 2.2 `npm run lint` and `npx astro check` pass for the shared components, Astro page, and React view/controller boundary.
+- [x] 2.3 `npm run build` passes, and `! grep -nE '(bg|text|border|ring|outline|decoration|divide|placeholder|from|via|to)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|white|black)(-|/|[^[:alnum:]_-]|$)' src/pages/exercises/request.astro src/components/exercises/RequestExercisesForm.tsx src/components/exercises/ExerciseRequestView.tsx src/components/exercises/ExerciseCandidateList.tsx` exits successfully with no raw-palette utility matches.
 
 #### Manual
 
-- [ ] 2.4 A teacher can request, receive, clear, restore, and retry exercise batches with the same Polish behavior and messages as before; loading, error, partial, and prior-result preservation still work.
-- [ ] 2.5 Anonymous visitors still redirect to sign-in, non-teachers still receive the denied view, and a direct request-page link renders the correct semantic shell without a role-style flash.
-- [ ] 2.6 At desktop and one mobile width, labels, controls, result text, badges, and actions remain readable without overlap or layout shift.
+- [x] 2.4 A teacher can request, receive, clear, restore, and retry exercise batches with the same Polish behavior and messages as before; loading, error, partial, and prior-result preservation still work.
+- [x] 2.5 Anonymous visitors still redirect to sign-in, non-teachers still receive the denied view, and a direct request-page link renders the correct semantic shell without a role-style flash.
+- [x] 2.6 At desktop and one mobile width, labels, controls, result text, badges, and actions remain readable without overlap or layout shift.
 
 ### Phase 3: Render and Verify Every State
 
