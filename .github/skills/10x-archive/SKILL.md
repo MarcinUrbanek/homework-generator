@@ -197,7 +197,7 @@ If no warnings were queued and no repoint mapping is proposed, skip the prompt a
 
    Skip this step entirely if `git` is unavailable or the repo is not a git repo (the pre-flight already warned).
 
-7. **Synchronize the GitHub issue.** Run the single-item procedure in [`../10x-github-issue/SKILL.md`](../10x-github-issue/SKILL.md) after the roadmap close and archive commit. This is a required attempt when the archived Change ID maps to a roadmap item. A failure never rolls back the archive or commit; report `GitHub sync: failed - <reason>` in the confirmation.
+7. **Create or synchronize the GitHub issue.** Run the `<change-id> --create-missing` single-item procedure in [`../10x-github-issue/SKILL.md`](../10x-github-issue/SKILL.md) after the roadmap close and archive commit. This is required for mapped and standalone changes; a missing standalone issue is created with the next `CH-NN` and immediately reconciled to `Done`. A failure never rolls back the archive or commit; report `GitHub sync: failed - <reason>` in the confirmation.
 
 8. **Print confirmation**:
 
