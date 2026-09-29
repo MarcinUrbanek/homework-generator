@@ -1,6 +1,13 @@
 import { z } from "zod";
 
-import { EXERCISE_DIFFICULTIES, EXERCISE_GENERATION_ERROR_CODES, EXERCISE_TOPIC_SLUGS } from "@/types";
+import {
+  EXERCISE_APPROVAL_ERROR_CODES,
+  EXERCISE_DIFFICULTIES,
+  EXERCISE_GENERATION_ERROR_CODES,
+  EXERCISE_TOPIC_SLUGS,
+  EXERCISE_VERIFICATION_ERROR_CODES,
+  EXERCISE_VERIFICATION_PROVIDER_ERROR_CODES,
+} from "@/types";
 
 export const exerciseTopicSlugSchema = z.enum(EXERCISE_TOPIC_SLUGS);
 export const exerciseDifficultySchema = z.enum(EXERCISE_DIFFICULTIES);
@@ -76,5 +83,176 @@ export const exerciseGenerationErrorSchema = z
         message: z.string().trim().min(1),
       })
       .strict(),
+  })
+  .strict();
+
+const uuidSchema = z.uuid();
+const nonEmptyStringSchema = z.string().trim().min(1);
+
+export const exerciseVerificationRequestSchema = z
+  .object({
+    candidates: z.array(exerciseCandidateSchema).min(1).max(5),
+  })
+  .strict()
+  .superRefine(({ candidates }, context) => {
+    const candidateIds = candidates.map(({ id }) => id);
+    if (new Set(candidateIds).size !== candidateIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["candidates"],
+        message: "Candidate IDs must be distinct",
+      });
+    }
+  });
+
+const persistedExerciseVerificationBaseSchema = z.object({
+  verificationId: uuidSchema,
+  candidateId: nonEmptyStringSchema,
+  rationale: nonEmptyStringSchema,
+  verifierIdentity: nonEmptyStringSchema,
+  verifierVersion: nonEmptyStringSchema,
+  verifiedAt: z.iso.datetime({ offset: true }),
+});
+
+export const persistedExerciseVerificationSchema = z.discriminatedUnion("outcome", [
+  persistedExerciseVerificationBaseSchema
+    .extend({
+      outcome: z.literal("unique_answer"),
+      verifiedAnswer: nonEmptyStringSchema,
+    })
+    .strict(),
+  persistedExerciseVerificationBaseSchema
+    .extend({
+      outcome: z.literal("answer_mismatch"),
+      verifiedAnswer: nonEmptyStringSchema,
+    })
+    .strict(),
+  persistedExerciseVerificationBaseSchema
+    .extend({
+      outcome: z.literal("not_unique_answer"),
+      verifiedAnswer: z.null(),
+    })
+    .strict(),
+]);
+
+export const indeterminateExerciseVerificationSchema = z
+  .object({
+    candidateId: nonEmptyStringSchema,
+    outcome: z.literal("indeterminate"),
+    error: z
+      .object({
+        code: z.enum(EXERCISE_VERIFICATION_PROVIDER_ERROR_CODES),
+        message: nonEmptyStringSchema,
+      })
+      .strict(),
+  })
+  .strict();
+
+export const exerciseVerificationResultSchema = z.discriminatedUnion("outcome", [
+  ...persistedExerciseVerificationSchema.options,
+  indeterminateExerciseVerificationSchema,
+]);
+
+export const exerciseVerificationSuccessSchema = z
+  .object({
+    results: z.array(exerciseVerificationResultSchema).min(1).max(5),
+  })
+  .strict()
+  .superRefine(({ results }, context) => {
+    const candidateIds = results.map(({ candidateId }) => candidateId);
+    if (new Set(candidateIds).size !== candidateIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["results"],
+        message: "Verification result candidate IDs must be distinct",
+      });
+    }
+  });
+
+export const exerciseVerificationErrorSchema = z
+  .object({
+    error: z
+      .object({
+        code: z.enum(EXERCISE_VERIFICATION_ERROR_CODES),
+        message: nonEmptyStringSchema,
+      })
+      .strict(),
+  })
+  .strict();
+
+export const exerciseApprovalRequestSchema = z
+  .object({
+    verificationIds: z.array(uuidSchema).min(1).max(5),
+  })
+  .strict()
+  .superRefine(({ verificationIds }, context) => {
+    if (new Set(verificationIds).size !== verificationIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["verificationIds"],
+        message: "Verification IDs must be distinct",
+      });
+    }
+  });
+
+export const exerciseApprovalMappingSchema = z
+  .object({
+    verificationId: uuidSchema,
+    exerciseId: uuidSchema,
+    created: z.boolean(),
+  })
+  .strict();
+
+export const exerciseApprovalSuccessSchema = z
+  .object({
+    mappings: z.array(exerciseApprovalMappingSchema).min(1).max(5),
+  })
+  .strict();
+
+export const exerciseApprovalErrorSchema = z
+  .object({
+    error: z
+      .object({
+        code: z.enum(EXERCISE_APPROVAL_ERROR_CODES),
+        message: nonEmptyStringSchema,
+      })
+      .strict(),
+  })
+  .strict();
+
+export const exerciseVerificationLedgerRowSchema = z
+  .object({
+    id: uuidSchema,
+    teacher_id: uuidSchema,
+    candidate_id: nonEmptyStringSchema,
+    candidate_text: nonEmptyStringSchema,
+    proposed_canonical_answer: nonEmptyStringSchema,
+    grade: z.literal("4"),
+    topic: exerciseTopicSlugSchema,
+    difficulty: exerciseDifficultySchema,
+    outcome: z.enum(["unique_answer", "answer_mismatch", "not_unique_answer"]),
+    verified_answer: nonEmptyStringSchema.nullable(),
+    verifier_identity: nonEmptyStringSchema,
+    verifier_version: nonEmptyStringSchema,
+    verified_at: z.iso.datetime({ offset: true }),
+    rationale: nonEmptyStringSchema,
+  })
+  .strict()
+  .superRefine((row, context) => {
+    const requiresAnswer = row.outcome === "unique_answer" || row.outcome === "answer_mismatch";
+    if (requiresAnswer !== (row.verified_answer !== null)) {
+      context.addIssue({
+        code: "custom",
+        path: ["verified_answer"],
+        message: "Verified answer must match the verification outcome",
+      });
+    }
+  });
+
+export const exerciseApprovalRpcRowSchema = z
+  .object({
+    verification_id: uuidSchema,
+    exercise_id: uuidSchema,
+    created: z.boolean(),
   })
   .strict();
