@@ -139,8 +139,7 @@ select throws_ok(
   'Verification evidence cannot be incomplete'
 );
 
-set local role authenticated;
-select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
+set local role service_role;
 
 select lives_ok(
   $$insert into public.exercises (
@@ -152,7 +151,7 @@ select lives_ok(
       'One answer was found.', '00000000-0000-0000-0000-000000000001',
       '00000000-0000-0000-0000-000000000001'
     )$$,
-  'A teacher can store complete verified evidence'
+  'The trusted server can store complete verified evidence'
 );
 
 select is(
@@ -208,8 +207,7 @@ select ok(
 );
 
 reset role;
-set local role authenticated;
-select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
+set local role service_role;
 
 select lives_ok(
   $$insert into public.exercises (
@@ -221,8 +219,12 @@ select lives_ok(
       'The correction has one answer.', '00000000-0000-0000-0000-000000000001',
       '00000000-0000-0000-0000-000000000001'
     )$$,
-  'A correction can be stored as a freshly verified exercise'
+  'The trusted server can store a correction as freshly verified evidence'
 );
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
 
 select is(
   (select count(*) from public.exercises where exercise_text = '3 + 3 = ?'),

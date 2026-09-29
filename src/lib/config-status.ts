@@ -1,4 +1,11 @@
-import { OPENROUTER_API_KEY, OPENROUTER_MODEL, SUPABASE_URL, SUPABASE_KEY } from "astro:env/server";
+import {
+  OPENROUTER_API_KEY,
+  OPENROUTER_MODEL,
+  OPENROUTER_VERIFIER_MODEL,
+  SUPABASE_SERVICE_ROLE_KEY,
+  SUPABASE_URL,
+  SUPABASE_KEY,
+} from "astro:env/server";
 
 export interface ConfigStatus {
   name: string;
@@ -20,6 +27,11 @@ export const configStatuses: ConfigStatus[] = [
     name: "OpenRouter",
     configured: Boolean(OPENROUTER_API_KEY && OPENROUTER_MODEL),
     message: "OpenRouter nie jest skonfigurowany — generowanie zadań jest wyłączone.",
+  },
+  {
+    name: "Weryfikacja zadań",
+    configured: Boolean(OPENROUTER_API_KEY && OPENROUTER_VERIFIER_MODEL && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
+    message: "Weryfikacja zadań nie jest skonfigurowana — zatwierdzanie zadań jest wyłączone.",
   },
 ];
 
