@@ -316,25 +316,25 @@ The version-1 session payload is migrated locally to version 2 as an unverified 
 
 #### Automated
 
-- [x] 1.1 `npx supabase db reset` applies the verification ledger, legacy-compatible provenance link, grants, RLS, and approval function to a clean local database.
-- [x] 1.2 `npm run db:test` proves trusted ledger writes, ownership isolation, atomic rollback, exact evidence promotion, idempotent replay, concurrent-overlap behavior, and inherited approved-exercise immutability.
-- [x] 1.3 `npm run test`, `npm run lint`, and `npx astro check` pass with the new configuration and server-client contracts.
+- [x] 1.1 `npx supabase db reset` applies the verification ledger, legacy-compatible provenance link, grants, RLS, and approval function to a clean local database. — 68c32ee
+- [x] 1.2 `npm run db:test` proves trusted ledger writes, ownership isolation, atomic rollback, exact evidence promotion, idempotent replay, concurrent-overlap behavior, and inherited approved-exercise immutability. — 68c32ee
+- [x] 1.3 `npm run test`, `npm run lint`, and `npx astro check` pass with the new configuration and server-client contracts. — 68c32ee
 
 #### Manual
 
-- [x] 1.4 In local Supabase Studio, confirm an existing F-01 exercise remains valid without provenance, a new S-02 exercise links to one immutable verification record, and an authenticated browser client cannot insert or alter that record.
+- [x] 1.4 In local Supabase Studio, confirm an existing F-01 exercise remains valid without provenance, a new S-02 exercise links to one immutable verification record, and an authenticated browser client cannot insert or alter that record. — 68c32ee
 
 ### Phase 2: Build Verification and Approval APIs
 
 #### Automated
 
-- [ ] 2.1 `npm run test -- src/lib/exercises/answer-normalization.test.ts src/lib/services/openrouter-exercise-verifier.test.ts` proves conservative normalization, unique matches, mismatches, non-unique answers, malformed responses, HTTP failures, and timeout behavior without live provider calls.
-- [ ] 2.2 `npm run test -- src/pages/api/exercises/verify.test.ts src/pages/api/exercises/approve.test.ts` proves validation-before-auth, teacher authorization, missing configuration, mixed settled/indeterminate verification, trusted recording, conflicting candidate replay, eligible approval, atomic failure mapping, and idempotent response handling.
-- [ ] 2.3 `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` pass without OpenRouter or service-role secrets present at build time.
+- [x] 2.1 `npm run test -- src/lib/exercises/answer-normalization.test.ts src/lib/services/openrouter-exercise-verifier.test.ts` proves conservative normalization, unique matches, mismatches, non-unique answers, malformed responses, HTTP failures, and timeout behavior without live provider calls.
+- [x] 2.2 `npm run test -- src/pages/api/exercises/verify.test.ts src/pages/api/exercises/approve.test.ts` proves validation-before-auth, teacher authorization, missing configuration, mixed settled/indeterminate verification, trusted recording, conflicting candidate replay, eligible approval, atomic failure mapping, and idempotent response handling.
+- [x] 2.3 `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` pass without OpenRouter or service-role secrets present at build time.
 
 #### Manual
 
-- [ ] 2.4 With a dedicated verifier model configured in local `workerd`, verify a batch containing a matching answer, a deliberate mismatch, and an ambiguous exercise; confirm the Polish evidence is concise, only the matching result is eligible, ledger identity/version fields name the actual strategy/model, and logs expose no prompts, answers, or secrets.
+- [x] 2.4 With a dedicated verifier model configured in local `workerd`, verify a batch containing a matching answer, a deliberate mismatch, and an ambiguous exercise; confirm the Polish evidence is concise, only the matching result is eligible, ledger identity/version fields name the actual strategy/model, and logs expose no prompts, answers, or secrets.
 
 ### Phase 3: Deliver the Batch Review Workflow
 
