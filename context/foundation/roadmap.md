@@ -3,7 +3,7 @@ project: "Homework generator"
 version: 1
 status: draft
 created: 2026-09-21
-updated: 2026-09-29
+updated: 2026-09-30
 prd_version: 1
 main_goal: market-feedback
 top_blocker: time
@@ -43,7 +43,7 @@ Primary-school classroom math teachers in Poland need many distinct exercises at
 | ---- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------- | ----------------------------- | -------- |
 | F-01 | verified-exercise-persistence | (foundation) approved exercises and their answer, grade, topic, and difficulty evidence can be stored and checked safely | —             | FR-006, FR-008, FR-009        | done |
 | S-01 | request-polish-exercises      | teacher can choose a supported grade, topic, and difficulty and receive Polish exercise candidates                       | —             | FR-004, FR-005, FR-007        | done |
-| S-02 | approve-first-exercise-pool   | teacher can verify a batch, approve valid exercises, and save the first exercise pool                                    | F-01, S-01    | FR-006, FR-007, FR-008        | in-progress |
+| S-02 | approve-first-exercise-pool   | teacher can verify a batch, approve valid exercises, and save the first exercise pool                                    | F-01, S-01    | FR-006, FR-007, FR-008        | done |
 | S-03 | reuse-saved-exercises         | teacher can find and reuse approved exercises by grade and topic                                                         | S-02          | FR-009                        | proposed |
 | S-04 | invite-students-to-class      | teacher can sign in, create a class, and invite students by email                                                        | —             | FR-001, FR-002                | blocked  |
 | S-05 | join-teacher-managed-class    | student can sign in and join a class through a code or direct invitation link                                            | S-04          | FR-001, FR-003                | proposed |
@@ -111,7 +111,7 @@ What's already in place in the codebase as of `2026-09-21` (auto-researched and 
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** Automated answer verification can create false confidence; teacher approval remains the final gate before reuse or assignment.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-03: Reuse saved exercises
 
@@ -213,3 +213,4 @@ What's already in place in the codebase as of `2026-09-21` (auto-researched and 
 ## Done
 - **F-01: (foundation) approved exercises and their answer, grade, topic, and difficulty evidence can be stored and checked safely** — Archived 2026-09-23 → `context/archive/2026-09-23-verified-exercise-persistence/`. Lesson: —.
 - **S-01: teacher can choose a supported grade, topic, and difficulty and receive Polish exercise candidates** — Archived 2026-09-28 → `context/archive/2026-09-24-request-polish-exercises/`. Lesson: —.
+- **S-02: teacher can verify a batch, approve valid exercises, and save the first exercise pool** — Archived 2026-09-30 → `context/archive/2026-09-29-approve-first-exercise-pool/`. Lesson: —.
