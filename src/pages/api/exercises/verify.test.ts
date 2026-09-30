@@ -227,7 +227,7 @@ describe("POST /api/exercises/verify", () => {
     expect(record).toHaveBeenCalledWith(expect.anything(), teacherId, candidate, evidence);
   });
 
-  it("does not return unrecorded settled evidence when trusted persistence fails", async () => {
+  it("reports an unrecorded candidate as indeterminate when trusted persistence fails", async () => {
     const recordImplementation = (): Promise<ReturnType<typeof ledgerRow>> => {
       return Promise.reject(new Error("database details"));
     };
@@ -235,12 +235,14 @@ describe("POST /api/exercises/verify", () => {
 
     const response = await invoke(handler);
 
-    expect(response.status).toBe(500);
-    expect(await responseBody<ExerciseVerificationError>(response)).toEqual({
-      error: {
-        code: "PERSISTENCE_FAILURE",
-        message: "Nie udało się zapisać wyniku weryfikacji. Spróbuj ponownie później.",
-      },
-    });
+    expect(response.status).toBe(200);
+    const body = await responseBody<{ results: { outcome: string; error?: { code: string; message: string } }[] }>(
+      response,
+    );
+    expect(body.results.length).toBeGreaterThan(0);
+    for (const result of body.results) {
+      expect(result.outcome).toBe("indeterminate");
+      expect(result.error?.message).not.toContain("database details");
+    }
   });
 });
