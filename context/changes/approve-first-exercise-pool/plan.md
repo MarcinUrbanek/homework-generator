@@ -328,25 +328,25 @@ The version-1 session payload is migrated locally to version 2 as an unverified 
 
 #### Automated
 
-- [x] 2.1 `npm run test -- src/lib/exercises/answer-normalization.test.ts src/lib/services/openrouter-exercise-verifier.test.ts` proves conservative normalization, unique matches, mismatches, non-unique answers, malformed responses, HTTP failures, and timeout behavior without live provider calls.
-- [x] 2.2 `npm run test -- src/pages/api/exercises/verify.test.ts src/pages/api/exercises/approve.test.ts` proves validation-before-auth, teacher authorization, missing configuration, mixed settled/indeterminate verification, trusted recording, conflicting candidate replay, eligible approval, atomic failure mapping, and idempotent response handling.
-- [x] 2.3 `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` pass without OpenRouter or service-role secrets present at build time.
+- [x] 2.1 `npm run test -- src/lib/exercises/answer-normalization.test.ts src/lib/services/openrouter-exercise-verifier.test.ts` proves conservative normalization, unique matches, mismatches, non-unique answers, malformed responses, HTTP failures, and timeout behavior without live provider calls. — 955f2c3
+- [x] 2.2 `npm run test -- src/pages/api/exercises/verify.test.ts src/pages/api/exercises/approve.test.ts` proves validation-before-auth, teacher authorization, missing configuration, mixed settled/indeterminate verification, trusted recording, conflicting candidate replay, eligible approval, atomic failure mapping, and idempotent response handling. — 955f2c3
+- [x] 2.3 `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` pass without OpenRouter or service-role secrets present at build time. — 955f2c3
 
 #### Manual
 
-- [x] 2.4 With a dedicated verifier model configured in local `workerd`, verify a batch containing a matching answer, a deliberate mismatch, and an ambiguous exercise; confirm the Polish evidence is concise, only the matching result is eligible, ledger identity/version fields name the actual strategy/model, and logs expose no prompts, answers, or secrets.
+- [x] 2.4 With a dedicated verifier model configured in local `workerd`, verify a batch containing a matching answer, a deliberate mismatch, and an ambiguous exercise; confirm the Polish evidence is concise, only the matching result is eligible, ledger identity/version fields name the actual strategy/model, and logs expose no prompts, answers, or secrets. — 955f2c3
 
 ### Phase 3: Deliver the Batch Review Workflow
 
 #### Automated
 
-- [ ] 3.1 `npm run test -- src/components/hooks/use-session-exercise-batch.test.ts` proves version-1 migration, version-2 evidence/selection restoration, invalid-state cleanup, targeted result replacement, and exact saved-candidate removal.
-- [ ] 3.2 `npm run test -- src/components/exercises/RequestExercisesForm.test.tsx` proves explicit verification, granular mixed results, indeterminate-only retry, successful-only selection, mutation lockout, atomic save failure preservation, idempotent success handling, and remainder retention.
-- [ ] 3.3 `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` pass after the production view and gallery fixtures are wired.
+- [x] 3.1 `npm run test -- src/components/hooks/use-session-exercise-batch.test.ts` proves version-1 migration, version-2 evidence/selection restoration, invalid-state cleanup, targeted result replacement, and exact saved-candidate removal.
+- [x] 3.2 `npm run test -- src/components/exercises/RequestExercisesForm.test.tsx` proves explicit verification, granular mixed results, indeterminate-only retry, successful-only selection, mutation lockout, atomic save failure preservation, idempotent success handling, and remainder retention.
+- [x] 3.3 `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` pass after the production view and gallery fixtures are wired.
 
 #### Manual
 
-- [ ] 3.4 At desktop and mobile widths, keyboard-only and pointer users can verify, inspect evidence, select an eligible subset, recover an indeterminate result, save, and continue with the remainder without clipped text, overlapping controls, unclear disabled states, or lost focus/status announcements.
+- [x] 3.4 At desktop and mobile widths, keyboard-only and pointer users can verify, inspect evidence, select an eligible subset, recover an indeterminate result, save, and continue with the remainder without clipped text, overlapping controls, unclear disabled states, or lost focus/status announcements.
 
 ### Phase 4: Verify the North-Star Flow
 
