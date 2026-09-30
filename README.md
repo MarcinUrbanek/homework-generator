@@ -197,6 +197,26 @@ For a manual live-provider check, sign in with a teacher profile, open `/exercis
 
 For deployment, provision `OPENROUTER_API_KEY` as a Cloudflare secret and `OPENROUTER_MODEL` as a server-only environment value. Do not add real provider credentials to committed files or CI variables used by the smoke job.
 
+## Exercise verification and approval
+
+Verification runs server-side with a dedicated model and writes the immutable ledger through a service-role client. Add these to `.dev.vars` (never commit real values):
+
+```dotenv
+SUPABASE_SERVICE_ROLE_KEY=<service_role key from `npx supabase status`>
+OPENROUTER_VERIFIER_MODEL=<structured-output-capable model identifier>
+```
+
+Verification reports `VERIFIER_NOT_CONFIGURED` unless `OPENROUTER_API_KEY`, `OPENROUTER_VERIFIER_MODEL`, `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are all set. Both new values are server-only and optional at build time; provision them as Cloudflare secrets for deployment.
+
+Database reset and tests (requires Docker):
+
+```bash
+npx supabase db reset
+npm run db:test
+```
+
+Live-check prerequisites: local Supabase running, a teacher profile, and the four values above. Generate a batch, run `Zweryfikuj zestaw`, select successful candidates, and `Zatwierdź i zapisz`. Record results in `context/changes/approve-first-exercise-pool/manual-verification.md`.
+
 ## Smoke test
 
 `scripts/smoke.mjs` is a dependency-free Node script that walks the auth flow and the protected exercise-request boundary over HTTP. Run it against a server with local Supabase and without OpenRouter values so it verifies the typed missing-configuration response without making a paid provider call:

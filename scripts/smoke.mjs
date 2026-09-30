@@ -43,6 +43,17 @@ async function request(path, { method = "GET", form, json } = {}) {
   return { status: response.status, location: response.headers.get("location") ?? "", errorCode };
 }
 
+const smokeCandidate = {
+  id: "smoke-candidate-1",
+  grade: 4,
+  topic: "addition-subtraction",
+  difficulty: "easy",
+  text: "Ile to jest 2 + 2?",
+  proposedCanonicalAnswer: "4",
+  approvalStatus: "unverified",
+};
+const smokeVerificationId = "00000000-0000-4000-8000-000000000001";
+
 const steps = [
   ["home renders", () => request("/"), { status: 200 }],
   ["development gallery is unavailable", () => request("/dev/ui-exercise-request"), { status: 404 }],
@@ -51,6 +62,16 @@ const steps = [
     "exercise request redirects anonymous user",
     () => request("/exercises/request"),
     { status: 302, location: "/auth/signin" },
+  ],
+  [
+    "verification API rejects anonymous user",
+    () => request("/api/exercises/verify", { method: "POST", json: { candidates: [smokeCandidate] } }),
+    { status: 401, errorCode: "UNAUTHENTICATED" },
+  ],
+  [
+    "approval API rejects anonymous user",
+    () => request("/api/exercises/approve", { method: "POST", json: { verificationIds: [smokeVerificationId] } }),
+    { status: 401, errorCode: "UNAUTHENTICATED" },
   ],
   [
     "signup creates account",
@@ -74,6 +95,21 @@ const steps = [
     () =>
       request("/api/exercises/request", { method: "POST", json: { grade: 5, topic: "invalid", difficulty: "easy" } }),
     { status: 400, errorCode: "INVALID_REQUEST" },
+  ],
+  [
+    "verification API rejects invalid request",
+    () => request("/api/exercises/verify", { method: "POST", json: { candidates: [] } }),
+    { status: 400, errorCode: "INVALID_REQUEST" },
+  ],
+  [
+    "approval API rejects invalid request",
+    () => request("/api/exercises/approve", { method: "POST", json: { verificationIds: ["not-a-uuid"] } }),
+    { status: 400, errorCode: "INVALID_REQUEST" },
+  ],
+  [
+    "verification API reports missing verifier configuration",
+    () => request("/api/exercises/verify", { method: "POST", json: { candidates: [smokeCandidate] } }),
+    { status: 503, errorCode: "VERIFIER_NOT_CONFIGURED" },
   ],
   [
     "exercise API reports missing provider configuration",

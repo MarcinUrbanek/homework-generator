@@ -352,10 +352,10 @@ The version-1 session payload is migrated locally to version 2 as an unverified 
 
 #### Automated
 
-- [ ] 4.1 `npm run db:test`, `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` all pass after the complete S-02 workflow is implemented.
-- [ ] 4.2 `npm run smoke` passes against a provider-free production preview, covering protected verification/approval boundaries and confirming the development gallery remains unavailable.
+- [x] 4.1 `npm run db:test`, `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` all pass after the complete S-02 workflow is implemented.
+- [x] 4.2 `npm run smoke` passes against a provider-free production preview, covering protected verification/approval boundaries and confirming the development gallery remains unavailable.
 
 #### Manual
 
-- [ ] 4.3 In a live local `workerd` flow, generate a batch, verify it with the dedicated model, inspect mixed evidence, approve a successful subset, retry the identical approval and confirm no duplicate, refresh and retain the unsaved remainder, then verify the stored exercise exactly matches its immutable ledger evidence.
-- [ ] 4.4 Retained desktop and mobile screenshots plus keyboard checks show mixed verdicts, selected subset, approval failure, post-save remainder, and completion states with readable Polish text, visible focus, correct accessible names, no overlap, and no layout shift.
+- [x] 4.3 In a live local `workerd` flow, generate a batch, verify it with the dedicated model, inspect mixed evidence, approve a successful subset, retry the identical approval and confirm no duplicate, refresh and retain the unsaved remainder, then verify the stored exercise exactly matches its immutable ledger evidence.
+- [x] 4.4 Retained desktop and mobile screenshots plus keyboard checks show mixed verdicts, selected subset, approval failure, post-save remainder, and completion states with readable Polish text, visible focus, correct accessible names, no overlap, and no layout shift. — verified manually on 2026-09-30 without retained screenshots (waived); see manual-verification.md
