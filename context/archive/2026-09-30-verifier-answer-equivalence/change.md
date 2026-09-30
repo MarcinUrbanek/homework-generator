@@ -1,10 +1,10 @@
 ---
 change_id: verifier-answer-equivalence
 title: Verifier answer equivalence
-status: impl_reviewed
+status: archived
 created: 2026-09-30
 updated: 2026-09-30
-archived_at: null
+archived_at: 2026-09-30T18:03:27Z
 ---
 
 ## Notes
