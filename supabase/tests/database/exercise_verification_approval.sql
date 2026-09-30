@@ -1,3 +1,8 @@
+create temporary table answer_equivalence_v2_reset_state as
+select
+  (select count(*) from public.exercises) as exercise_count,
+  (select count(*) from public.exercise_verifications) as verification_count;
+
 create temporary table dblink_extension_state (was_installed boolean not null);
 
 insert into dblink_extension_state
@@ -89,7 +94,7 @@ values
     'easy',
     'unique_answer',
     '4',
-    'openrouter-strategy-v1',
+    'OpenRouter/grade-4-independent-answer-set-v2',
     'model-a',
     '2026-09-29 10:00:00+00',
     'Jedyną poprawną odpowiedzią jest 4.'
@@ -105,7 +110,7 @@ values
     'medium',
     'unique_answer',
     '9',
-    'openrouter-strategy-v1',
+    'OpenRouter/grade-4-independent-answer-set-v2',
     'model-a',
     '2026-09-29 10:01:00+00',
     'Jedyną poprawną odpowiedzią jest 9.'
@@ -121,7 +126,7 @@ values
     'hard',
     'unique_answer',
     '7',
-    'openrouter-strategy-v1',
+    'OpenRouter/grade-4-independent-answer-set-v2',
     'model-a',
     '2026-09-29 10:02:00+00',
     'Jedyną poprawną odpowiedzią jest 7.'
@@ -137,7 +142,7 @@ values
     'easy',
     'answer_mismatch',
     '5',
-    'openrouter-strategy-v1',
+    'OpenRouter/grade-4-independent-answer-set-v2',
     'model-a',
     '2026-09-29 10:03:00+00',
     'Poprawną odpowiedzią jest 5, a nie 6.'
@@ -153,7 +158,7 @@ values
     'easy',
     'not_unique_answer',
     null,
-    'openrouter-strategy-v1',
+    'OpenRouter/grade-4-independent-answer-set-v2',
     'model-a',
     '2026-09-29 10:04:00+00',
     'Zadanie dopuszcza wiele poprawnych odpowiedzi.'
@@ -169,7 +174,7 @@ values
     'easy',
     'unique_answer',
     '9',
-    'openrouter-strategy-v1',
+    'OpenRouter/grade-4-independent-answer-set-v2',
     'model-a',
     '2026-09-29 10:05:00+00',
     'Jedyną poprawną odpowiedzią jest 9.'
@@ -185,7 +190,7 @@ values
     'easy',
     'unique_answer',
     '11',
-    'openrouter-strategy-v1',
+    'OpenRouter/grade-4-independent-answer-set-v2',
     'model-a',
     '2026-09-29 10:06:00+00',
     'Jedyną poprawną odpowiedzią jest 11.'
@@ -201,7 +206,7 @@ values
     'easy',
     'unique_answer',
     '12',
-    'openrouter-strategy-v1',
+    'OpenRouter/grade-4-independent-answer-set-v2',
     'model-a',
     '2026-09-29 10:07:00+00',
     'Jedyną poprawną odpowiedzią jest 12.'
@@ -242,7 +247,19 @@ commit;
 
 begin;
 
-select plan(44);
+select plan(46);
+
+select is(
+  (select exercise_count from answer_equivalence_v2_reset_state),
+  0::bigint,
+  'The v2 reset leaves no approved exercises before fixtures'
+);
+
+select is(
+  (select verification_count from answer_equivalence_v2_reset_state),
+  0::bigint,
+  'The v2 reset leaves no verification evidence before fixtures'
+);
 
 select ok(
   to_regclass('public.exercise_verifications') is not null,
@@ -488,7 +505,7 @@ select lives_ok(
       '20000000-0000-0000-0000-000000000009',
       '10000000-0000-0000-0000-000000000001', 'service-authored',
       'Ile to jest 6 + 6?', '12', '4', 'addition-subtraction', 'easy',
-      'unique_answer', '12', 'openrouter-strategy-v1', 'model-a',
+      'unique_answer', '12', 'OpenRouter/grade-4-independent-answer-set-v2', 'model-a',
       '2026-09-29 10:08:00+00', 'Jedyną poprawną odpowiedzią jest 12.'
     )$$,
   'The server service role can author a settled verification result'
@@ -630,7 +647,7 @@ select is(
     from public.exercises
     where verification_id = '20000000-0000-0000-0000-000000000001'
   ),
-  'unique_answer|openrouter-strategy-v1|model-a|2026-09-29 10:00:00+00|Jedyną poprawną odpowiedzią jest 4.',
+  'unique_answer|OpenRouter/grade-4-independent-answer-set-v2|model-a|2026-09-29 10:00:00+00|Jedyną poprawną odpowiedzią jest 4.',
   'Promotion preserves verifier evidence exactly'
 );
 
