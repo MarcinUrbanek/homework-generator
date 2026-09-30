@@ -1,14 +1,15 @@
 import { z } from "zod";
 
-import { normalizeExerciseAnswer } from "@/lib/exercises/answer-normalization";
+import { canonicalizeExerciseAnswerForVerification } from "@/lib/exercises/answer-normalization";
 import type { ExerciseCandidate, ExerciseVerificationEvidence, ExerciseVerificationProviderErrorCode } from "@/types";
 
 const OPENROUTER_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions";
 const DEFAULT_DEADLINE_MS = 20_000;
 const MAX_RATIONALE_LENGTH = 500;
+const CANONICAL_NATURAL_NUMBER_PATTERN = "^(0|[1-9][0-9]*)$";
 
 export const EXERCISE_VERIFIER_IDENTITY = "OpenRouter";
-export const EXERCISE_VERIFICATION_STRATEGY_VERSION = "grade-4-independent-answer-set-v1";
+export const EXERCISE_VERIFICATION_STRATEGY_VERSION = "grade-4-independent-answer-set-v2";
 export const EXERCISE_VERIFIER_LEDGER_IDENTITY = `${EXERCISE_VERIFIER_IDENTITY}/${EXERCISE_VERIFICATION_STRATEGY_VERSION}`;
 
 const providerPayloadSchema = z
@@ -56,7 +57,8 @@ function buildPrompt(candidate: ExerciseCandidate): string {
     "Rozwiąż samodzielnie poniższe zadanie matematyczne dla klasy 4.",
     "Wyznacz pełny zbiór poprawnych odpowiedzi bez korzystania z odpowiedzi zaproponowanej przez autora.",
     "Jeżeli zadanie nie ma jednoznacznej odpowiedzi, zwróć zero albo wszystkie różne poprawne odpowiedzi.",
-    "Uzasadnienie napisz zwięźle po polsku.",
+    "Każdy element validAnswers musi być jedną niepogrupowaną liczbą naturalną zapisaną cyframi dziesiętnymi, bez zdania, etykiety, jednostki, działania ani wyjaśnienia.",
+    "Uzasadnienie napisz zwięźle po polsku i umieść wyłącznie w polu rationale.",
     `Treść zadania: ${candidate.text}`,
     `Temat: ${candidate.topic}. Poziom trudności: ${candidate.difficulty}.`,
     "Zwróć wyłącznie dane zgodne z podanym schematem JSON.",
@@ -67,6 +69,8 @@ function buildRequestBody(candidate: ExerciseCandidate, model: string) {
   return {
     model,
     stream: false,
+    temperature: 0,
+    reasoning: { effort: "low" },
     messages: [{ role: "user", content: buildPrompt(candidate) }],
     response_format: {
       type: "json_schema",
@@ -81,7 +85,7 @@ function buildRequestBody(candidate: ExerciseCandidate, model: string) {
             validAnswers: {
               type: "array",
               maxItems: 10,
-              items: { type: "string", minLength: 1 },
+              items: { type: "string", minLength: 1, pattern: CANONICAL_NATURAL_NUMBER_PATTERN },
             },
             rationale: { type: "string", minLength: 1, maxLength: MAX_RATIONALE_LENGTH },
           },
@@ -120,7 +124,12 @@ function classifyAnswers(
   model: string,
   verifiedAt: string,
 ): ExerciseVerificationEvidence {
-  const normalizedAnswers = [...new Set(validAnswers.map(normalizeExerciseAnswer).filter(Boolean))];
+  const canonicalAnswersByKey = new Map(
+    validAnswers
+      .map(canonicalizeExerciseAnswerForVerification)
+      .filter(({ canonicalAnswer }) => canonicalAnswer.length > 0)
+      .map((answer) => [answer.comparisonKey, answer] as const),
+  );
   const evidence = {
     rationale,
     verifierIdentity: EXERCISE_VERIFIER_LEDGER_IDENTITY,
@@ -128,18 +137,16 @@ function classifyAnswers(
     verifiedAt,
   };
 
-  if (normalizedAnswers.length !== 1) {
+  if (canonicalAnswersByKey.size !== 1) {
     return { ...evidence, outcome: "not_unique_answer", verifiedAnswer: null };
   }
 
-  const [verifiedAnswer] = normalizedAnswers;
+  const [verifiedAnswer] = canonicalAnswersByKey.values();
+  const proposedAnswer = canonicalizeExerciseAnswerForVerification(candidate.proposedCanonicalAnswer);
   return {
     ...evidence,
-    outcome:
-      verifiedAnswer === normalizeExerciseAnswer(candidate.proposedCanonicalAnswer)
-        ? "unique_answer"
-        : "answer_mismatch",
-    verifiedAnswer,
+    outcome: verifiedAnswer.comparisonKey === proposedAnswer.comparisonKey ? "unique_answer" : "answer_mismatch",
+    verifiedAnswer: verifiedAnswer.canonicalAnswer,
   };
 }
 

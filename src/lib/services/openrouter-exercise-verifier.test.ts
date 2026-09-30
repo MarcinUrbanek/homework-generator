@@ -47,7 +47,7 @@ describe("verifyOpenRouterExercise", () => {
       verifierVersion: "test/verifier",
       verifiedAt: "2026-09-29T12:00:00.000Z",
     });
-    expect(EXERCISE_VERIFICATION_STRATEGY_VERSION).toBe("grade-4-independent-answer-set-v1");
+    expect(EXERCISE_VERIFICATION_STRATEGY_VERSION).toBe("grade-4-independent-answer-set-v2");
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     const requestBody = fetchMock.mock.calls[0][1]?.body;
@@ -58,26 +58,74 @@ describe("verifyOpenRouterExercise", () => {
     const body = JSON.parse(requestBody) as {
       model: string;
       stream: boolean;
+      temperature: number;
+      reasoning: { effort: string };
       messages: { content: string }[];
       provider: { require_parameters: boolean };
-      response_format: { json_schema: { strict: boolean } };
+      response_format: {
+        json_schema: {
+          strict: boolean;
+          schema: { properties: { validAnswers: { items: { pattern: string } } } };
+        };
+      };
     };
     expect(body).toMatchObject({
       model: "test/verifier",
       stream: false,
+      temperature: 0,
+      reasoning: { effort: "low" },
       provider: { require_parameters: true },
       response_format: { json_schema: { strict: true } },
     });
     expect(body.messages[0].content).not.toContain(independentCandidate.proposedCanonicalAnswer);
+    expect(body.messages[0].content).toContain("jedną niepogrupowaną liczbą naturalną");
+    expect(body.messages[0].content).toContain("wyłącznie w polu rationale");
+    expect(body.response_format.json_schema.schema.properties.validAnswers.items.pattern).toBe("^(0|[1-9][0-9]*)$");
   });
 
-  it("normalizes and deduplicates equivalent derived answers before matching", async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(providerResponse([" 25. ", "25"]));
+  it("deduplicates grouped variants and persists canonical digits", async () => {
+    const groupedCandidate = { ...candidate, proposedCanonicalAnswer: "1234" };
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(providerResponse(["1 234", "1\u202f234", "1234"]));
 
-    await expect(verifyOpenRouterExercise(candidate, config, { fetch: fetchMock, now })).resolves.toMatchObject({
+    await expect(verifyOpenRouterExercise(groupedCandidate, config, { fetch: fetchMock, now })).resolves.toMatchObject({
       outcome: "unique_answer",
-      verifiedAnswer: "25",
+      verifiedAnswer: "1234",
     });
+  });
+
+  it.each([
+    ["15", "Ania zebrała 15 jabłek"],
+    ["Ania zebrała 15 jabłek", "15"],
+  ])("matches a scalar proposal %s with derived answer %s", async (proposedCanonicalAnswer, derivedAnswer) => {
+    const proseCandidate = { ...candidate, proposedCanonicalAnswer };
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(providerResponse([derivedAnswer]));
+
+    await expect(verifyOpenRouterExercise(proseCandidate, config, { fetch: fetchMock, now })).resolves.toMatchObject({
+      outcome: "unique_answer",
+      verifiedAnswer: "15",
+    });
+  });
+
+  it("does not reduce ambiguous multi-number prose to one scalar", async () => {
+    const proseCandidate = { ...candidate, proposedCanonicalAnswer: "15" };
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(providerResponse(["Ania ma 15 jabłek, a Ola ma 16."]));
+
+    await expect(verifyOpenRouterExercise(proseCandidate, config, { fetch: fetchMock, now })).resolves.toMatchObject({
+      outcome: "answer_mismatch",
+      verifiedAnswer: "ania ma 15 jabłek, a ola ma 16",
+    });
+  });
+
+  it.each(["12 34", "1,5", "1/2", "2 + 2"])("keeps non-equivalent notation %s distinct", async (answer) => {
+    const notationCandidate = { ...candidate, proposedCanonicalAnswer: "1234" };
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(providerResponse([answer]));
+
+    await expect(verifyOpenRouterExercise(notationCandidate, config, { fetch: fetchMock, now })).resolves.toMatchObject(
+      {
+        outcome: "answer_mismatch",
+        verifiedAnswer: answer,
+      },
+    );
   });
 
   it("classifies one different answer as a mismatch", async () => {

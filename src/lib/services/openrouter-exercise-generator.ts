@@ -6,6 +6,7 @@ import type { ExerciseCandidate, ExerciseGenerationRequest } from "@/types";
 const OPENROUTER_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions";
 const REQUESTED_COUNT = 5;
 const DEFAULT_DEADLINE_MS = 30_000;
+const CANONICAL_NATURAL_NUMBER_PATTERN = "^(0|[1-9][0-9]*)$";
 
 const providerCandidateSchema = z
   .object({
@@ -68,6 +69,7 @@ function buildPrompt(request: ExerciseGenerationRequest): string {
     `Temat: ${topic.label}.`,
     `Kryterium trudności: ${topic.guidance[request.difficulty]}`,
     "Każde zadanie musi mieć niepustą treść i jedną proponowaną odpowiedź kanoniczną.",
+    "Odpowiedź kanoniczna musi być jedną niepogrupowaną liczbą naturalną zapisaną cyframi dziesiętnymi, bez zdania, etykiety, jednostki, działania ani wyjaśnienia.",
     "Zwróć wyłącznie dane zgodne z podanym schematem JSON.",
   ].join("\n");
 }
@@ -76,6 +78,7 @@ function buildRequestBody(request: ExerciseGenerationRequest, model: string) {
   return {
     model,
     stream: false,
+    reasoning: { effort: "low" },
     messages: [{ role: "user", content: buildPrompt(request) }],
     response_format: {
       type: "json_schema",
@@ -97,7 +100,11 @@ function buildRequestBody(request: ExerciseGenerationRequest, model: string) {
                 required: ["text", "proposedCanonicalAnswer"],
                 properties: {
                   text: { type: "string", minLength: 1 },
-                  proposedCanonicalAnswer: { type: "string", minLength: 1 },
+                  proposedCanonicalAnswer: {
+                    type: "string",
+                    minLength: 1,
+                    pattern: CANONICAL_NATURAL_NUMBER_PATTERN,
+                  },
                 },
               },
             },

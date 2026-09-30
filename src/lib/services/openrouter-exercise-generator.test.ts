@@ -64,18 +64,34 @@ describe("generateOpenRouterExercises", () => {
     const body = JSON.parse(requestBody) as {
       stream: boolean;
       model: string;
+      reasoning: { effort: string };
       provider: { require_parameters: boolean };
-      response_format: { json_schema: { strict: boolean } };
+      response_format: {
+        json_schema: {
+          strict: boolean;
+          schema: {
+            properties: {
+              exercises: { items: { properties: { proposedCanonicalAnswer: { pattern: string } } } };
+            };
+          };
+        };
+      };
       messages: { content: string }[];
     };
     expect(body).toMatchObject({
       stream: false,
       model: "test/model",
+      reasoning: { effort: "low" },
       provider: { require_parameters: true },
       response_format: { json_schema: { strict: true } },
     });
     expect(body.messages[0].content).toContain("dokładnie 5");
     expect(body.messages[0].content).toContain("Dodawanie i odejmowanie liczb naturalnych");
+    expect(body.messages[0].content).toContain("jedną niepogrupowaną liczbą naturalną");
+    expect(body.messages[0].content).toContain("bez zdania, etykiety, jednostki, działania ani wyjaśnienia");
+    expect(
+      body.response_format.json_schema.schema.properties.exercises.items.properties.proposedCanonicalAnswer.pattern,
+    ).toBe("^(0|[1-9][0-9]*)$");
   });
 
   it.each([1, 2, 3, 4])("returns a non-empty subset of %i without retrying", async (count) => {
