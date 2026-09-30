@@ -212,11 +212,11 @@ The reset is deliberately destructive: every approved exercise and every verific
 
 #### Automated
 
-- [x] 2.1 `npx supabase db reset` applies the destructive migration in foreign-key-safe order and leaves `exercises` and `exercise_verifications` empty before test fixtures or new application activity.
-- [x] 2.2 `npm run db:test`, `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` pass after the v2 behavior and reset migration are integrated.
-- [x] 2.3 `npm run smoke` passes against a provider-free production preview with existing verification and approval route protections intact.
+- [x] 2.1 `npx supabase db reset` applies the destructive migration in foreign-key-safe order and leaves `exercises` and `exercise_verifications` empty before test fixtures or new application activity. — 78c2238
+- [x] 2.2 `npm run db:test`, `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` pass after the v2 behavior and reset migration are integrated. — 78c2238
+- [x] 2.3 `npm run smoke` passes against a provider-free production preview with existing verification and approval route protections intact. — 78c2238
 
 #### Manual
 
-- [x] 2.4 During a coordinated cutover with verification traffic stopped, confirm all prior exercise and verification rows are gone before v2 traffic resumes and that no v1 strategy identity appears afterward.
-- [x] 2.5 Generate and verify representative arithmetic and word-problem candidates; confirm grouped and one-number-prose equivalents pass, malformed or multi-number cases do not gain equivalence, approved canonical answers are ungrouped digits, and stored evidence identifies v2.
+- [x] 2.4 During a coordinated cutover with verification traffic stopped, confirm all prior exercise and verification rows are gone before v2 traffic resumes and that no v1 strategy identity appears afterward. — 78c2238
+- [x] 2.5 Generate and verify representative arithmetic and word-problem candidates; confirm grouped and one-number-prose equivalents pass, malformed or multi-number cases do not gain equivalence, approved canonical answers are ungrouped digits, and stored evidence identifies v2. — 78c2238
