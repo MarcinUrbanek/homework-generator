@@ -340,13 +340,13 @@ The version-1 session payload is migrated locally to version 2 as an unverified 
 
 #### Automated
 
-- [x] 3.1 `npm run test -- src/components/hooks/use-session-exercise-batch.test.ts` proves version-1 migration, version-2 evidence/selection restoration, invalid-state cleanup, targeted result replacement, and exact saved-candidate removal.
-- [x] 3.2 `npm run test -- src/components/exercises/RequestExercisesForm.test.tsx` proves explicit verification, granular mixed results, indeterminate-only retry, successful-only selection, mutation lockout, atomic save failure preservation, idempotent success handling, and remainder retention.
-- [x] 3.3 `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` pass after the production view and gallery fixtures are wired.
+- [x] 3.1 `npm run test -- src/components/hooks/use-session-exercise-batch.test.ts` proves version-1 migration, version-2 evidence/selection restoration, invalid-state cleanup, targeted result replacement, and exact saved-candidate removal. — dfa5bdf
+- [x] 3.2 `npm run test -- src/components/exercises/RequestExercisesForm.test.tsx` proves explicit verification, granular mixed results, indeterminate-only retry, successful-only selection, mutation lockout, atomic save failure preservation, idempotent success handling, and remainder retention. — dfa5bdf
+- [x] 3.3 `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` pass after the production view and gallery fixtures are wired. — dfa5bdf
 
 #### Manual
 
-- [x] 3.4 At desktop and mobile widths, keyboard-only and pointer users can verify, inspect evidence, select an eligible subset, recover an indeterminate result, save, and continue with the remainder without clipped text, overlapping controls, unclear disabled states, or lost focus/status announcements.
+- [x] 3.4 At desktop and mobile widths, keyboard-only and pointer users can verify, inspect evidence, select an eligible subset, recover an indeterminate result, save, and continue with the remainder without clipped text, overlapping controls, unclear disabled states, or lost focus/status announcements. — dfa5bdf
 
 ### Phase 4: Verify the North-Star Flow
 
