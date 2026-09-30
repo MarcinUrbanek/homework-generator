@@ -272,7 +272,17 @@ export function createExerciseVerifyHandler(dependencies: ExerciseVerifyHandlerD
                 },
               };
             }
-            throw error;
+            if (error instanceof CandidateConflictError) {
+              throw error;
+            }
+            return {
+              candidateId: candidate.id,
+              outcome: "indeterminate",
+              error: {
+                code: "PROVIDER_FAILURE",
+                message: "Nie udało się zapisać wyniku weryfikacji. Spróbuj ponownie później.",
+              },
+            };
           }
         }),
       );

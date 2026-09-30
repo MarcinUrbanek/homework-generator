@@ -259,6 +259,11 @@ Exercise the complete generation-to-approved-pool boundary under production-prev
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause for human confirmation of the manual checks before considering the change ready for implementation review.
 
+## Addenda
+
+- Phase 3 added `src/lib/exercises/exercise-count.ts` (Polish noun pluralization for the saved-count summary) with its test.
+- Verification ledger write failures now yield a per-candidate `indeterminate` result instead of failing the whole batch.
+
 ## Testing Strategy
 
 ### Unit Tests:
