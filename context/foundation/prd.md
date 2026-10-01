@@ -63,6 +63,7 @@ The primary persona is a primary-school classroom math teacher in Poland who pre
   > Socrates: Counter-argument considered: invitations and class management may consume effort without proving generation value. Resolution: kept as written.
 - FR-003: Student can join a teacher-managed class through a class code or direct invitation link. Priority: must-have
   > Socrates: Counter-argument considered: requiring students to complete an invitation flow may block younger students. Resolution: revised to support a class code or direct link.
+  > Authentication entry: when an unauthenticated student opens an invitation link, the application sends them to sign-in and then resumes the complete original relative path, including the invitation token or code.
 
 ### Exercise preparation
 
@@ -107,13 +108,8 @@ Teachers and students sign in with email and password.
 
 - Teachers self-register, invite students, create homework, and assign it.
 - Students join through teacher invitations, open assigned homework, submit answers, and view results or feedback.
-
-# TODO: unauthenticated protected-route behavior — see Open Questions
+- An unauthenticated visitor who opens a protected route is redirected to sign-in. After successful authentication, the application resumes the complete original same-origin relative path, including its query string. Missing, invalid, or external return destinations fall back to the default signed-in landing page.
 
 ## Non-Goals
 
 - The MVP does not cover the complete Polish primary-school mathematics curriculum; it supports only a selected subset of grades and topics so the end-to-end flow can be proven first.
-
-## Open Questions
-
-1. **What happens when an unauthenticated visitor opens a protected route?** — TBD by user.
