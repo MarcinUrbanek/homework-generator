@@ -45,7 +45,7 @@ Primary-school classroom math teachers in Poland need many distinct exercises at
 | S-01 | request-polish-exercises      | teacher can choose a supported grade, topic, and difficulty and receive Polish exercise candidates                       | —             | FR-004, FR-005, FR-007        | done |
 | S-02 | approve-first-exercise-pool   | teacher can verify a batch, approve valid exercises, and save the first exercise pool                                    | F-01, S-01    | FR-006, FR-007, FR-008        | done |
 | S-03 | reuse-saved-exercises         | teacher can find and reuse approved exercises by grade and topic                                                         | S-02          | FR-009                        | planning |
-| S-04 | invite-students-to-class      | teacher can sign in, create a class, and invite students by email                                                        | —             | FR-001, FR-002                | proposed |
+| S-04 | invite-students-to-class      | teacher can sign in, create a class, and invite students by email                                                        | —             | FR-001, FR-002                | planning |
 | S-05 | join-teacher-managed-class    | student can sign in and join a class through a code or direct invitation link                                            | S-04          | FR-001, FR-003                | proposed |
 | S-06 | assign-distinct-homework      | teacher can choose an exercise count and assign each selected student a distinct set from one approved difficulty bucket | S-02, S-05    | US-01, FR-010                 | proposed |
 | S-07 | submit-and-score-homework     | student can open homework, submit answers, and immediately see pass or fail from the defined score rule                  | S-06          | US-01, FR-011, FR-012, FR-013 | proposed |
@@ -136,7 +136,7 @@ What's already in place in the codebase as of `2026-09-21` (auto-researched and 
 - **Unknowns:** —
 - **Decision:** Unauthenticated visitors are redirected to sign-in and resume the complete original same-origin relative path after authentication, including invitation query data; invalid return destinations fall back to the default signed-in landing page.
 - **Risk:** Return-destination validation must prevent open redirects without dropping class invitation state.
-- **Status:** proposed
+- **Status:** planning
 
 ### S-05: Join a teacher-managed class
 
