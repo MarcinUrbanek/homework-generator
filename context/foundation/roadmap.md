@@ -45,7 +45,7 @@ Primary-school classroom math teachers in Poland need many distinct exercises at
 | S-01 | request-polish-exercises      | teacher can choose a supported grade, topic, and difficulty and receive Polish exercise candidates                       | —             | FR-004, FR-005, FR-007        | done |
 | S-02 | approve-first-exercise-pool   | teacher can verify a batch, approve valid exercises, and save the first exercise pool                                    | F-01, S-01    | FR-006, FR-007, FR-008        | done |
 | S-03 | reuse-saved-exercises         | teacher can find and reuse approved exercises by grade and topic                                                         | S-02          | FR-009                        | proposed |
-| S-04 | invite-students-to-class      | teacher can sign in, create a class, and invite students by email                                                        | —             | FR-001, FR-002                | blocked  |
+| S-04 | invite-students-to-class      | teacher can sign in, create a class, and invite students by email                                                        | —             | FR-001, FR-002                | proposed |
 | S-05 | join-teacher-managed-class    | student can sign in and join a class through a code or direct invitation link                                            | S-04          | FR-001, FR-003                | proposed |
 | S-06 | assign-distinct-homework      | teacher can choose an exercise count and assign each selected student a distinct set from one approved difficulty bucket | S-02, S-05    | US-01, FR-010                 | proposed |
 | S-07 | submit-and-score-homework     | student can open homework, submit answers, and immediately see pass or fail from the defined score rule                  | S-06          | US-01, FR-011, FR-012, FR-013 | proposed |
@@ -133,10 +133,10 @@ What's already in place in the codebase as of `2026-09-21` (auto-researched and 
 - **Prerequisites:** —
 - **Parallel with:** F-01, S-01, S-02, S-03
 - **Blockers:** —
-- **Unknowns:**
-  - What happens when an unauthenticated visitor opens a protected route? — Owner: user. Block: yes.
-- **Risk:** Planning protected class routes before their unauthenticated behavior is decided would lock in an unstated product rule.
-- **Status:** blocked
+- **Unknowns:** —
+- **Decision:** Unauthenticated visitors are redirected to sign-in and resume the complete original same-origin relative path after authentication, including invitation query data; invalid return destinations fall back to the default signed-in landing page.
+- **Risk:** Return-destination validation must prevent open redirects without dropping class invitation state.
+- **Status:** proposed
 
 ### S-05: Join a teacher-managed class
 
@@ -194,15 +194,11 @@ What's already in place in the codebase as of `2026-09-21` (auto-researched and 
 | S-01       | request-polish-exercises      | Let teachers request Polish exercise candidates    | yes                   | Can proceed in parallel with F-01.      |
 | S-02       | approve-first-exercise-pool   | Approve and save the first exercise pool           | no                    | Requires F-01 and S-01.                 |
 | S-03       | reuse-saved-exercises         | Find and reuse approved exercises                  | no                    | Requires S-02.                          |
-| S-04       | invite-students-to-class      | Create a class and invite students                 | no                    | Resolve protected-route behavior first. |
+| S-04       | invite-students-to-class      | Create a class and invite students                 | yes                   | Protected-route behavior is decided.    |
 | S-05       | join-teacher-managed-class    | Join a class by code or invitation                 | no                    | Requires S-04.                          |
 | S-06       | assign-distinct-homework      | Assign distinct homework sets                      | no                    | Requires S-02 and S-05.                 |
 | S-07       | submit-and-score-homework     | Submit homework and release pass or fail           | no                    | Requires S-06.                          |
 | S-08       | review-submission-feedback    | Review answers and provide student feedback        | no                    | Requires S-07.                          |
-
-## Open Roadmap Questions
-
-1. **What happens when an unauthenticated visitor opens a protected route?** — Owner: user. Block: S-04, S-05, S-06, S-07, S-08.
 
 ## Parked
 
