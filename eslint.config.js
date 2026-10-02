@@ -17,9 +17,8 @@ const baseConfig = defineConfig({
   extends: [eslint.configs.recommended, tseslint.configs.strictTypeChecked, tseslint.configs.stylisticTypeChecked],
   languageOptions: {
     parserOptions: {
-      projectService: {
-        allowDefaultProject: [".github/skills/*/scripts/*.mjs"],
-      },
+      projectService: false,
+      project: "./tsconfig.json",
       tsconfigRootDir: import.meta.dirname,
     },
   },
