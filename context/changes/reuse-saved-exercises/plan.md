@@ -289,12 +289,12 @@ The migration is forward-only and adds indexes plus a read function without rewr
 
 #### Automated
 
-- [x] 3.1 `npm run test -- src/components/exercises/SavedExerciseBrowser.test.tsx` passes explicit-search, applied-filter, replacement, empty, pagination, deduplication, preservation, and retry cases.
-- [x] 3.2 `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` pass after the pool page and dashboard entry point are wired.
+- [x] 3.1 `npm run test -- src/components/exercises/SavedExerciseBrowser.test.tsx` passes explicit-search, applied-filter, replacement, empty, pagination, deduplication, preservation, and retry cases. — 6376a62
+- [x] 3.2 `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` pass after the pool page and dashboard entry point are wired. — 6376a62
 
 #### Manual
 
-- [x] 3.3 On desktop and mobile, a teacher can browse topic-wide or difficulty-refined results, inspect answers and approval dates, load more, and recover from first-page or Load more failures without stale filter labels, lost results, overlap, clipping, or layout shift.
+- [x] 3.3 On desktop and mobile, a teacher can browse topic-wide or difficulty-refined results, inspect answers and approval dates, load more, and recover from first-page or Load more failures without stale filter labels, lost results, overlap, clipping, or layout shift. — 6376a62
 
 ### Phase 4: Verify States and Production Boundaries
 
