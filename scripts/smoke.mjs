@@ -1,9 +1,13 @@
 // Smoke test: proves the built app, the Cloudflare adapter and the Supabase auth flow still work together.
 // Zero dependencies on purpose. Run against a live server: BASE_URL=http://localhost:4321 node scripts/smoke.mjs
+// Set SMOKE_CONFIGURED_PREVIEW=true when preview loads configured provider credentials.
 
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:4321";
+const classChecksEnabled = process.env.SMOKE_CLASS_CHECKS === "true";
+const configuredPreview = process.env.SMOKE_CONFIGURED_PREVIEW === "true";
 const email = `smoke-${Date.now()}@example.com`;
 const password = "Smoke-Test-Passw0rd!";
+const className = `Smoke class ${Date.now()}`;
 const jar = new Map();
 
 function cookieHeader() {
@@ -56,7 +60,11 @@ const smokeVerificationId = "00000000-0000-4000-8000-000000000001";
 
 const steps = [
   ["home renders", () => request("/"), { status: 200 }],
-  ["development gallery is unavailable", () => request("/dev/ui-exercise-request"), { status: 404 }],
+  [
+    configuredPreview ? "development gallery renders in configured preview" : "development gallery is unavailable",
+    () => request("/dev/ui-exercise-request"),
+    { status: configuredPreview ? 200 : 404 },
+  ],
   ["dashboard redirects anonymous user", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
   [
     "exercise request redirects anonymous user",
@@ -73,6 +81,15 @@ const steps = [
     () => request("/api/exercises/approve", { method: "POST", json: { verificationIds: [smokeVerificationId] } }),
     { status: 401, errorCode: "UNAUTHENTICATED" },
   ],
+  ...(classChecksEnabled
+    ? [
+        [
+          "class creation rejects anonymous user",
+          () => request("/api/classes/create", { method: "POST", json: { name: className } }),
+          { status: 401, errorCode: "UNAUTHENTICATED" },
+        ],
+      ]
+    : []),
   [
     "signup creates account",
     () => request("/api/auth/signup", { method: "POST", form: { email, password } }),
@@ -90,6 +107,16 @@ const steps = [
   ],
   ["dashboard renders for signed-in user", () => request("/dashboard"), { status: 200 }],
   ["exercise request renders for teacher", () => request("/exercises/request"), { status: 200 }],
+  ...(classChecksEnabled
+    ? [
+        [
+          "class creation succeeds for teacher",
+          () => request("/api/classes/create", { method: "POST", json: { name: className } }),
+          { status: 201 },
+        ],
+        ["class listing succeeds for teacher", () => request("/api/classes/list"), { status: 200 }],
+      ]
+    : []),
   [
     "exercise API rejects invalid metadata",
     () =>
@@ -106,20 +133,24 @@ const steps = [
     () => request("/api/exercises/approve", { method: "POST", json: { verificationIds: ["not-a-uuid"] } }),
     { status: 400, errorCode: "INVALID_REQUEST" },
   ],
-  [
-    "verification API reports missing verifier configuration",
-    () => request("/api/exercises/verify", { method: "POST", json: { candidates: [smokeCandidate] } }),
-    { status: 503, errorCode: "VERIFIER_NOT_CONFIGURED" },
-  ],
-  [
-    "exercise API reports missing provider configuration",
-    () =>
-      request("/api/exercises/request", {
-        method: "POST",
-        json: { grade: 4, topic: "addition-subtraction", difficulty: "easy" },
-      }),
-    { status: 503, errorCode: "PROVIDER_NOT_CONFIGURED" },
-  ],
+  ...(configuredPreview
+    ? []
+    : [
+        [
+          "verification API reports missing verifier configuration",
+          () => request("/api/exercises/verify", { method: "POST", json: { candidates: [smokeCandidate] } }),
+          { status: 503, errorCode: "VERIFIER_NOT_CONFIGURED" },
+        ],
+        [
+          "exercise API reports missing provider configuration",
+          () =>
+            request("/api/exercises/request", {
+              method: "POST",
+              json: { grade: 4, topic: "addition-subtraction", difficulty: "easy" },
+            }),
+          { status: 503, errorCode: "PROVIDER_NOT_CONFIGURED" },
+        ],
+      ]),
   ["signout clears session", () => request("/api/auth/signout", { method: "POST" }), { status: 302, location: "/" }],
   ["dashboard redirects after signout", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
 ];
