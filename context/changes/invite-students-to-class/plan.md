@@ -355,25 +355,25 @@ The role migration must copy every existing `profiles.role` value into `profile_
 
 #### Automated
 
-- [x] 1.1 Role and auth unit tests pass: `npm test -- src/lib/services/teacher-authorization.test.ts src/lib/auth/return-destination.test.ts src/pages/api/auth/signin.test.ts src/pages/api/auth/signup.test.ts`
-- [x] 1.2 Role migration and RLS tests pass: `npm run db:test`
-- [x] 1.3 Existing teacher authorization and exercise API tests remain green: `npm test -- src/lib/services/teacher-authorization.test.ts src/pages/api/exercises`
+- [x] 1.1 Role and auth unit tests pass: `npm test -- src/lib/services/teacher-authorization.test.ts src/lib/auth/return-destination.test.ts src/pages/api/auth/signin.test.ts src/pages/api/auth/signup.test.ts` — 3f5ec6e
+- [x] 1.2 Role migration and RLS tests pass: `npm run db:test` — 3f5ec6e
+- [x] 1.3 Existing teacher authorization and exercise API tests remain green: `npm test -- src/lib/services/teacher-authorization.test.ts src/pages/api/exercises` — 3f5ec6e
 
 #### Manual
 
-- [x] 1.4 A protected URL with a query string resumes exactly after sign-in, while an external or protocol-relative destination falls back safely.
+- [x] 1.4 A protected URL with a query string resumes exactly after sign-in, while an external or protocol-relative destination falls back safely. — 3f5ec6e
 
 ### Phase 2: Class and Invitation Persistence
 
 #### Automated
 
-- [ ] 2.1 Class and invitation migrations apply from a clean local database: `npx supabase db reset`
-- [ ] 2.2 Class invitation invariants and RLS tests pass: `npm run db:test`
-- [ ] 2.3 Existing exercise persistence and approval database tests remain green: `npm run db:test`
+- [x] 2.1 Class and invitation migrations apply from a clean local database: `npx supabase db reset`
+- [x] 2.2 Class invitation invariants and RLS tests pass: `npm run db:test`
+- [x] 2.3 Existing exercise persistence and approval database tests remain green: `npm run db:test`
 
 #### Manual
 
-- [ ] 2.4 Supabase inspection shows no class membership table and no plaintext invitation token while each class has a generated unique code.
+- [x] 2.4 Supabase inspection shows no class membership table and no plaintext invitation token while each class has a generated unique code.
 
 ### Phase 3: Class and Delivery APIs
 
