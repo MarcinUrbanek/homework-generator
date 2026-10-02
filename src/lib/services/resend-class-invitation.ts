@@ -83,6 +83,7 @@ export async function sendResendClassInvitation(
   const clock = dependencies.clock ?? (() => new Date());
   const url = invitationUrl(config.appOrigin, request.token);
   const escapedClassName = escapeHtml(request.className);
+  const subjectClassName = request.className.replace(/[\r\n]+/g, " ");
   const escapedUrl = escapeHtml(url);
   const expiry = formatExpiry(clock);
 
@@ -90,7 +91,7 @@ export async function sendResendClassInvitation(
     const result = await client.emails.send({
       from: config.fromEmail,
       to: [request.recipientEmail],
-      subject: `Zaproszenie do klasy ${request.className}`,
+      subject: `Zaproszenie do klasy ${subjectClassName}`,
       text: [
         `Zapraszamy do klasy ${request.className}.`,
         `Otwórz zaproszenie: ${url}`,
