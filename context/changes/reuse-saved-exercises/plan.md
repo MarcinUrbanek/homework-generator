@@ -300,9 +300,9 @@ The migration is forward-only and adds indexes plus a read function without rewr
 
 #### Automated
 
-- [x] 4.1 `npm run smoke` passes saved-page protection, invalid-query behavior, authenticated access, and production gallery isolation against the production preview.
-- [x] 4.2 `npm run db:test`, `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` pass for the complete saved-exercise workflow.
+- [x] 4.1 `npm run smoke` passes saved-page protection, invalid-query behavior, authenticated access, and production gallery isolation against the production preview. — 092b9c3
+- [x] 4.2 `npm run db:test`, `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` pass for the complete saved-exercise workflow. — 092b9c3
 
 #### Manual
 
-- [x] 4.3 Retained desktop and mobile evidence shows every named pool state with logical keyboard order, accessible names, visible focus and live feedback, readable Polish text, and no overlap or clipping; the production preview exposes no development gallery.
+- [x] 4.3 Retained desktop and mobile evidence shows every named pool state with logical keyboard order, accessible names, visible focus and live feedback, readable Polish text, and no overlap or clipping; the production preview exposes no development gallery. — 092b9c3
