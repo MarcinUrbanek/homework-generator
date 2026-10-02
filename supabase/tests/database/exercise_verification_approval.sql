@@ -62,9 +62,12 @@ values
     now()
   );
 
-update public.profiles
-set role = 'student'
-where id = '10000000-0000-0000-0000-000000000003';
+delete from public.profile_roles
+where user_id = '10000000-0000-0000-0000-000000000003'
+  and role = 'teacher';
+
+insert into public.profile_roles (user_id, role)
+values ('10000000-0000-0000-0000-000000000003', 'student');
 
 insert into public.exercise_verifications (
   id,

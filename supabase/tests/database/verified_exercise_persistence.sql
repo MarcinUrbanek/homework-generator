@@ -52,21 +52,24 @@ values
     now()
   );
 
-update public.profiles
-set role = 'student'
-where id = '00000000-0000-0000-0000-000000000003';
+delete from public.profile_roles
+where user_id = '00000000-0000-0000-0000-000000000003'
+  and role = 'teacher';
+
+insert into public.profile_roles (user_id, role)
+values ('00000000-0000-0000-0000-000000000003', 'student');
 
 select is(
-  (select role from public.profiles where id = '00000000-0000-0000-0000-000000000001'),
+  (select role from public.profile_roles where user_id = '00000000-0000-0000-0000-000000000001'),
   'teacher',
-  'New Auth users receive a teacher profile'
+  'New Auth users receive a teacher role'
 );
 
 select throws_ok(
-  $$insert into public.profiles (id, role) values ('00000000-0000-0000-0000-000000000099', 'administrator')$$,
+  $$insert into public.profile_roles (user_id, role) values ('00000000-0000-0000-0000-000000000001', 'administrator')$$,
   '23514',
   null,
-  'Profiles reject unsupported roles'
+  'Profile roles reject unsupported roles'
 );
 
 select ok(

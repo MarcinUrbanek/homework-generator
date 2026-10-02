@@ -355,13 +355,13 @@ The role migration must copy every existing `profiles.role` value into `profile_
 
 #### Automated
 
-- [ ] 1.1 Role and auth unit tests pass: `npm test -- src/lib/services/teacher-authorization.test.ts src/lib/auth/return-destination.test.ts src/pages/api/auth/signin.test.ts src/pages/api/auth/signup.test.ts`
-- [ ] 1.2 Role migration and RLS tests pass: `npm run db:test`
-- [ ] 1.3 Existing teacher authorization and exercise API tests remain green: `npm test -- src/lib/services/teacher-authorization.test.ts src/pages/api/exercises`
+- [x] 1.1 Role and auth unit tests pass: `npm test -- src/lib/services/teacher-authorization.test.ts src/lib/auth/return-destination.test.ts src/pages/api/auth/signin.test.ts src/pages/api/auth/signup.test.ts`
+- [x] 1.2 Role migration and RLS tests pass: `npm run db:test`
+- [x] 1.3 Existing teacher authorization and exercise API tests remain green: `npm test -- src/lib/services/teacher-authorization.test.ts src/pages/api/exercises`
 
 #### Manual
 
-- [ ] 1.4 A protected URL with a query string resumes exactly after sign-in, while an external or protocol-relative destination falls back safely.
+- [x] 1.4 A protected URL with a query string resumes exactly after sign-in, while an external or protocol-relative destination falls back safely.
 
 ### Phase 2: Class and Invitation Persistence
 
