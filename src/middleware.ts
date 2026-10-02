@@ -4,6 +4,10 @@ import { createClient } from "@/lib/supabase";
 const PROTECTED_ROUTES = ["/dashboard", "/exercises", "/classes"];
 
 export const onRequest = defineMiddleware(async (context, next) => {
+  if (import.meta.env.PROD && context.url.pathname.startsWith("/dev/")) {
+    return new Response(null, { status: 404 });
+  }
+
   const supabase = createClient(context.request.headers, context.cookies);
 
   if (supabase) {
