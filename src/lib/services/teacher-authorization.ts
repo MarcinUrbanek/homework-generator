@@ -24,16 +24,25 @@ export async function authorizeTeacher(
 
   let result: { data: { role?: unknown } | null; error: unknown };
   try {
-    result = await supabase.from("profiles").select("role").eq("id", locals.user.id).maybeSingle();
+    result = await supabase
+      .from("profile_roles")
+      .select("role")
+      .eq("user_id", locals.user.id)
+      .eq("role", "teacher")
+      .maybeSingle();
   } catch {
     return { status: "profile-unavailable" };
   }
 
   const { data, error } = result;
 
-  if (error || !data || (data.role !== "teacher" && data.role !== "student")) {
+  if (error) {
     return { status: "profile-unavailable" };
   }
 
-  return data.role === "teacher" ? { status: "authorized-teacher" } : { status: "non-teacher" };
+  if (!data) {
+    return { status: "non-teacher" };
+  }
+
+  return data.role === "teacher" ? { status: "authorized-teacher" } : { status: "profile-unavailable" };
 }
