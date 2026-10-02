@@ -80,16 +80,16 @@ const unconfiguredProviderSteps =
 
 const steps = [
   ["home renders", () => request("/"), { status: 200 }],
-<<<<<<< HEAD
+
   [
     configuredPreview ? "development gallery renders in configured preview" : "development gallery is unavailable",
     () => request("/dev/ui-exercise-request"),
     { status: configuredPreview ? 200 : 404 },
   ],
-=======
+
   ["development gallery is unavailable", () => request("/dev/ui-exercise-request"), { status: 404 }],
   ["saved exercise gallery is unavailable", () => request("/dev/ui-saved-exercises"), { status: 404 }],
->>>>>>> 092b9c3 (feat(reuse-saved-exercises): verify states and production boundaries (p4))
+
   ["dashboard redirects anonymous user", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
   [
     "exercise request redirects anonymous user",
@@ -137,7 +137,7 @@ const steps = [
   ],
   ["dashboard renders for signed-in user", () => request("/dashboard"), { status: 200 }],
   ["exercise request renders for teacher", () => request("/exercises/request"), { status: 200 }],
-<<<<<<< HEAD
+
   ...(classChecksEnabled
     ? [
         [
@@ -148,9 +148,9 @@ const steps = [
         ["class listing succeeds for teacher", () => request("/api/classes/list"), { status: 200 }],
       ]
     : []),
-=======
+
   ["saved exercises render for teacher", () => request("/exercises/saved"), { status: 200 }],
->>>>>>> 092b9c3 (feat(reuse-saved-exercises): verify states and production boundaries (p4))
+
   [
     "exercise API rejects invalid metadata",
     () =>
@@ -172,7 +172,7 @@ const steps = [
     () => request("/api/exercises/approve", { method: "POST", json: { verificationIds: ["not-a-uuid"] } }),
     { status: 400, errorCode: "INVALID_REQUEST" },
   ],
-<<<<<<< HEAD
+
   ...(configuredPreview
     ? []
     : [
@@ -191,9 +191,9 @@ const steps = [
           { status: 503, errorCode: "PROVIDER_NOT_CONFIGURED" },
         ],
       ]),
-=======
+
   ...unconfiguredProviderSteps,
->>>>>>> 092b9c3 (feat(reuse-saved-exercises): verify states and production boundaries (p4))
+
   ["signout clears session", () => request("/api/auth/signout", { method: "POST" }), { status: 302, location: "/" }],
   ["dashboard redirects after signout", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
 ];
