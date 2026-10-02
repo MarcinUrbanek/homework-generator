@@ -36,7 +36,7 @@ beforeEach(() => vi.restoreAllMocks());
 afterEach(() => {
   if (root !== undefined) {
     act(() => {
-      root.unmount();
+      root?.unmount();
     });
   }
   if (container !== undefined) container.remove();
