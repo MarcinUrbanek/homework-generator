@@ -7,6 +7,7 @@ import {
   EXERCISE_TOPIC_SLUGS,
   EXERCISE_VERIFICATION_ERROR_CODES,
   EXERCISE_VERIFICATION_PROVIDER_ERROR_CODES,
+  SAVED_EXERCISE_ERROR_CODES,
 } from "@/types";
 
 export const exerciseTopicSlugSchema = z.enum(EXERCISE_TOPIC_SLUGS);
@@ -254,5 +255,59 @@ export const exerciseApprovalRpcRowSchema = z
     verification_id: uuidSchema,
     exercise_id: uuidSchema,
     created: z.boolean(),
+  })
+  .strict();
+
+export const savedExerciseFiltersSchema = z
+  .object({
+    grade: z.literal(4),
+    topic: exerciseTopicSlugSchema,
+    difficulty: exerciseDifficultySchema.optional(),
+  })
+  .strict();
+
+export const savedExerciseCursorSchema = savedExerciseFiltersSchema
+  .extend({
+    approvedAt: z.iso.datetime({ offset: true }),
+    id: uuidSchema,
+  })
+  .strict();
+
+export const savedExerciseRetrievalRowSchema = z
+  .object({
+    id: uuidSchema,
+    exercise_text: nonEmptyStringSchema,
+    canonical_answer: nonEmptyStringSchema,
+    grade: z.literal("4"),
+    topic: exerciseTopicSlugSchema,
+    difficulty: exerciseDifficultySchema,
+    approved_at: z.iso.datetime({ offset: true }),
+  })
+  .strict();
+
+export const savedExerciseSuccessSchema = z
+  .object({
+    exercises: z
+      .array(
+        savedExerciseFiltersSchema.extend({
+          id: uuidSchema,
+          text: nonEmptyStringSchema,
+          canonicalAnswer: nonEmptyStringSchema,
+          approvedAt: z.iso.datetime({ offset: true }),
+        }),
+      )
+      .max(20),
+    nextCursor: nonEmptyStringSchema.nullable(),
+  })
+  .strict();
+
+export const savedExerciseErrorSchema = z
+  .object({
+    error: z
+      .object({
+        code: z.enum(SAVED_EXERCISE_ERROR_CODES),
+        message: nonEmptyStringSchema,
+      })
+      .strict(),
   })
   .strict();

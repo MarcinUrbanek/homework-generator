@@ -38,6 +38,14 @@ export const EXERCISE_APPROVAL_ERROR_CODES = [
   "PERSISTENCE_FAILURE",
 ] as const;
 
+export const SAVED_EXERCISE_ERROR_CODES = [
+  "INVALID_REQUEST",
+  "UNAUTHENTICATED",
+  "FORBIDDEN",
+  "DATABASE_UNAVAILABLE",
+  "PERSISTENCE_FAILURE",
+] as const;
+
 export type ExerciseTopicSlug = (typeof EXERCISE_TOPIC_SLUGS)[number];
 export type ExerciseDifficulty = (typeof EXERCISE_DIFFICULTIES)[number];
 export type ExerciseGenerationErrorCode = (typeof EXERCISE_GENERATION_ERROR_CODES)[number];
@@ -45,6 +53,7 @@ export type ExerciseVerificationOutcome = (typeof EXERCISE_VERIFICATION_OUTCOMES
 export type ExerciseVerificationProviderErrorCode = (typeof EXERCISE_VERIFICATION_PROVIDER_ERROR_CODES)[number];
 export type ExerciseVerificationErrorCode = (typeof EXERCISE_VERIFICATION_ERROR_CODES)[number];
 export type ExerciseApprovalErrorCode = (typeof EXERCISE_APPROVAL_ERROR_CODES)[number];
+export type SavedExerciseErrorCode = (typeof SAVED_EXERCISE_ERROR_CODES)[number];
 
 export interface ExerciseGenerationRequest {
   grade: 4;
@@ -192,6 +201,36 @@ export interface InviteStudentsSuccess {
 export interface ClassApiError {
   error: {
     code: ClassApiErrorCode;
+    message: string;
+  };
+}
+
+export interface SavedExerciseFilters {
+  grade: 4;
+  topic: ExerciseTopicSlug;
+  difficulty?: ExerciseDifficulty;
+}
+
+export interface SavedExerciseSummary extends SavedExerciseFilters {
+  id: string;
+  text: string;
+  canonicalAnswer: string;
+  approvedAt: string;
+}
+
+export interface SavedExerciseCursor extends SavedExerciseFilters {
+  approvedAt: string;
+  id: string;
+}
+
+export interface SavedExerciseSuccess {
+  exercises: SavedExerciseSummary[];
+  nextCursor: string | null;
+}
+
+export interface SavedExerciseError {
+  error: {
+    code: SavedExerciseErrorCode;
     message: string;
   };
 }

@@ -267,23 +267,23 @@ The migration is forward-only and adds indexes plus a read function without rewr
 
 #### Automated
 
-- [x] 1.1 `npx supabase db reset` applies the saved-exercise indexes and security-invoker retrieval function to a clean local database.
-- [x] 1.2 `npm run db:test` passes filtering, optional-difficulty, newest-first tie-break, cursor, page-bound, shared-teacher, and student-denial cases.
+- [x] 1.1 `npx supabase db reset` applies the saved-exercise indexes and security-invoker retrieval function to a clean local database. — 22c144a
+- [x] 1.2 `npm run db:test` passes filtering, optional-difficulty, newest-first tie-break, cursor, page-bound, shared-teacher, and student-denial cases. — 22c144a
 
 #### Manual
 
-- [x] 1.3 In local Supabase, the same function call returns the shared matching pool for two teachers and no rows for a student, with only the agreed teacher-facing columns.
+- [x] 1.3 In local Supabase, the same function call returns the shared matching pool for two teachers and no rows for a student, with only the agreed teacher-facing columns. — 22c144a
 
 ### Phase 2: Publish the Typed Read API
 
 #### Automated
 
-- [ ] 2.1 `npm run test -- src/pages/api/exercises/saved.test.ts` passes validation, authorization, filter, cursor, pagination, empty-result, and failure cases.
-- [ ] 2.2 `npm run lint` and `npx astro check` pass with the saved-exercise DTO, schema, and route contracts.
+- [x] 2.1 `npm run test -- src/pages/api/exercises/saved.test.ts` passes validation, authorization, filter, cursor, pagination, empty-result, and failure cases.
+- [x] 2.2 `npm run lint` and `npx astro check` pass with the saved-exercise DTO, schema, and route contracts.
 
 #### Manual
 
-- [ ] 2.3 Calling the endpoint as a local teacher returns 20 newest matching summaries and a usable next cursor, while invalid filters and a student session receive the agreed Polish errors without exercise answers.
+- [x] 2.3 Calling the endpoint as a local teacher returns 20 newest matching summaries and a usable next cursor, while invalid filters and a student session receive the agreed Polish errors without exercise answers.
 
 ### Phase 3: Deliver the Teacher Pool Browser
 
