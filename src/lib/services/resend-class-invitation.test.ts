@@ -32,6 +32,20 @@ describe("sendResendClassInvitation", () => {
     expect(sentMessage.text).toContain("https://app.example.test/classes/join?token=raw-token");
   });
 
+  it("removes line breaks from the email subject", async () => {
+    const send = vi
+      .fn<ResendEmailClient["emails"]["send"]>()
+      .mockResolvedValue({ data: { id: "provider-message-id" }, error: null });
+
+    await sendResendClassInvitation(
+      { className: "4A\r\nBcc: injected@example.test", recipientEmail: "student@example.test", token: "raw-token" },
+      config,
+      { client: { emails: { send } } },
+    );
+
+    expect(send.mock.calls[0]?.[0].subject).toBe("Zaproszenie do klasy 4A Bcc: injected@example.test");
+  });
+
   it("classifies provider failures without exposing their details", async () => {
     const send = vi
       .fn<ResendEmailClient["emails"]["send"]>()
