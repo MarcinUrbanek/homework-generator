@@ -267,12 +267,12 @@ The migration is forward-only and adds indexes plus a read function without rewr
 
 #### Automated
 
-- [ ] 1.1 `npx supabase db reset` applies the saved-exercise indexes and security-invoker retrieval function to a clean local database.
-- [ ] 1.2 `npm run db:test` passes filtering, optional-difficulty, newest-first tie-break, cursor, page-bound, shared-teacher, and student-denial cases.
+- [x] 1.1 `npx supabase db reset` applies the saved-exercise indexes and security-invoker retrieval function to a clean local database.
+- [x] 1.2 `npm run db:test` passes filtering, optional-difficulty, newest-first tie-break, cursor, page-bound, shared-teacher, and student-denial cases.
 
 #### Manual
 
-- [ ] 1.3 In local Supabase, the same function call returns the shared matching pool for two teachers and no rows for a student, with only the agreed teacher-facing columns.
+- [x] 1.3 In local Supabase, the same function call returns the shared matching pool for two teachers and no rows for a student, with only the agreed teacher-facing columns.
 
 ### Phase 2: Publish the Typed Read API
 
