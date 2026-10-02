@@ -290,6 +290,7 @@ export const savedExerciseSuccessSchema = z
     exercises: z
       .array(
         savedExerciseFiltersSchema.extend({
+          difficulty: exerciseDifficultySchema,
           id: uuidSchema,
           text: nonEmptyStringSchema,
           canonicalAnswer: nonEmptyStringSchema,

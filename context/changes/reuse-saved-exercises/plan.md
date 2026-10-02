@@ -278,23 +278,23 @@ The migration is forward-only and adds indexes plus a read function without rewr
 
 #### Automated
 
-- [x] 2.1 `npm run test -- src/pages/api/exercises/saved.test.ts` passes validation, authorization, filter, cursor, pagination, empty-result, and failure cases.
-- [x] 2.2 `npm run lint` and `npx astro check` pass with the saved-exercise DTO, schema, and route contracts.
+- [x] 2.1 `npm run test -- src/pages/api/exercises/saved.test.ts` passes validation, authorization, filter, cursor, pagination, empty-result, and failure cases. — 9d18e97
+- [x] 2.2 `npm run lint` and `npx astro check` pass with the saved-exercise DTO, schema, and route contracts. — 9d18e97
 
 #### Manual
 
-- [x] 2.3 Calling the endpoint as a local teacher returns 20 newest matching summaries and a usable next cursor, while invalid filters and a student session receive the agreed Polish errors without exercise answers.
+- [x] 2.3 Calling the endpoint as a local teacher returns 20 newest matching summaries and a usable next cursor, while invalid filters and a student session receive the agreed Polish errors without exercise answers. — 9d18e97
 
 ### Phase 3: Deliver the Teacher Pool Browser
 
 #### Automated
 
-- [ ] 3.1 `npm run test -- src/components/exercises/SavedExerciseBrowser.test.tsx` passes explicit-search, applied-filter, replacement, empty, pagination, deduplication, preservation, and retry cases.
-- [ ] 3.2 `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` pass after the pool page and dashboard entry point are wired.
+- [x] 3.1 `npm run test -- src/components/exercises/SavedExerciseBrowser.test.tsx` passes explicit-search, applied-filter, replacement, empty, pagination, deduplication, preservation, and retry cases.
+- [x] 3.2 `npm run test`, `npm run lint`, `npx astro check`, and `npm run build` pass after the pool page and dashboard entry point are wired.
 
 #### Manual
 
-- [ ] 3.3 On desktop and mobile, a teacher can browse topic-wide or difficulty-refined results, inspect answers and approval dates, load more, and recover from first-page or Load more failures without stale filter labels, lost results, overlap, clipping, or layout shift.
+- [x] 3.3 On desktop and mobile, a teacher can browse topic-wide or difficulty-refined results, inspect answers and approval dates, load more, and recover from first-page or Load more failures without stale filter labels, lost results, overlap, clipping, or layout shift.
 
 ### Phase 4: Verify States and Production Boundaries
 

@@ -211,7 +211,8 @@ export interface SavedExerciseFilters {
   difficulty?: ExerciseDifficulty;
 }
 
-export interface SavedExerciseSummary extends SavedExerciseFilters {
+export interface SavedExerciseSummary extends Omit<SavedExerciseFilters, "difficulty"> {
+  difficulty: ExerciseDifficulty;
   id: string;
   text: string;
   canonicalAnswer: string;

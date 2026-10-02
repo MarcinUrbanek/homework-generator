@@ -38,6 +38,12 @@ const { user } = Astro.locals;
         >
           Wygeneruj zadania
         </a>
+        <a
+          href="/exercises/saved"
+          class="mt-3 inline-flex min-h-10 items-center justify-center rounded-md border border-white/30 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        >
+          Przeglądaj zatwierdzone zadania
+        </a>
       </div>
 
       <form method="POST" action="/api/auth/signout" class="mt-8 border-t border-white/10 pt-6">
