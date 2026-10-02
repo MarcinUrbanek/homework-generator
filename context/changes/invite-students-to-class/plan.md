@@ -391,25 +391,25 @@ The role migration must copy every existing `profiles.role` value into `profile_
 
 #### Automated
 
-- [x] 4.1 Class workspace and invitation landing tests pass: `npm test -- src/components/classes src/lib/services/class-invitation-status.test.ts`
-- [x] 4.2 Full application tests pass: `npm test`
-- [x] 4.3 Lint and production build pass with the new pages: `npm run lint && npm run build`
+- [x] 4.1 Class workspace and invitation landing tests pass: `npm test -- src/components/classes src/lib/services/class-invitation-status.test.ts` — 037379e
+- [x] 4.2 Full application tests pass: `npm test` — 037379e
+- [x] 4.3 Lint and production build pass with the new pages: `npm run lint && npm run build` — 037379e
 
 #### Manual
 
-- [x] 4.4 At desktop and mobile widths, a teacher can create a class and process a mixed invitation batch without overlap, clipped text, ambiguous status, or lost keyboard focus.
-- [x] 4.5 Valid, expired, superseded, mismatched, and unauthenticated invitation links show the correct Polish state without creating membership.
+- [x] 4.4 At desktop and mobile widths, a teacher can create a class and process a mixed invitation batch without overlap, clipped text, ambiguous status, or lost keyboard focus. — 037379e
+- [x] 4.5 Valid, expired, superseded, mismatched, and unauthenticated invitation links show the correct Polish state without creating membership. — 037379e
 
 ### Phase 5: Integrated Verification
 
 #### Automated
 
-- [ ] 5.1 Full unit and component suite passes: `npm test`
-- [ ] 5.2 Full database suite passes from a clean schema: `npx supabase db reset && npm run db:test`
-- [ ] 5.3 Repository lint and production build pass: `npm run lint && npm run build`
-- [ ] 5.4 Configured smoke flow passes without a live email send: `npm run smoke`
+- [x] 5.1 Full unit and component suite passes: `npm test`
+- [x] 5.2 Full database suite passes from a clean schema: `npx supabase db reset && npm run db:test`
+- [x] 5.3 Repository lint and production build pass: `npm run lint && npm run build`
+- [x] 5.4 Configured smoke flow passes without a live email send: `npm run smoke`
 
 #### Manual
 
-- [ ] 5.5 A real Resend message reaches a controlled inbox, its latest link survives authentication, and an older rotated link is rejected.
-- [ ] 5.6 The verification record confirms per-address partial results, email binding, dual-role teacher access, safe redirect fallback, and zero class memberships.
+- [x] 5.5 A real Resend message reaches a controlled inbox, its latest link survives authentication, and an older rotated link is rejected.
+- [x] 5.6 The verification record confirms per-address partial results, email binding, dual-role teacher access, safe redirect fallback, and zero class memberships.
