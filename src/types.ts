@@ -144,3 +144,54 @@ export interface ExerciseApprovalError {
     message: string;
   };
 }
+
+export const CLASS_API_ERROR_CODES = [
+  "INVALID_REQUEST",
+  "UNAUTHENTICATED",
+  "FORBIDDEN",
+  "DATABASE_UNAVAILABLE",
+  "PERSISTENCE_FAILURE",
+  "SERVICE_UNAVAILABLE",
+] as const;
+
+export type ClassApiErrorCode = (typeof CLASS_API_ERROR_CODES)[number];
+
+export interface CreateClassRequest {
+  name: string;
+}
+
+export interface ClassSummary {
+  id: string;
+  name: string;
+  classCode: string;
+  createdAt: string;
+}
+
+export interface CreateClassSuccess {
+  class: ClassSummary;
+}
+
+export interface ListClassesSuccess {
+  classes: ClassSummary[];
+}
+
+export interface InviteStudentsRequest {
+  classId: string;
+  emails: string[];
+}
+
+export interface InvitationDeliveryResult {
+  email: string;
+  status: "sent" | "refreshed" | "failed";
+}
+
+export interface InviteStudentsSuccess {
+  results: InvitationDeliveryResult[];
+}
+
+export interface ClassApiError {
+  error: {
+    code: ClassApiErrorCode;
+    message: string;
+  };
+}
