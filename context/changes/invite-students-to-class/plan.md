@@ -379,26 +379,26 @@ The role migration must copy every existing `profiles.role` value into `profile_
 
 #### Automated
 
-- [x] 3.1 Class API and invitation service tests pass: `npm test -- src/lib/services/resend-class-invitation.test.ts src/lib/services/class-invitations.test.ts src/pages/api/classes`
-- [x] 3.2 Type-aware lint passes for the new contracts and handlers: `npm run lint`
-- [x] 3.3 Production SSR build accepts the new environment schema and routes: `npm run build`
+- [x] 3.1 Class API and invitation service tests pass: `npm test -- src/lib/services/resend-class-invitation.test.ts src/lib/services/class-invitations.test.ts src/pages/api/classes` — d1bdfc4
+- [x] 3.2 Type-aware lint passes for the new contracts and handlers: `npm run lint` — d1bdfc4
+- [x] 3.3 Production SSR build accepts the new environment schema and routes: `npm run build` — d1bdfc4
 
 #### Manual
 
-- [x] 3.4 A Resend test-domain request produces a Polish email with the expected class name and stable app invitation URL, with no token logged or returned by the API.
+- [x] 3.4 A Resend test-domain request produces a Polish email with the expected class name and stable app invitation URL, with no token logged or returned by the API. — d1bdfc4
 
 ### Phase 4: Teacher and Recipient UI
 
 #### Automated
 
-- [ ] 4.1 Class workspace and invitation landing tests pass: `npm test -- src/components/classes src/lib/services/class-invitation-status.test.ts`
-- [ ] 4.2 Full application tests pass: `npm test`
-- [ ] 4.3 Lint and production build pass with the new pages: `npm run lint && npm run build`
+- [x] 4.1 Class workspace and invitation landing tests pass: `npm test -- src/components/classes src/lib/services/class-invitation-status.test.ts`
+- [x] 4.2 Full application tests pass: `npm test`
+- [x] 4.3 Lint and production build pass with the new pages: `npm run lint && npm run build`
 
 #### Manual
 
-- [ ] 4.4 At desktop and mobile widths, a teacher can create a class and process a mixed invitation batch without overlap, clipped text, ambiguous status, or lost keyboard focus.
-- [ ] 4.5 Valid, expired, superseded, mismatched, and unauthenticated invitation links show the correct Polish state without creating membership.
+- [x] 4.4 At desktop and mobile widths, a teacher can create a class and process a mixed invitation batch without overlap, clipped text, ambiguous status, or lost keyboard focus.
+- [x] 4.5 Valid, expired, superseded, mismatched, and unauthenticated invitation links show the correct Polish state without creating membership.
 
 ### Phase 5: Integrated Verification
 
