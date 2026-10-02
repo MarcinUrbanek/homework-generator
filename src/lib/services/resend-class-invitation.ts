@@ -68,12 +68,18 @@ function formatExpiry(clock: () => Date): string {
   return new Intl.DateTimeFormat("pl-PL", { dateStyle: "long", timeZone: "UTC" }).format(expiry);
 }
 
+function createResendClient(apiKey: string): ResendEmailClient {
+  const ResendClientConstructor = Resend as unknown as new (apiKey: string) => ResendEmailClient;
+  return new ResendClientConstructor(apiKey);
+}
+
 export async function sendResendClassInvitation(
   request: ResendClassInvitationRequest,
   config: ResendClassInvitationConfig,
   dependencies: ResendClassInvitationDependencies = {},
 ): Promise<{ providerMessageId: string }> {
-  const client = dependencies.client ?? dependencies.createClient?.(config.apiKey) ?? new Resend(config.apiKey);
+  const client: ResendEmailClient =
+    dependencies.client ?? dependencies.createClient?.(config.apiKey) ?? createResendClient(config.apiKey);
   const clock = dependencies.clock ?? (() => new Date());
   const url = invitationUrl(config.appOrigin, request.token);
   const escapedClassName = escapeHtml(request.className);
