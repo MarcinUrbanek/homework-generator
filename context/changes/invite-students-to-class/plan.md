@@ -404,12 +404,12 @@ The role migration must copy every existing `profiles.role` value into `profile_
 
 #### Automated
 
-- [x] 5.1 Full unit and component suite passes: `npm test`
-- [x] 5.2 Full database suite passes from a clean schema: `npx supabase db reset && npm run db:test`
-- [x] 5.3 Repository lint and production build pass: `npm run lint && npm run build`
-- [x] 5.4 Configured smoke flow passes without a live email send: `npm run smoke`
+- [x] 5.1 Full unit and component suite passes: `npm test` — a1b2fe4
+- [x] 5.2 Full database suite passes from a clean schema: `npx supabase db reset && npm run db:test` — a1b2fe4
+- [x] 5.3 Repository lint and production build pass: `npm run lint && npm run build` — a1b2fe4
+- [x] 5.4 Configured smoke flow passes without a live email send: `npm run smoke` — a1b2fe4
 
 #### Manual
 
-- [x] 5.5 A real Resend message reaches a controlled inbox, its latest link survives authentication, and an older rotated link is rejected.
-- [x] 5.6 The verification record confirms per-address partial results, email binding, dual-role teacher access, safe redirect fallback, and zero class memberships.
+- [x] 5.5 A real Resend message reaches a controlled inbox, its latest link survives authentication, and an older rotated link is rejected. — a1b2fe4
+- [x] 5.6 The verification record confirms per-address partial results, email binding, dual-role teacher access, safe redirect fallback, and zero class memberships. — a1b2fe4
