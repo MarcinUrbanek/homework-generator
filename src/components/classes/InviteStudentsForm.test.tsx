@@ -14,13 +14,16 @@ function setTextareaValue(textarea: HTMLTextAreaElement, value: string): void {
   textarea.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-function renderForm(): void {
-  container = document.createElement("div");
-  document.body.append(container);
-  root = createRoot(container);
+function renderForm(): HTMLDivElement {
+  const formContainer = document.createElement("div");
+  document.body.append(formContainer);
+  const formRoot = createRoot(formContainer);
+  container = formContainer;
+  root = formRoot;
   act(() => {
-    root.render(<InviteStudentsForm classId="00000000-0000-4000-8000-000000000001" />);
+    formRoot.render(<InviteStudentsForm classId="00000000-0000-4000-8000-000000000001" />);
   });
+  return formContainer;
 }
 
 function getElement<T extends Element>(selector: string, type: new () => T): T {
@@ -57,7 +60,7 @@ describe("InviteStudentsForm", () => {
     });
     const fetchMock = vi.fn(() => pendingResponse);
     vi.stubGlobal("fetch", fetchMock);
-    renderForm();
+    const formContainer = renderForm();
     const textarea = getElement("textarea", HTMLTextAreaElement);
     act(() => {
       setTextareaValue(textarea, "one@example.test, two@example.test");
@@ -80,17 +83,17 @@ describe("InviteStudentsForm", () => {
       } as unknown as Response);
       await pendingResponse;
     });
-    expect(container.textContent).toContain("Wysłano");
-    expect(container.textContent).toContain("Nie wysłano");
+    expect(formContainer.textContent).toContain("Wysłano");
+    expect(formContainer.textContent).toContain("Nie wysłano");
   });
 
   it("rejects previews above the fifty recipient limit", () => {
-    renderForm();
+    const formContainer = renderForm();
     const textarea = getElement("textarea", HTMLTextAreaElement);
     act(() => {
       setTextareaValue(textarea, Array.from({ length: 51 }, (_, index) => `student${index}@example.test`).join(","));
     });
-    expect(container.textContent).toContain("51/50");
+    expect(formContainer.textContent).toContain("51/50");
     expect(getElement("button", HTMLButtonElement).disabled).toBe(true);
   });
 });

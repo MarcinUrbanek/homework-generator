@@ -14,13 +14,16 @@ function setInputValue(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-function renderWorkspace(): void {
-  container = document.createElement("div");
-  document.body.append(container);
-  root = createRoot(container);
+function renderWorkspace(): HTMLDivElement {
+  const workspaceContainer = document.createElement("div");
+  document.body.append(workspaceContainer);
+  const workspaceRoot = createRoot(workspaceContainer);
+  container = workspaceContainer;
+  root = workspaceRoot;
   act(() => {
-    root.render(<ClassWorkspace />);
+    workspaceRoot.render(<ClassWorkspace />);
   });
+  return workspaceContainer;
 }
 
 function getElement<T extends Element>(selector: string, type: new () => T): T {
@@ -60,12 +63,12 @@ describe("ClassWorkspace", () => {
         }),
       }),
     );
-    renderWorkspace();
+    const workspaceContainer = renderWorkspace();
     await act(async () => {
       await Promise.resolve();
     });
-    expect(container.textContent).toContain("4A");
-    expect(container.textContent).toContain("Kod: AB12CD34");
+    expect(workspaceContainer.textContent).toContain("4A");
+    expect(workspaceContainer.textContent).toContain("Kod: AB12CD34");
   });
 
   it("adds a newly created class to the workspace", async () => {
@@ -84,7 +87,7 @@ describe("ClassWorkspace", () => {
         }),
       });
     vi.stubGlobal("fetch", fetchMock);
-    renderWorkspace();
+    const workspaceContainer = renderWorkspace();
     await act(async () => {
       await Promise.resolve();
     });
@@ -97,7 +100,7 @@ describe("ClassWorkspace", () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(container.textContent).toContain("4B");
-    expect(container.textContent).toContain("Kod: EF56GH78");
+    expect(workspaceContainer.textContent).toContain("4B");
+    expect(workspaceContainer.textContent).toContain("Kod: EF56GH78");
   });
 });
