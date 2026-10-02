@@ -367,25 +367,25 @@ The role migration must copy every existing `profiles.role` value into `profile_
 
 #### Automated
 
-- [x] 2.1 Class and invitation migrations apply from a clean local database: `npx supabase db reset`
-- [x] 2.2 Class invitation invariants and RLS tests pass: `npm run db:test`
-- [x] 2.3 Existing exercise persistence and approval database tests remain green: `npm run db:test`
+- [x] 2.1 Class and invitation migrations apply from a clean local database: `npx supabase db reset` — 797173d
+- [x] 2.2 Class invitation invariants and RLS tests pass: `npm run db:test` — 797173d
+- [x] 2.3 Existing exercise persistence and approval database tests remain green: `npm run db:test` — 797173d
 
 #### Manual
 
-- [x] 2.4 Supabase inspection shows no class membership table and no plaintext invitation token while each class has a generated unique code.
+- [x] 2.4 Supabase inspection shows no class membership table and no plaintext invitation token while each class has a generated unique code. — 797173d
 
 ### Phase 3: Class and Delivery APIs
 
 #### Automated
 
-- [ ] 3.1 Class API and invitation service tests pass: `npm test -- src/lib/services/resend-class-invitation.test.ts src/lib/services/class-invitations.test.ts src/pages/api/classes`
-- [ ] 3.2 Type-aware lint passes for the new contracts and handlers: `npm run lint`
-- [ ] 3.3 Production SSR build accepts the new environment schema and routes: `npm run build`
+- [x] 3.1 Class API and invitation service tests pass: `npm test -- src/lib/services/resend-class-invitation.test.ts src/lib/services/class-invitations.test.ts src/pages/api/classes`
+- [x] 3.2 Type-aware lint passes for the new contracts and handlers: `npm run lint`
+- [x] 3.3 Production SSR build accepts the new environment schema and routes: `npm run build`
 
 #### Manual
 
-- [ ] 3.4 A Resend test-domain request produces a Polish email with the expected class name and stable app invitation URL, with no token logged or returned by the API.
+- [x] 3.4 A Resend test-domain request produces a Polish email with the expected class name and stable app invitation URL, with no token logged or returned by the API.
 
 ### Phase 4: Teacher and Recipient UI
 
