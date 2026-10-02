@@ -58,17 +58,47 @@ const smokeCandidate = {
 };
 const smokeVerificationId = "00000000-0000-4000-8000-000000000001";
 
+const unconfiguredProviderSteps =
+  process.env.SMOKE_EXPECT_UNCONFIGURED_PROVIDERS === "true"
+    ? [
+        [
+          "verification API reports missing verifier configuration",
+          () => request("/api/exercises/verify", { method: "POST", json: { candidates: [smokeCandidate] } }),
+          { status: 503, errorCode: "VERIFIER_NOT_CONFIGURED" },
+        ],
+        [
+          "exercise API reports missing provider configuration",
+          () =>
+            request("/api/exercises/request", {
+              method: "POST",
+              json: { grade: 4, topic: "addition-subtraction", difficulty: "easy" },
+            }),
+          { status: 503, errorCode: "PROVIDER_NOT_CONFIGURED" },
+        ],
+      ]
+    : [];
+
 const steps = [
   ["home renders", () => request("/"), { status: 200 }],
+<<<<<<< HEAD
   [
     configuredPreview ? "development gallery renders in configured preview" : "development gallery is unavailable",
     () => request("/dev/ui-exercise-request"),
     { status: configuredPreview ? 200 : 404 },
   ],
+=======
+  ["development gallery is unavailable", () => request("/dev/ui-exercise-request"), { status: 404 }],
+  ["saved exercise gallery is unavailable", () => request("/dev/ui-saved-exercises"), { status: 404 }],
+>>>>>>> 092b9c3 (feat(reuse-saved-exercises): verify states and production boundaries (p4))
   ["dashboard redirects anonymous user", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
   [
     "exercise request redirects anonymous user",
     () => request("/exercises/request"),
+    { status: 302, location: "/auth/signin" },
+  ],
+  [
+    "saved exercises redirect anonymous user",
+    () => request("/exercises/saved"),
     { status: 302, location: "/auth/signin" },
   ],
   [
@@ -107,6 +137,7 @@ const steps = [
   ],
   ["dashboard renders for signed-in user", () => request("/dashboard"), { status: 200 }],
   ["exercise request renders for teacher", () => request("/exercises/request"), { status: 200 }],
+<<<<<<< HEAD
   ...(classChecksEnabled
     ? [
         [
@@ -117,10 +148,18 @@ const steps = [
         ["class listing succeeds for teacher", () => request("/api/classes/list"), { status: 200 }],
       ]
     : []),
+=======
+  ["saved exercises render for teacher", () => request("/exercises/saved"), { status: 200 }],
+>>>>>>> 092b9c3 (feat(reuse-saved-exercises): verify states and production boundaries (p4))
   [
     "exercise API rejects invalid metadata",
     () =>
       request("/api/exercises/request", { method: "POST", json: { grade: 5, topic: "invalid", difficulty: "easy" } }),
+    { status: 400, errorCode: "INVALID_REQUEST" },
+  ],
+  [
+    "saved exercise API rejects invalid query",
+    () => request("/api/exercises/saved?grade=5&topic=invalid"),
     { status: 400, errorCode: "INVALID_REQUEST" },
   ],
   [
@@ -133,6 +172,7 @@ const steps = [
     () => request("/api/exercises/approve", { method: "POST", json: { verificationIds: ["not-a-uuid"] } }),
     { status: 400, errorCode: "INVALID_REQUEST" },
   ],
+<<<<<<< HEAD
   ...(configuredPreview
     ? []
     : [
@@ -151,6 +191,9 @@ const steps = [
           { status: 503, errorCode: "PROVIDER_NOT_CONFIGURED" },
         ],
       ]),
+=======
+  ...unconfiguredProviderSteps,
+>>>>>>> 092b9c3 (feat(reuse-saved-exercises): verify states and production boundaries (p4))
   ["signout clears session", () => request("/api/auth/signout", { method: "POST" }), { status: 302, location: "/" }],
   ["dashboard redirects after signout", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
 ];
