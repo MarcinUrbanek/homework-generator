@@ -81,12 +81,6 @@ const unconfiguredProviderSteps =
 const steps = [
   ["home renders", () => request("/"), { status: 200 }],
 
-  [
-    configuredPreview ? "development gallery renders in configured preview" : "development gallery is unavailable",
-    () => request("/dev/ui-exercise-request"),
-    { status: configuredPreview ? 200 : 404 },
-  ],
-
   ["development gallery is unavailable", () => request("/dev/ui-exercise-request"), { status: 404 }],
   ["saved exercise gallery is unavailable", () => request("/dev/ui-saved-exercises"), { status: 404 }],
 

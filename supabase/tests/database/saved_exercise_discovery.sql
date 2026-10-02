@@ -52,9 +52,9 @@ values
     now()
   );
 
-update public.profiles
+update public.profile_roles
 set role = 'student'
-where id = '40000000-0000-0000-0000-000000000003';
+where user_id = '40000000-0000-0000-0000-000000000003';
 
 set local role service_role;
 
