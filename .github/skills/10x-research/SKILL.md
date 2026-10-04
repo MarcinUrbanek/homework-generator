@@ -157,6 +157,13 @@ Reuse source anchors and calculations already verified. A mismatch triggers only
 the affected source/caller check and correction in each output, not a new discovery
 pass. If it remains unresolved, qualify the claim and state the gap consistently.
 This check requires no extra artifact, worker or test run by default.
+
+After `research.md` is saved and verified and `change.md` metadata is updated,
+invoke `/10x-github-issue <change-id> --create-missing` using the procedure in
+[`../10x-github-issue/SKILL.md`](../10x-github-issue/SKILL.md). This applies to
+complete and partial research artifacts. A sync failure does not roll back the
+research or block the handoff; report `GitHub sync: failed - <reason>`.
+
 Use compact validation output instead of repeatedly printing it. Run any applicable
 repository document checks once. Add commit permalinks only if the cited bytes
 match that commit and the remote is known to contain it; local uncommitted evidence

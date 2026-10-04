@@ -85,6 +85,8 @@ This skill assumes test infrastructure already exists; it won't set it up. Optio
 
 7. **Find the starting point**: scan `## Progress` — the first `- [ ]` in document order is where you start. If a `phase N` argument was passed, jump to the first `- [ ]` under `### Phase N:`.
 
+8. **Synchronize the GitHub issue** after setup by running the `<change-id> --create-missing` single-item procedure in [`../10x-github-issue/SKILL.md`](../10x-github-issue/SKILL.md). A sync failure does not block TDD or roll back local state; report `GitHub sync: failed - <reason>`.
+
 > **Clipboard convention.** Wherever this skill says *copy `X` to the clipboard*, pipe the exact string `X` to the platform clipboard — try `pbcopy` (macOS), then `clip.exe` (Windows/WSL), then `xclip -selection clipboard` (Linux), and fall back silently if none exist. Then display the copied command on its own line suffixed with `(✓ copied)`.
 
 ---
@@ -249,7 +251,9 @@ Let me know when manual testing is complete so I can commit.
 
 9. **Update `change.md`**: `updated: <today>`; keep `status: implementing` until the final phase.
 
-10. **Reset the touched-file set** before the next phase.
+10. **Synchronize the GitHub issue.** Run the single-item procedure in [`../10x-github-issue/SKILL.md`](../10x-github-issue/SKILL.md) now that Progress and `change.md` are current. Follow the non-rollback failure contract from Setup.
+
+11. **Reset the touched-file set** before the next phase.
 
 ### Next-phase decision
 
@@ -289,7 +293,9 @@ When every `- [ ]` in the entire `## Progress` section is `[x]`:
 
 3. **Epilogue commit.** The final phase's SHA write-back and the `change.md` status flip sit dirty after the final ritual. Stage exactly `plan.md` + `change.md` (explicit paths), check `git diff --cached --quiet` (skip if empty), propose `chore(<change-id>): close out plan (epilogue)`, approve, and commit via heredoc. Do NOT write the epilogue's own SHA back.
 
-4. **Completion summary + optional review:**
+4. **Synchronize the GitHub issue** after `change.md` is `implemented` and the epilogue write-back is durable. Run the single-item procedure in [`../10x-github-issue/SKILL.md`](../10x-github-issue/SKILL.md). A failure does not undo completed work; report `GitHub sync: failed - <reason>`.
+
+5. **Completion summary + optional review:**
 
 ```
 All phases implemented test-first! 🎉

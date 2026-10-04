@@ -1,6 +1,6 @@
 ---
 name: 10x-github-issue
-description: 'Create and synchronize a 10x change with its GitHub issue: preserve roadmap IDs for mapped work, allocate CH-NN IDs for standalone changes, update status and plan progress, and close completed work. Use after /10x-new, /10x-plan, /10x-implement, /10x-impl-review, or /10x-archive; for "create the issue", "update the issue", "sync GitHub status", or "keep the issue current".'
+description: 'Create and synchronize a 10x change with its GitHub issue: preserve roadmap IDs for mapped work, allocate CH-NN IDs for standalone changes, update status and plan progress, and close completed work. Use after /10x-new, /10x-research, /10x-plan, /10x-implement, /10x-tdd, /10x-impl-review, or /10x-archive; for "create the issue", "update the issue", "sync GitHub status", or "keep the issue current".'
 argument-hint: '<change-id|roadmap-id|issue-number|--all> [--create-missing]'
 ---
 
@@ -193,6 +193,7 @@ Write through a temporary file and `gh issue edit --body-file`; remove the tempo
 Comment when one of these transitions is observed:
 
 - a change folder is created and selected for work;
+- a research artifact is saved (complete or partial);
 - planning started;
 - implementation started;
 - plan completion count increased;
@@ -235,12 +236,14 @@ Print the issue URL and a compact action summary. A verification mismatch is an 
 ## Lifecycle Placement
 
 - After `/10x-new`: always invoke `<change-id> --create-missing`. Create the issue immediately if absent, using the roadmap ID when mapped or allocating `CH-NN` when standalone, then add the selected-for-work comment.
+- After `/10x-research`: invoke `<change-id> --create-missing` after the research artifact and `change.md` metadata are saved, including when findings are partial. Add a research-saved progress comment; standalone `preparing` becomes `Preparing`, while mapped status remains sourced from the roadmap.
 - After `/10x-plan`: invoke `<change-id> --create-missing`; mapped roadmap `planning` becomes `Planning`, while standalone `planned` becomes `Planned`.
 - During `/10x-implement`: invoke `<change-id> --create-missing`; mapped roadmap `in-progress` and standalone `implementing` become `In progress`, and completed plan counts may add comments.
+- During `/10x-tdd`: invoke `<change-id> --create-missing` on entry and after each phase-end Progress write-back, using the same status and progress rules as `/10x-implement`. Invoke once more after the final `implemented` status and epilogue write-back.
 - After `/10x-impl-review`: invoke `<change-id> --create-missing`, add a review-complete progress comment, and keep the issue open.
 - After `/10x-archive`: mapped roadmap `done` or standalone `archived` becomes `Done`; add the final comment and close the issue.
 
-These lifecycle skills must run this synchronization procedure after their local state transition: `/10x-new`, `/10x-plan`, `/10x-implement`, `/10x-impl-review`, and `/10x-archive`. A sync failure never rolls back valid local work or blocks its commit; report `GitHub sync: failed - <reason>` in that skill's final output. Direct invocation remains available for reconciliation and `--all` repair.
+These lifecycle skills must run this synchronization procedure after their local state transition: `/10x-new`, `/10x-research`, `/10x-plan`, `/10x-implement`, `/10x-tdd`, `/10x-impl-review`, and `/10x-archive`. A sync failure never rolls back valid local work or blocks its commit; report `GitHub sync: failed - <reason>` in that skill's final output. Direct invocation remains available for reconciliation and `--all` repair.
 
 ## Safety Rules
 

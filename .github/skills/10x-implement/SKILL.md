@@ -40,6 +40,7 @@ When given a plan path:
 - **Preflight the gates**: collect the commands from every phase's Automated success criteria and check each is runnable here — the binary or package script exists (`package.json` scripts, `command -v`, `Makefile` targets). A criterion whose command cannot run is a mismatch for the phase that needs it, and it is far cheaper to say so now than to discover it after the code is written. Report each unrunnable command on entry (`PREFLIGHT: <command> not runnable — Phase <N> will need this`). Never silently drop an unverifiable criterion.
 - **Update `change.md`**: on entry, set `status: implementing` (only if currently in `{planned, plan_reviewed}`) and `updated: <today>`.
 - **Sync the roadmap** (best effort, once on entry): if `context/foundation/roadmap.md` carries an item whose `Change ID` equals `<change-id>`, flip that item to `Status: in-progress`. See "## Roadmap status sync" below. This is the open-work counterpart to `/10x-archive`'s `done` flip; it never blocks, and most changes won't trace to a roadmap.
+- **Create or synchronize the GitHub issue** after the roadmap lookup by running the `<change-id> --create-missing` single-item procedure in [`../10x-github-issue/SKILL.md`](../10x-github-issue/SKILL.md). Repeat after each phase-end Progress write-back so GitHub receives meaningful progress increments. Each sync is required for mapped and standalone changes; failures do not roll back implementation or commits and must be reported as `GitHub sync: failed - <reason>`.
 - Count total phases (from `## Phase N:` headers) and create one task entry per phase (these appear in the user's status bar):
   - For each phase, create a task with `subject: "Phase N: [Phase Name]"` and `activeForm: "Implementing Phase N"`
   - Set the current phase to `in_progress` before starting work
@@ -276,7 +277,9 @@ Alongside the sequence:
 
   10. **Update `change.md`.** Set `updated: <today>`; keep `status: implementing` (idempotent until the final phase). On the final phase, set `status: implemented` after the SHA write-back lands (see "After all phases" below).
 
-  11. **Reset the touched-file set.** Clear it before starting the next phase. The ritual is self-contained per phase.
+   11. **Synchronize the GitHub issue.** Run the single-item procedure in [`../10x-github-issue/SKILL.md`](../10x-github-issue/SKILL.md) now that Progress and `change.md` are current. Follow the non-rollback failure contract from entry.
+
+   12. **Reset the touched-file set.** Clear it before starting the next phase. The ritual is self-contained per phase.
 
 - **Next phase decision**: If there is a next phase, help the user decide whether to continue or start fresh.
 
