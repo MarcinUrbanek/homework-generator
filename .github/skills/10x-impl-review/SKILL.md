@@ -257,7 +257,6 @@ Persist `Reviewed phases` as an explicit comma-separated list of phase numbers a
 1. **Write the report file** to `context/changes/<change-id>/reviews/impl-review.md` (or `context/changes/<change-id>/reviews/impl-review-phase-N.md` for a phase-scoped review), using the format below. Create the `reviews/` directory if absent.
 2. **Stamp `change.md`**: set `status: impl_reviewed` and `updated: <today>`. Once, here — independent of which proceed option the user picks. (If a `change.md` field is already `impl_reviewed`, just refresh `updated`.)
 3. If the user later triages, the on-disk report is the working copy: its `Decision:` fields are updated in place as each finding is decided (Step 5), and any "fix in plan/code" follow-ups are queued into `context/changes/<change-id>/follow-ups/review-fixes.md`.
-4. **Create or synchronize the GitHub issue** by running the `<change-id> --create-missing` single-item procedure in [`../10x-github-issue/SKILL.md`](../10x-github-issue/SKILL.md). This is required for mapped and standalone changes after the report and stamp are durable. A failure does not roll them back; report `GitHub sync: failed - <reason>`.
 
 ```markdown
 <!-- IMPL-REVIEW-REPORT -->
