@@ -237,20 +237,20 @@ No production migration or schema change is planned. The pgTAP assertions use th
 
 #### Automated
 
-- [x] 2.1 pgTAP asserts student denial for class creation and invitation preparation, cross-teacher empty class visibility and owner-RPC denial, and no invitation mutation after rejected preparation.
-- [x] 2.2 The database suite passes against local Supabase: `npm run db:test`.
+- [x] 2.1 pgTAP asserts student denial for class creation and invitation preparation, cross-teacher empty class visibility and owner-RPC denial, and no invitation mutation after rejected preparation. — d624dcc
+- [x] 2.2 The database suite passes against local Supabase: `npm run db:test`. — d624dcc
 
 ### Phase 3: Invitation Pre-Enrollment Status
 
 #### Automated
 
-- [ ] 3.1 Status and auth-continuation tests assert the expected coarse outcomes for expired, rotated/unknown, failed/pending, matching, and wrong-account cases without returning recipient data.
-- [ ] 3.2 pgTAP proves persisted expiry, digest rotation, delivery-state recording, and stale-delivery rejection; it makes no membership or replay claim.
-- [ ] 3.3 Focused status and auth tests pass: `npm test -- src/lib/services/class-invitation-status.test.ts src/pages/api/auth/signin.test.ts src/pages/api/auth/signup.test.ts src/lib/auth/return-destination.test.ts`.
+- [x] 3.1 Status and auth-continuation tests assert the expected coarse outcomes for expired, rotated/unknown, failed/pending, matching, and wrong-account cases without returning recipient data.
+- [x] 3.2 pgTAP proves persisted expiry, digest rotation, delivery-state recording, and stale-delivery rejection; it makes no membership or replay claim.
+- [x] 3.3 Focused status and auth tests pass: `npm test -- src/lib/services/class-invitation-status.test.ts src/pages/api/auth/signin.test.ts src/pages/api/auth/signup.test.ts src/lib/auth/return-destination.test.ts`.
 
 #### Manual
 
-- [ ] 3.4 With controlled local invitation records, inspect `/classes/join` for expired, rotated, failed-delivery, and wrong-account links; confirm the page shows only its generic state/help text, exposes no recipient or class data, and does not offer or imply enrollment. For a valid unauthenticated link, confirm sign-in/sign-up links retain the tokenized return path. Do not interpret this check as replay or enrollment verification.
+- [x] 3.4 With controlled local invitation records, inspect `/classes/join` for expired, rotated, failed-delivery, and wrong-account links; confirm the page shows only its generic state/help text, exposes no recipient or class data, and does not offer or imply enrollment. For a valid unauthenticated link, confirm sign-in/sign-up links retain the tokenized return path. Do not interpret this check as replay or enrollment verification.
 
 ### Phase 4: Publish Cookbook Patterns
 
