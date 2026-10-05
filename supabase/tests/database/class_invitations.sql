@@ -64,6 +64,8 @@ select set_config('request.jwt.claim.sub', '40000000-0000-0000-0000-000000000001
 create temporary table teacher_one_class as
 select * from public.create_class('  Matematyka 4A  ');
 
+grant select on teacher_one_class to service_role;
+
 select is(
   (select name from public.classes where id = (select class_id from teacher_one_class)),
   'Matematyka 4A',
@@ -113,7 +115,11 @@ reset role;
 set local role service_role;
 
 select is(
-  (select count(*) from public.class_invitations),
+  (
+    select count(*)
+    from public.class_invitations
+    where class_id = (select class_id from teacher_one_class)
+  ),
   2::bigint,
   'Each normalized email produces one invitation row'
 );
@@ -236,7 +242,11 @@ reset role;
 set local role service_role;
 
 select is(
-  (select count(*) from public.class_invitations),
+  (
+    select count(*)
+    from public.class_invitations
+    where class_id = (select class_id from teacher_one_class)
+  ),
   2::bigint,
   'Rejected student preparation leaves invitation rows unchanged'
 );
