@@ -1,6 +1,6 @@
 begin;
 
-select plan(39);
+select plan(41);
 
 insert into auth.users (
   id,
@@ -220,6 +220,25 @@ select throws_ok(
   '42501',
   'Teacher authentication is required',
   'A student-only account cannot create a class'
+);
+select throws_ok(
+  $$select * from public.prepare_class_invitations(
+      (select class_id from teacher_one_class),
+      array['student@example.test'],
+      array[repeat('e', 64)]
+    )$$,
+  '42501',
+  'Teacher authentication is required',
+  'A student-only account cannot prepare invitations'
+);
+
+reset role;
+set local role service_role;
+
+select is(
+  (select count(*) from public.class_invitations),
+  2::bigint,
+  'Rejected student preparation leaves invitation rows unchanged'
 );
 
 reset role;

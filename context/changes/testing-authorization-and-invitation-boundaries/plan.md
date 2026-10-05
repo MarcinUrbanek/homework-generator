@@ -229,16 +229,16 @@ No production migration or schema change is planned. The pgTAP assertions use th
 
 #### Automated
 
-- [x] 1.1 The seven route tests prove a signed-in non-teacher receives a non-disclosing 403 and each route-specific protected operation is skipped; one class route uses the real `authorizeTeacher` implementation.
-- [x] 1.2 The invitation ownership handler test proves the generic 403 response omits class, recipient, token, and database details.
-- [x] 1.3 Focused route and authorization tests pass: `npm test -- src/pages/api/classes/create.test.ts src/pages/api/classes/list.test.ts src/pages/api/classes/invite.test.ts src/pages/api/exercises/request.test.ts src/pages/api/exercises/verify.test.ts src/pages/api/exercises/approve.test.ts src/pages/api/exercises/saved.test.ts src/lib/services/teacher-authorization.test.ts`.
+- [x] 1.1 The seven route tests prove a signed-in non-teacher receives a non-disclosing 403 and each route-specific protected operation is skipped; one class route uses the real `authorizeTeacher` implementation. — 3b76ec2
+- [x] 1.2 The invitation ownership handler test proves the generic 403 response omits class, recipient, token, and database details. — 3b76ec2
+- [x] 1.3 Focused route and authorization tests pass: `npm test -- src/pages/api/classes/create.test.ts src/pages/api/classes/list.test.ts src/pages/api/classes/invite.test.ts src/pages/api/exercises/request.test.ts src/pages/api/exercises/verify.test.ts src/pages/api/exercises/approve.test.ts src/pages/api/exercises/saved.test.ts src/lib/services/teacher-authorization.test.ts`. — 3b76ec2
 
 ### Phase 2: Database Role and Ownership Enforcement
 
 #### Automated
 
-- [ ] 2.1 pgTAP asserts student denial for class creation and invitation preparation, cross-teacher empty class visibility and owner-RPC denial, and no invitation mutation after rejected preparation.
-- [ ] 2.2 The database suite passes against local Supabase: `npm run db:test`.
+- [x] 2.1 pgTAP asserts student denial for class creation and invitation preparation, cross-teacher empty class visibility and owner-RPC denial, and no invitation mutation after rejected preparation.
+- [x] 2.2 The database suite passes against local Supabase: `npm run db:test`.
 
 ### Phase 3: Invitation Pre-Enrollment Status
 
