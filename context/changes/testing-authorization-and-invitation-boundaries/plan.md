@@ -256,4 +256,4 @@ No production migration or schema change is planned. The pgTAP assertions use th
 
 #### Automated
 
-- [x] 4.1 §6.1, §6.2, and §6.6 describe the shipped patterns, verification commands, source boundaries, and acceptance/replay exclusions; the pre-existing edits to §§1-5 are preserved.
+- [x] 4.1 §6.1, §6.2, and §6.6 describe the shipped patterns, verification commands, source boundaries, and acceptance/replay exclusions; the pre-existing edits to §§1-5 are preserved. — 20c8a7d

@@ -1,7 +1,7 @@
 ---
 change_id: testing-authorization-and-invitation-boundaries
 title: Test authorization and invitation boundaries
-status: implementing
+status: implemented
 created: 2026-10-03
 updated: 2026-10-05
 archived_at: null
