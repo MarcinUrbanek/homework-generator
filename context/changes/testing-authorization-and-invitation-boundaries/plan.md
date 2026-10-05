@@ -244,16 +244,16 @@ No production migration or schema change is planned. The pgTAP assertions use th
 
 #### Automated
 
-- [x] 3.1 Status and auth-continuation tests assert the expected coarse outcomes for expired, rotated/unknown, failed/pending, matching, and wrong-account cases without returning recipient data.
-- [x] 3.2 pgTAP proves persisted expiry, digest rotation, delivery-state recording, and stale-delivery rejection; it makes no membership or replay claim.
-- [x] 3.3 Focused status and auth tests pass: `npm test -- src/lib/services/class-invitation-status.test.ts src/pages/api/auth/signin.test.ts src/pages/api/auth/signup.test.ts src/lib/auth/return-destination.test.ts`.
+- [x] 3.1 Status and auth-continuation tests assert the expected coarse outcomes for expired, rotated/unknown, failed/pending, matching, and wrong-account cases without returning recipient data. — 0f4c374
+- [x] 3.2 pgTAP proves persisted expiry, digest rotation, delivery-state recording, and stale-delivery rejection; it makes no membership or replay claim. — 0f4c374
+- [x] 3.3 Focused status and auth tests pass: `npm test -- src/lib/services/class-invitation-status.test.ts src/pages/api/auth/signin.test.ts src/pages/api/auth/signup.test.ts src/lib/auth/return-destination.test.ts`. — 0f4c374
 
 #### Manual
 
-- [x] 3.4 With controlled local invitation records, inspect `/classes/join` for expired, rotated, failed-delivery, and wrong-account links; confirm the page shows only its generic state/help text, exposes no recipient or class data, and does not offer or imply enrollment. For a valid unauthenticated link, confirm sign-in/sign-up links retain the tokenized return path. Do not interpret this check as replay or enrollment verification.
+- [x] 3.4 With controlled local invitation records, inspect `/classes/join` for expired, rotated, failed-delivery, and wrong-account links; confirm the page shows only its generic state/help text, exposes no recipient or class data, and does not offer or imply enrollment. For a valid unauthenticated link, confirm sign-in/sign-up links retain the tokenized return path. Do not interpret this check as replay or enrollment verification. — 0f4c374
 
 ### Phase 4: Publish Cookbook Patterns
 
 #### Automated
 
-- [ ] 4.1 §6.1, §6.2, and §6.6 describe the shipped patterns, verification commands, source boundaries, and acceptance/replay exclusions; the pre-existing edits to §§1-5 are preserved.
+- [x] 4.1 §6.1, §6.2, and §6.6 describe the shipped patterns, verification commands, source boundaries, and acceptance/replay exclusions; the pre-existing edits to §§1-5 are preserved.
