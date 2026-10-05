@@ -41,7 +41,7 @@ raised each scenario, never a presumed code location.
 | 1   | A student accesses another student's data or teacher-only actions                    | High   | High       | PRD Access Control and guardrails; interview Q1, Q3, Q4; hot-spot dir `src/pages/api/` (23 changes/30d)                                   |
 | 2   | Repeated generation requests exhaust provider budget or availability                 | High   | Medium     | interview Q1, Q3; archived request-polish-exercises slice; hot-spot dir `src/lib/services/` (21 changes/30d)                              |
 | 3   | An ambiguous or incorrectly verified exercise reaches the approved pool              | High   | High       | PRD FR-006 and guardrails; archived approve-first-exercise-pool and verifier-answer-equivalence slices; interview Q3                      |
-| 4   | An expired, rotated, replayed, or wrong-recipient invitation grants class access     | High   | Medium     | roadmap S-05; archived invite-students-to-class slice; interview Q4                                                                       |
+| 4   | An expired, rotated, failed-delivery, or wrong-recipient invitation is misclassified or discloses recipient data before enrollment | High | Medium | roadmap S-05; archived invite-students-to-class slice; interview Q4 |
 | 5   | Provider timeout or partial failure loses settled work or reports misleading success | Medium | High       | archived request-polish-exercises and approve-first-exercise-pool slices; interview Q3; hot-spot dir `src/lib/services/` (21 changes/30d) |
 | 6   | Distinct assignment or 50% scoring uses the wrong exercise or answer state           | High   | Medium     | PRD US-01 and FR-010–FR-013; roadmap S-06 and S-07                                                                                        |
 
@@ -57,7 +57,7 @@ occasional or upcoming surface, and Low for stable rare paths.
 | #1   | Every forbidden role or ownership request is denied without leaking protected data                                  | Authentication implies authorization                   | role/session shape, ownership boundary, API and database enforcement         | API integration + database         | happy-path-only role tests                   |
 | #2   | Repeated costly requests are bounded and rejection is explicit without triggering provider work                     | A disabled UI control limits server calls              | caller identity, quota semantics, concurrency, provider boundary             | API integration                    | client-only assertions                       |
 | #3   | Approval requires independent, uniquely answerable evidence from an authoritative source                            | Two agreeing model outputs prove correctness           | verifier contract, immutable evidence, answer oracle, approval boundary      | unit + integration + contract      | expected values copied from production logic |
-| #4   | Expired, rotated, replayed, and wrong-recipient invitations cannot enroll while valid state survives authentication | Possessing a bearer link proves recipient identity     | token lifecycle, recipient binding, expiry, replay rule, auth return state   | integration + database             | success-path-only invitation tests           |
+| #4   | Before enrollment exists, expired, rotated, failed-delivery, and wrong-account links receive the correct non-disclosing status; defer membership and replay protection until acceptance is implemented | Status rejection, token rotation, or auth matching proves single-use enrollment | token lifecycle, recipient binding, expiry, status classification, auth return state; acceptance is not implemented yet | service unit + focused persistence integration | treating status-page rejection as proof of enrollment or replay protection |
 | #5   | Per-item settled outcomes survive provider failures and failures are represented honestly                           | A final 200 means every candidate succeeded            | timeout/retry boundary, per-item state, error translation                    | service integration                | over-mocking internal modules                |
 | #6   | Assignment count, distinctness, difficulty, and score threshold use approved immutable state                        | The current exercise pool equals the assigned snapshot | persisted assignment, valid-answer source, ordering and threshold boundaries | domain unit + database integration | copied scoring calculation                   |
 
@@ -68,7 +68,7 @@ folder and moves through the fixed orchestrator vocabulary.
 
 | #   | Phase name                              | Goal (one line)                                                                                              | Risks covered | Test types                         | Status        | Change folder                                   |
 | --- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------- | ---------------------------------- | ------------- | ----------------------------------------------- |
-| 1   | Authorization and invitation boundaries | Prove role, ownership, recipient, expiry, and replay denials across trusted boundaries                       | #1, #4        | API integration + database         | change opened | testing-authorization-and-invitation-boundaries |
+| 1   | Authorization and invitation boundaries | Prove role, ownership, recipient, expiry, and replay denials across trusted boundaries                       | #1, #4        | API integration + database         | researched    | testing-authorization-and-invitation-boundaries |
 | 2   | Exercise trust and provider resilience  | Prove costly calls are bounded, approval evidence is trustworthy, and partial failures preserve settled work | #2, #3, #5    | unit + integration + contract      | not started   | —                                               |
 | 3   | Assignment and scoring contracts        | Prove distinct fair assignments and the 50% result use immutable approved answers                            | #6            | domain unit + database integration | not started   | —                                               |
 | 4   | Critical-flow quality gates             | Enforce the shipped risk coverage and a minimal full-flow signal before production                           | cross-cutting | CI gates + critical-flow smoke/e2e | not started   | —                                               |
@@ -114,11 +114,16 @@ that establishes its canonical pattern.
 
 ### 6.1 Adding a role or ownership denial test
 
-- TBD — see §3 Phase 1 for API and database authorization-denial patterns.
+- For each teacher-only handler, sign in as a student and assert the established generic `403` response plus that route-specific protected work was not called. Keep the unauthenticated `401` case distinct. In one representative route, use the production `authorizeTeacher` with a student session and a role lookup that returns no teacher row; injected non-teacher results in the other route tests isolate each handler guard.
+- Prove persisted authorization separately with pgTAP under `authenticated` JWT claims: student-only class creation and invitation preparation are denied; another teacher sees no owner-class rows and invitation preparation raises `42501`; rejected preparation leaves no invitation rows. Handler mocks do not prove RLS or security-definer enforcement.
+- Verify with `npm test -- src/pages/api/classes/create.test.ts src/pages/api/classes/list.test.ts src/pages/api/classes/invite.test.ts src/pages/api/exercises/request.test.ts src/pages/api/exercises/verify.test.ts src/pages/api/exercises/approve.test.ts src/pages/api/exercises/saved.test.ts src/lib/services/teacher-authorization.test.ts` and `npm run db:test`.
 
 ### 6.2 Adding an invitation lifecycle test
 
-- TBD — see §3 Phase 1 for recipient, expiry, rotation, and replay patterns.
+- Test `resolveClassInvitationStatus` as a coarse public contract: unknown and rotated tokens are `invalid`, expired tokens are `expired`, pending or failed delivery is `unavailable`, and a different authenticated email is `email-mismatch`. Assert that results never contain the normalized recipient. Keep authentication-continuation tests focused on preserving the complete tokenized same-origin return path.
+- Use pgTAP for persisted lifecycle facts: seven-day expiry, digest replacement and pending state on refresh, current delivery-state recording, and rejection of stale delivery writes. These persistence checks and the status-service tests are separate boundaries, not a live HTTP-to-database integration.
+- Verify with `npm test -- src/lib/services/class-invitation-status.test.ts src/pages/api/auth/signin.test.ts src/pages/api/auth/signup.test.ts src/lib/auth/return-destination.test.ts` and `npm run db:test`.
+- Do not claim enrollment safety or single-use replay protection from status rejection, token rotation, email matching, or stale-delivery rejection. Test expiry, recipient binding, unredeemed state, membership creation, and replay together when the future acceptance transaction is implemented.
 
 ### 6.3 Adding a provider-boundary or verification test
 
@@ -135,6 +140,8 @@ that establishes its canonical pattern.
 ### 6.6 Per-rollout-phase notes
 
 - Phase implementations append two or three lines here when research or delivery changes the canonical testing approach.
+- Phase 1 shipped separate route-level denial/no-work tests (including one real authorizer composition) and authenticated-claim pgTAP checks for role and ownership boundaries; run the §6.1 commands for those layers.
+- Invitation status/auth-continuation tests and persisted lifecycle assertions remain distinct; neither proves enrollment or replay safety. Cover those guarantees with the atomic acceptance operation in S-05.
 
 ## 7. What We Deliberately Don't Test
 
