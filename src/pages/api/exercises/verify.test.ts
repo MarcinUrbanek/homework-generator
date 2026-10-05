@@ -18,6 +18,7 @@ vi.mock("astro:env/server", () => ({
 }));
 
 const teacherId = "00000000-0000-4000-8000-000000000001";
+const studentId = "student-without-teacher-role";
 const verificationId = "00000000-0000-4000-8000-000000000101";
 
 const candidate: ExerciseCandidate = {
@@ -58,14 +59,14 @@ function ledgerRow(item: ExerciseCandidate = candidate, result: ExerciseVerifica
   };
 }
 
-function contextFor(body: string): APIContext {
+function contextFor(body: string, userId = teacherId): APIContext {
   return {
     request: new Request("http://localhost/api/exercises/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body,
     }),
-    locals: { user: { id: teacherId } },
+    locals: { user: { id: userId } },
     cookies: {},
   } as APIContext;
 }
@@ -95,6 +96,7 @@ function handlerFor(
       ((_item: ExerciseCandidate): Promise<ExerciseVerificationEvidence> => Promise.resolve(evidence)),
   );
   const loadExisting = vi.fn().mockResolvedValue(options.existing ?? []);
+  const createWriterClient = vi.fn(() => (options.writerAvailable === false ? null : ({} as never)));
   const record = vi.fn(
     options.recordImplementation ??
       ((_client, _requestedTeacherId, item, result) => Promise.resolve(ledgerRow(item, result))),
@@ -103,18 +105,22 @@ function handlerFor(
     authorize,
     verify,
     createSupabaseClient: vi.fn(() => null),
-    createWriterClient: vi.fn(() => (options.writerAvailable === false ? null : ({} as never))),
+    createWriterClient,
     loadExisting,
     record,
     providerConfig: options.configured === false ? {} : { apiKey: "test-secret", model: "test/verifier" },
   });
 
-  return { handler, authorize, verify, loadExisting, record };
+  return { handler, authorize, verify, loadExisting, record, createWriterClient };
 }
 
-async function invoke(handler: APIRoute, value: unknown = { candidates: [candidate] }): Promise<Response> {
+async function invoke(
+  handler: APIRoute,
+  value: unknown = { candidates: [candidate] },
+  userId = teacherId,
+): Promise<Response> {
   const body = typeof value === "string" ? value : JSON.stringify(value);
-  return handler(contextFor(body));
+  return handler(contextFor(body, userId));
 }
 
 beforeEach(() => {
@@ -141,7 +147,6 @@ describe("POST /api/exercises/verify", () => {
 
   it.each([
     { authorization: { status: "unauthenticated" } as const, status: 401, code: "UNAUTHENTICATED" },
-    { authorization: { status: "non-teacher" } as const, status: 403, code: "FORBIDDEN" },
     { authorization: { status: "profile-unavailable" } as const, status: 403, code: "FORBIDDEN" },
   ])("maps $authorization.status authorization", async ({ authorization, status, code }) => {
     const { handler, verify } = handlerFor({ authorization });
@@ -151,6 +156,27 @@ describe("POST /api/exercises/verify", () => {
     expect(response.status).toBe(status);
     expect((await responseBody<ExerciseVerificationError>(response)).error.code).toBe(code);
     expect(verify).not.toHaveBeenCalled();
+  });
+
+  it("denies a signed-in student before ledger reads, provider verification, and writes", async () => {
+    const { handler, verify, loadExisting, record, createWriterClient } = handlerFor({
+      authorization: { status: "non-teacher" },
+    });
+
+    const response = await invoke(handler, { candidates: [candidate] }, studentId);
+
+    expect(response.status).toBe(403);
+    const body = await responseBody<ExerciseVerificationError>(response);
+    expect(body).toEqual({
+      error: { code: "FORBIDDEN", message: "Weryfikacja zadań jest dostępna tylko dla nauczycieli." },
+    });
+    expect(createWriterClient).not.toHaveBeenCalled();
+    expect(loadExisting).not.toHaveBeenCalled();
+    expect(verify).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+    expect(JSON.stringify(body)).not.toContain(candidate.text);
+    expect(JSON.stringify(body)).not.toContain("test-secret");
+    expect(JSON.stringify(body)).not.toContain("database details");
   });
 
   it.each([

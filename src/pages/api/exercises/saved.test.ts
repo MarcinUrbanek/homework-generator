@@ -13,13 +13,14 @@ vi.mock("astro:env/server", () => ({
 }));
 
 const teacherId = "00000000-0000-4000-8000-000000000001";
+const studentId = "student-without-teacher-role";
 const exerciseId = "00000000-0000-4000-8000-000000000201";
 const approvalTime = "2026-10-02T12:00:00.000Z";
 
-function contextFor(query = "grade=4&topic=addition-subtraction"): APIContext {
+function contextFor(query = "grade=4&topic=addition-subtraction", userId = teacherId): APIContext {
   return {
     request: new Request(`http://localhost/api/exercises/saved?${query}`),
-    locals: { user: { id: teacherId } },
+    locals: { user: { id: userId } },
     cookies: {},
   } as APIContext;
 }
@@ -57,8 +58,8 @@ function handlerFor(
   return { handler, authorize, retrieve };
 }
 
-async function invoke(handler: APIRoute, query?: string): Promise<Response> {
-  return handler(contextFor(query));
+async function invoke(handler: APIRoute, query?: string, userId = teacherId): Promise<Response> {
+  return handler(contextFor(query, userId));
 }
 
 beforeEach(() => {
@@ -84,7 +85,6 @@ describe("GET /api/exercises/saved", () => {
 
   it.each([
     { authorization: { status: "unauthenticated" } as const, status: 401, code: "UNAUTHENTICATED" },
-    { authorization: { status: "non-teacher" } as const, status: 403, code: "FORBIDDEN" },
     { authorization: { status: "profile-unavailable" } as const, status: 403, code: "FORBIDDEN" },
   ])("maps $authorization.status authorization", async ({ authorization, status, code }) => {
     const { handler, retrieve } = handlerFor({ authorization });
@@ -94,6 +94,22 @@ describe("GET /api/exercises/saved", () => {
     expect(response.status).toBe(status);
     expect((await responseBody<SavedExerciseError>(response)).error.code).toBe(code);
     expect(retrieve).not.toHaveBeenCalled();
+  });
+
+  it("denies a signed-in student before saved-exercise retrieval", async () => {
+    const { handler, retrieve } = handlerFor({ authorization: { status: "non-teacher" } });
+
+    const response = await invoke(handler, undefined, studentId);
+
+    expect(response.status).toBe(403);
+    const body = await responseBody<SavedExerciseError>(response);
+    expect(body).toEqual({
+      error: { code: "FORBIDDEN", message: "Przeglądanie zapisanych zadań jest dostępne tylko dla nauczycieli." },
+    });
+    expect(retrieve).not.toHaveBeenCalled();
+    expect(JSON.stringify(body)).not.toContain(exerciseId);
+    expect(JSON.stringify(body)).not.toContain("Treść 1");
+    expect(JSON.stringify(body)).not.toContain("canonicalAnswer");
   });
 
   it("returns 503 when the request-scoped database client is unavailable", async () => {

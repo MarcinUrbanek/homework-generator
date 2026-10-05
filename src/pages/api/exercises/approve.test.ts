@@ -13,19 +13,20 @@ vi.mock("astro:env/server", () => ({
 }));
 
 const teacherId = "00000000-0000-4000-8000-000000000001";
+const studentId = "student-without-teacher-role";
 const verificationId = "00000000-0000-4000-8000-000000000101";
 const secondVerificationId = "00000000-0000-4000-8000-000000000102";
 const exerciseId = "00000000-0000-4000-8000-000000000201";
 const secondExerciseId = "00000000-0000-4000-8000-000000000202";
 
-function contextFor(body: string): APIContext {
+function contextFor(body: string, userId = teacherId): APIContext {
   return {
     request: new Request("http://localhost/api/exercises/approve", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body,
     }),
-    locals: { user: { id: teacherId } },
+    locals: { user: { id: userId } },
     cookies: {},
   } as APIContext;
 }
@@ -55,9 +56,13 @@ function handlerFor(
   return { handler, authorize, approve };
 }
 
-async function invoke(handler: APIRoute, value: unknown = { verificationIds: [verificationId] }): Promise<Response> {
+async function invoke(
+  handler: APIRoute,
+  value: unknown = { verificationIds: [verificationId] },
+  userId = teacherId,
+): Promise<Response> {
   const body = typeof value === "string" ? value : JSON.stringify(value);
-  return handler(contextFor(body));
+  return handler(contextFor(body, userId));
 }
 
 beforeEach(() => {
@@ -85,7 +90,6 @@ describe("POST /api/exercises/approve", () => {
 
   it.each([
     { authorization: { status: "unauthenticated" } as const, status: 401, code: "UNAUTHENTICATED" },
-    { authorization: { status: "non-teacher" } as const, status: 403, code: "FORBIDDEN" },
     { authorization: { status: "profile-unavailable" } as const, status: 403, code: "FORBIDDEN" },
   ])("maps $authorization.status authorization", async ({ authorization, status, code }) => {
     const { handler, approve } = handlerFor({ authorization });
@@ -95,6 +99,21 @@ describe("POST /api/exercises/approve", () => {
     expect(response.status).toBe(status);
     expect((await responseBody<ExerciseApprovalError>(response)).error.code).toBe(code);
     expect(approve).not.toHaveBeenCalled();
+  });
+
+  it("denies a signed-in student before the approval RPC", async () => {
+    const { handler, approve } = handlerFor({ authorization: { status: "non-teacher" } });
+
+    const response = await invoke(handler, { verificationIds: [verificationId] }, studentId);
+
+    expect(response.status).toBe(403);
+    const body = await responseBody<ExerciseApprovalError>(response);
+    expect(body).toEqual({
+      error: { code: "FORBIDDEN", message: "Zatwierdzanie zadań jest dostępne tylko dla nauczycieli." },
+    });
+    expect(approve).not.toHaveBeenCalled();
+    expect(JSON.stringify(body)).not.toContain(verificationId);
+    expect(JSON.stringify(body)).not.toContain("sensitive database detail");
   });
 
   it("returns 503 when the request-scoped database client is unavailable", async () => {

@@ -2,15 +2,15 @@ import type { APIContext } from "astro";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { classSummarySchema } from "@/lib/classes/schemas";
+import { classApiErrorSchema, classSummarySchema } from "@/lib/classes/schemas";
 import { createListClassesHandler } from "./list";
 
 vi.mock("astro:env/server", () => ({ SUPABASE_KEY: undefined, SUPABASE_URL: undefined }));
 
-function context(): APIContext {
+function context(userId: string | null = "teacher"): APIContext {
   return {
     request: new Request("http://localhost/api/classes/list"),
-    locals: { user: { id: "teacher" } },
+    locals: { user: userId ? { id: userId } : null },
     cookies: {},
   } as APIContext;
 }
@@ -18,11 +18,30 @@ function context(): APIContext {
 describe("GET /api/classes/list", () => {
   it("rejects unauthenticated and non-teacher callers", async () => {
     for (const status of ["unauthenticated", "non-teacher"] as const) {
+      const protectedClass = {
+        id: "00000000-0000-4000-8000-000000000001",
+        name: "Protected 4A class",
+        class_code: "PRIVATE01",
+        created_at: "2026-10-02T12:00:00.000Z",
+      };
+      const listClasses = vi.fn().mockResolvedValue([protectedClass]);
       const response = await createListClassesHandler({
         authorize: vi.fn().mockResolvedValue({ status }),
         createSupabaseClient: vi.fn(() => ({}) as never),
-      })(context());
+        listClasses,
+      })(context(status === "non-teacher" ? "student-without-teacher-role" : null));
       expect(response.status).toBe(status === "unauthenticated" ? 401 : 403);
+      expect(listClasses).not.toHaveBeenCalled();
+
+      if (status === "non-teacher") {
+        const body = classApiErrorSchema.parse(await response.json());
+        expect(body).toEqual({
+          error: { code: "FORBIDDEN", message: "Lista klas jest dostępna tylko dla nauczycieli." },
+        });
+        expect(JSON.stringify(body)).not.toContain(protectedClass.id);
+        expect(JSON.stringify(body)).not.toContain(protectedClass.name);
+        expect(JSON.stringify(body)).not.toContain(protectedClass.class_code);
+      }
     }
   });
 
