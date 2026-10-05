@@ -1,0 +1,49 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { resolveClassInvitationStatus } from "@/lib/services/class-invitation-status";
+
+const token = Astro.url.searchParams.get("token");
+const status = await resolveClassInvitationStatus(token, Astro.locals.user?.email ?? null);
+const returnTo = `${Astro.url.pathname}${Astro.url.search}`;
+const authQuery = new URLSearchParams({ return_to: returnTo });
+
+const messages = {
+  missing: ["Brak zaproszenia", "Otwórz kompletny link z wiadomości e-mail."],
+  invalid: ["Link jest nieaktualny", "To zaproszenie nie jest już dostępne. Poproś nauczyciela o nowe zaproszenie."],
+  expired: ["Zaproszenie wygasło", "Poproś nauczyciela o wysłanie nowego zaproszenia."],
+  "delivery-failed": ["Zaproszenie jest niedostępne", "Poproś nauczyciela o wysłanie nowego zaproszenia."],
+  valid: ["Zaproszenie jest gotowe", "Zaloguj się lub utwórz konto, aby wrócić do tego zaproszenia."],
+  "email-mismatch": [
+    "To konto nie może użyć tego zaproszenia",
+    "Zaloguj się na konto, na które otrzymano zaproszenie.",
+  ],
+  ready: ["Zaproszenie jest gotowe", "Dołączenie do klasy będzie dostępne w kolejnym etapie."],
+} as const;
+const [heading, message] = messages[status];
+---
+
+<Layout title={heading}>
+  <main class="min-h-screen bg-background px-4 py-8 text-foreground sm:py-12">
+    <section class="mx-auto w-full max-w-xl rounded-lg border bg-card p-6 text-card-foreground shadow-sm sm:p-8">
+      <p class="text-sm font-semibold text-primary">Zaproszenie do klasy</p>
+      <h1 class="mt-2 text-3xl font-bold">{heading}</h1>
+      <p class="mt-3 leading-7 text-muted-foreground">{message}</p>
+      {status === "valid" && (
+        <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+          <a
+            href={`/auth/signin?${authQuery}`}
+            class="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground"
+          >
+            Zaloguj się
+          </a>
+          <a
+            href={`/auth/signup?${authQuery}`}
+            class="inline-flex min-h-11 items-center justify-center rounded-md border px-4 text-sm font-semibold"
+          >
+            Utwórz konto
+          </a>
+        </div>
+      )}
+    </section>
+  </main>
+</Layout>
