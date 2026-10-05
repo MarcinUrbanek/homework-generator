@@ -46,6 +46,18 @@ describe("resolveClassInvitationStatus", () => {
         now,
       }),
     ).resolves.toBe("delivery-failed");
+    await expect(
+      resolveClassInvitationStatus(validToken, null, {
+        digestToken: () => Promise.resolve("digest"),
+        findInvitation: () =>
+          Promise.resolve({
+            normalizedEmail: "student@example.test",
+            expiresAt: "2026-10-03T12:00:00.000Z",
+            deliveryState: "pending" as const,
+          }),
+        now,
+      }),
+    ).resolves.toBe("delivery-failed");
   });
 
   it("distinguishes unauthenticated, matching, and mismatched accounts without returning an email", async () => {

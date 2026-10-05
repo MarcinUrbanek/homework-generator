@@ -1,6 +1,6 @@
 begin;
 
-select plan(41);
+select plan(43);
 
 insert into auth.users (
   id,
@@ -287,6 +287,20 @@ select ok(
     null
   ),
   'A stale delivery result cannot overwrite a rotated invitation'
+);
+select ok(
+  public.record_class_invitation_delivery(
+    (select id from public.class_invitations where normalized_email = 'ala@example.test'),
+    repeat('d', 64),
+    'failed',
+    null
+  ),
+  'A failed delivery result is accepted for the current invitation token'
+);
+select is(
+  (select delivery_state from public.class_invitations where normalized_email = 'ala@example.test'),
+  'failed',
+  'A failed delivery result is persisted'
 );
 
 select * from finish();
