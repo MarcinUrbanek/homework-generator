@@ -250,7 +250,7 @@ No production migration or schema change is planned. The pgTAP assertions use th
 
 #### Manual
 
-- [x] 3.4 With controlled local invitation records, inspect `/classes/join` for expired, rotated, failed-delivery, and wrong-account links; confirm the page shows only its generic state/help text, exposes no recipient or class data, and does not offer or imply enrollment. For a valid unauthenticated link, confirm sign-in/sign-up links retain the tokenized return path. Do not interpret this check as replay or enrollment verification. — 0f4c374
+- [x] 3.4 With controlled local invitation records, inspect `/classes/join` for expired, rotated, failed-delivery, and wrong-account links; confirm the page shows only its generic state/help text, exposes no recipient or class data, and does not offer or imply enrollment. For a valid unauthenticated link, confirm sign-in/sign-up links retain the tokenized return path. Do not interpret this check as replay or enrollment verification. — 2026-10-05 (user-confirmed)
 
 ### Phase 4: Publish Cookbook Patterns
 
