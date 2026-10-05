@@ -17,6 +17,7 @@ const validRequest = {
   topic: "addition-subtraction",
   difficulty: "easy",
 } as const;
+const studentId = "student-without-teacher-role";
 
 const candidate: ExerciseCandidate = {
   id: "candidate-1",
@@ -26,14 +27,14 @@ const candidate: ExerciseCandidate = {
   approvalStatus: "unverified",
 };
 
-function contextFor(body: string): APIContext {
+function contextFor(body: string, userId: string | null = null): APIContext {
   return {
     request: new Request("http://localhost/api/exercises/request", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body,
     }),
-    locals: { user: null },
+    locals: { user: userId ? { id: userId } : null },
     cookies: {},
   } as APIContext;
 }
@@ -64,8 +65,12 @@ function handlerFor(
   return { handler, authorize, generate };
 }
 
-async function invoke(handler: APIRoute, body = JSON.stringify(validRequest)): Promise<Response> {
-  return handler(contextFor(body));
+async function invoke(
+  handler: APIRoute,
+  body = JSON.stringify(validRequest),
+  userId: string | null = null,
+): Promise<Response> {
+  return handler(contextFor(body, userId));
 }
 
 beforeEach(() => {
@@ -102,11 +107,16 @@ describe("POST /api/exercises/request", () => {
   it("returns 403 for a non-teacher", async () => {
     const { handler, generate } = handlerFor({ authorization: { status: "non-teacher" } });
 
-    const response = await invoke(handler);
+    const response = await invoke(handler, JSON.stringify(validRequest), studentId);
 
     expect(response.status).toBe(403);
-    expect((await responseBody<ExerciseGenerationError>(response)).error.code).toBe("FORBIDDEN");
+    const body = await responseBody<ExerciseGenerationError>(response);
+    expect(body).toEqual({
+      error: { code: "FORBIDDEN", message: "Generowanie zadań jest dostępne tylko dla nauczycieli." },
+    });
     expect(generate).not.toHaveBeenCalled();
+    expect(JSON.stringify(body)).not.toContain("test-secret");
+    expect(JSON.stringify(body)).not.toContain(candidate.text);
   });
 
   it("fails closed when the profile is unavailable", async () => {

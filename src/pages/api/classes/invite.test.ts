@@ -2,7 +2,7 @@ import type { APIContext } from "astro";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { invitationDeliveryResultSchema } from "@/lib/classes/schemas";
+import { classApiErrorSchema, invitationDeliveryResultSchema } from "@/lib/classes/schemas";
 import { ClassInvitationOwnershipError } from "@/lib/services/class-invitations";
 
 import { createInviteStudentsHandler } from "./invite";
@@ -18,11 +18,13 @@ vi.mock("astro:env/server", () => ({
 
 const classId = "00000000-0000-4000-8000-000000000001";
 const request = { classId, emails: ["One@Example.Test", "two@example.test"] };
+const tokenFixture = "private-invitation-token-fixture";
+const databaseDetailFixture = "private-database-ownership-detail";
 
-function context(body = JSON.stringify(request)): APIContext {
+function context(body = JSON.stringify(request), userId = "teacher"): APIContext {
   return {
     request: new Request("http://localhost/api/classes/invite", { method: "POST", body }),
-    locals: { user: { id: "teacher" } },
+    locals: { user: { id: userId } },
     cookies: {},
   } as APIContext;
 }
@@ -63,6 +65,37 @@ describe("POST /api/classes/invite", () => {
     expect(deliver).not.toHaveBeenCalled();
   });
 
+  it("denies a signed-in student before invitation preparation and delivery", async () => {
+    const createWriterClient = vi.fn(() => ({}) as never);
+    const createPersistence = vi.fn(() => ({}) as never);
+    const deliver = vi.fn();
+    const response = await createInviteStudentsHandler({
+      authorize: vi.fn().mockResolvedValue({ status: "non-teacher" }),
+      createSupabaseClient: vi.fn(() => ({}) as never),
+      createWriterClient,
+      providerConfig: {
+        apiKey: "provider-secret",
+        fromEmail: "from@example.test",
+        appOrigin: "https://app.example.test",
+      },
+      createPersistence,
+      deliver,
+    })(context(JSON.stringify(request), "student-without-teacher-role"));
+
+    expect(response.status).toBe(403);
+    const body = classApiErrorSchema.parse(await response.json());
+    expect(body).toEqual({
+      error: { code: "FORBIDDEN", message: "Zaproszenia są dostępne tylko dla właściciela klasy." },
+    });
+    expect(createWriterClient).not.toHaveBeenCalled();
+    expect(createPersistence).not.toHaveBeenCalled();
+    expect(deliver).not.toHaveBeenCalled();
+    const serialized = JSON.stringify(body);
+    for (const protectedValue of [classId, ...request.emails, tokenFixture, databaseDetailFixture, "provider-secret"]) {
+      expect(serialized).not.toContain(protectedValue);
+    }
+  });
+
   it("returns normalized ordered results without bearer tokens", async () => {
     const { handler, deliver } = configuredHandler(
       vi.fn().mockResolvedValue([
@@ -88,7 +121,20 @@ describe("POST /api/classes/invite", () => {
   });
 
   it("maps class ownership failures to forbidden", async () => {
-    const { handler } = configuredHandler(vi.fn().mockRejectedValue(new ClassInvitationOwnershipError()));
-    expect((await handler(context())).status).toBe(403);
+    const ownershipError = new ClassInvitationOwnershipError(
+      `${classId} ${request.emails.join(" ")} ${tokenFixture} ${databaseDetailFixture}`,
+    );
+    const { handler } = configuredHandler(vi.fn().mockRejectedValue(ownershipError));
+    const response = await handler(context());
+
+    expect(response.status).toBe(403);
+    const body = classApiErrorSchema.parse(await response.json());
+    expect(body).toEqual({
+      error: { code: "FORBIDDEN", message: "Zaproszenia są dostępne tylko dla właściciela klasy." },
+    });
+    const serialized = JSON.stringify(body);
+    for (const protectedValue of [classId, ...request.emails, tokenFixture, databaseDetailFixture]) {
+      expect(serialized).not.toContain(protectedValue);
+    }
   });
 });
