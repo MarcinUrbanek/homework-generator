@@ -9,5 +9,7 @@
   ],
   "reporters": ["progress", "clear-text", "html"],
   "concurrency": 4,
+  "coverageAnalysis": "perTest",
+  "incremental": true,
   "thresholds": { "high": 80, "low": 60, "break": null }
 }
