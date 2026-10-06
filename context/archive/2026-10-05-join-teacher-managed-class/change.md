@@ -1,10 +1,10 @@
 ---
 change_id: join-teacher-managed-class
 title: Join teacher-managed class
-status: impl_reviewed
+status: archived
 created: 2026-10-05
 updated: 2026-10-06
-archived_at: null
+archived_at: 2026-10-06T11:08:26Z
 ---
 
 ## Notes
