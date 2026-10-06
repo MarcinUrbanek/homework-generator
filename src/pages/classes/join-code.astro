@@ -1,0 +1,22 @@
+---
+import ClassCodeJoinForm from "@/components/classes/ClassCodeJoinForm";
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout title="Dołącz do klasy">
+  <main class="min-h-screen bg-background px-4 py-8 text-foreground sm:py-12">
+    <div class="mx-auto w-full max-w-2xl">
+      <a href="/dashboard" class="text-sm font-semibold text-primary underline-offset-4 hover:underline">
+        Powrót do panelu
+      </a>
+      <header class="mt-6">
+        <p class="text-sm font-semibold text-primary">Klasy</p>
+        <h1 class="mt-2 text-3xl font-bold">Dołącz do klasy</h1>
+        <p class="text-muted-foreground mt-3 leading-7">Wpisz kod otrzymany od nauczyciela.</p>
+      </header>
+      <section class="bg-card text-card-foreground mt-6 rounded-lg border p-5 shadow-sm sm:p-6">
+        <ClassCodeJoinForm client:load />
+      </section>
+    </div>
+  </main>
+</Layout>
