@@ -1,0 +1,21 @@
+---
+import JoinedClasses from "@/components/classes/JoinedClasses";
+import Layout from "@/layouts/Layout.astro";
+---
+
+<Layout title="Twoje klasy">
+  <main class="min-h-screen bg-background px-4 py-8 text-foreground sm:py-12">
+    <div class="mx-auto w-full max-w-3xl">
+      <a href="/dashboard" class="text-sm font-semibold text-primary underline-offset-4 hover:underline">
+        Powrót do panelu
+      </a>
+      <header class="mt-6">
+        <p class="text-sm font-semibold text-primary">Przestrzeń ucznia</p>
+        <h1 class="mt-2 text-3xl font-bold">Twoje klasy</h1>
+      </header>
+      <div class="mt-7">
+        <JoinedClasses client:load />
+      </div>
+    </div>
+  </main>
+</Layout>

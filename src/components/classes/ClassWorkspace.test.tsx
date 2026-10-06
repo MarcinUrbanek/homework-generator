@@ -92,7 +92,8 @@ describe("ClassWorkspace", () => {
       await Promise.resolve();
     });
     const input = getElement("#class-name", HTMLInputElement);
-    const form = getElement("form", HTMLFormElement);
+    const form = input.closest("form");
+    if (!(form instanceof HTMLFormElement)) throw new Error("Expected class creation form");
     act(() => {
       setInputValue(input, "4B");
       form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));

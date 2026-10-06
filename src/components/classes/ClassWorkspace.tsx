@@ -2,9 +2,14 @@ import { useEffect, useState } from "react";
 
 import CreateClassForm from "@/components/classes/CreateClassForm";
 import InviteStudentsForm from "@/components/classes/InviteStudentsForm";
+import TeacherDisplayNameForm from "@/components/classes/TeacherDisplayNameForm";
 import type { ClassApiError, ClassSummary, ListClassesSuccess } from "@/types";
 
-export default function ClassWorkspace() {
+interface ClassWorkspaceProps {
+  displayName?: string | null;
+}
+
+export default function ClassWorkspace({ displayName = null }: ClassWorkspaceProps) {
   const [classes, setClasses] = useState<ClassSummary[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -38,6 +43,8 @@ export default function ClassWorkspace() {
 
   return (
     <div className="grid gap-8">
+      <TeacherDisplayNameForm displayName={displayName} />
+
       <section className="bg-card text-card-foreground rounded-lg border p-5 shadow-sm sm:p-6">
         <h2 className="text-xl font-bold">Nowa klasa</h2>
         <p className="text-muted-foreground mt-1 text-sm">Kod klasy zostanie wygenerowany automatycznie.</p>

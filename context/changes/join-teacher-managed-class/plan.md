@@ -325,21 +325,21 @@ Add `profiles.display_name` as nullable so existing accounts and invitation link
 
 #### Automated
 
-- [x] 2.1 Join, membership, display-name, and invitation-status tests pass: `npm test -- src/pages/api/classes src/pages/api/profile src/lib/services/class-invitation-status.test.ts`
-- [x] 2.2 Existing authentication and class invitation tests remain green: `npm test -- src/pages/api/auth src/pages/api/classes/invite.test.ts src/lib/auth/return-destination.test.ts`
-- [x] 2.3 Type-aware lint passes for the new contracts and handlers: `npm run lint`
+- [x] 2.1 Join, membership, display-name, and invitation-status tests pass: `npm test -- src/pages/api/classes src/pages/api/profile src/lib/services/class-invitation-status.test.ts` — beedd48
+- [x] 2.2 Existing authentication and class invitation tests remain green: `npm test -- src/pages/api/auth src/pages/api/classes/invite.test.ts src/lib/auth/return-destination.test.ts` — beedd48
+- [x] 2.3 Type-aware lint passes for the new contracts and handlers: `npm run lint` — beedd48
 
 #### Manual
 
-- [ ] 2.4 Direct API checks show class and optional teacher display name before confirmation, and no membership appears until the confirmation request succeeds.
+- [x] 2.4 Direct API checks show class and optional teacher display name before confirmation, and no membership appears until the confirmation request succeeds. — beedd48
 
 ### Phase 3: Student and Teacher Class UI
 
 #### Automated
 
-- [ ] 3.1 Join and joined-class component tests pass: `npm test -- src/components/classes`
-- [ ] 3.2 Full application test suite passes: `npm test`
-- [ ] 3.3 Lint and production SSR build pass with the new pages: `npm run lint && npm run build`
+- [x] 3.1 Join and joined-class component tests pass: `npm test -- src/components/classes`
+- [x] 3.2 Full application test suite passes: `npm test`
+- [x] 3.3 Lint and production SSR build pass with the new pages: `npm run lint && npm run build`
 
 #### Manual
 

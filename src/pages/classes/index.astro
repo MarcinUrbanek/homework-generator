@@ -7,6 +7,16 @@ import { createClient } from "@/lib/supabase";
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 const authorization = await authorizeTeacher(Astro.locals, supabase);
 const isAuthorized = authorization.status === "authorized-teacher";
+let displayName: string | null = null;
+
+if (isAuthorized && supabase && Astro.locals.user) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("id", Astro.locals.user.id)
+    .maybeSingle();
+  if (!error && typeof data?.display_name === "string") displayName = data.display_name;
+}
 
 if (!isAuthorized) {
   Astro.response.status = 403;
@@ -29,7 +39,7 @@ if (!isAuthorized) {
             </p>
           </header>
           <div class="mt-8">
-            <ClassWorkspace client:load />
+            <ClassWorkspace client:load displayName={displayName} />
           </div>
         </>
       ) : (
