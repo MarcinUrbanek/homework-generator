@@ -30,6 +30,8 @@ describe("resolveClassInvitationStatus", () => {
             normalizedEmail: "student@example.test",
             expiresAt: "2026-10-01T12:00:00.000Z",
             deliveryState: "sent" as const,
+            classId: "00000000-0000-4000-8000-000000000001",
+            redeemedBy: null,
           }),
         now,
       }),
@@ -42,6 +44,8 @@ describe("resolveClassInvitationStatus", () => {
             normalizedEmail: "student@example.test",
             expiresAt: "2026-10-03T12:00:00.000Z",
             deliveryState: "failed" as const,
+            classId: "00000000-0000-4000-8000-000000000001",
+            redeemedBy: null,
           }),
         now,
       }),
@@ -54,6 +58,8 @@ describe("resolveClassInvitationStatus", () => {
             normalizedEmail: "student@example.test",
             expiresAt: "2026-10-03T12:00:00.000Z",
             deliveryState: "pending" as const,
+            classId: "00000000-0000-4000-8000-000000000001",
+            redeemedBy: null,
           }),
         now,
       }),
@@ -68,6 +74,8 @@ describe("resolveClassInvitationStatus", () => {
           normalizedEmail: "student@example.test",
           expiresAt: "2026-10-03T12:00:00.000Z",
           deliveryState: "sent" as const,
+          classId: "00000000-0000-4000-8000-000000000001",
+          redeemedBy: null,
         }),
       now,
     };
@@ -76,7 +84,7 @@ describe("resolveClassInvitationStatus", () => {
       "email-mismatch",
     );
     await expect(resolveClassInvitationStatus(validToken, " STUDENT@example.test ", dependencies)).resolves.toBe(
-      "ready",
+      "valid",
     );
   });
 
