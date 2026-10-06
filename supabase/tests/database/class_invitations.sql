@@ -1,6 +1,6 @@
 begin;
 
-select plan(43);
+select plan(57);
 
 insert into auth.users (
   id,
@@ -39,13 +39,8 @@ values
 select ok(to_regclass('public.classes') is not null, 'The classes table exists');
 select ok(to_regclass('public.class_invitations') is not null, 'The class invitations table exists');
 select ok(
-  not exists (
-    select 1
-    from information_schema.tables
-    where table_schema = 'public'
-      and table_name = 'class_memberships'
-  ),
-  'This phase creates no class membership table'
+  to_regclass('public.class_memberships') is not null,
+  'Class membership persistence exists'
 );
 select ok(
   not exists (
@@ -269,6 +264,10 @@ select ok(not has_table_privilege('authenticated', 'public.class_invitations', '
 select ok(not has_table_privilege('authenticated', 'public.class_invitations', 'INSERT'), 'Authenticated users cannot insert invitations directly');
 select ok(not has_table_privilege('authenticated', 'public.class_invitations', 'UPDATE'), 'Authenticated users cannot update invitations directly');
 select ok(not has_table_privilege('authenticated', 'public.class_invitations', 'DELETE'), 'Authenticated users cannot delete invitations directly');
+select ok(has_table_privilege('authenticated', 'public.class_memberships', 'SELECT'), 'Authenticated users can read memberships through row-level security');
+select ok(not has_table_privilege('authenticated', 'public.class_memberships', 'INSERT'), 'Authenticated users cannot insert memberships directly');
+select ok(not has_table_privilege('authenticated', 'public.class_memberships', 'UPDATE'), 'Authenticated users cannot update memberships directly');
+select ok(not has_table_privilege('authenticated', 'public.class_memberships', 'DELETE'), 'Authenticated users cannot delete memberships directly');
 select ok(has_function_privilege('authenticated', 'public.create_class(text)', 'EXECUTE'), 'Authenticated users may call class creation');
 select ok(has_function_privilege('authenticated', 'public.prepare_class_invitations(uuid, text[], text[])', 'EXECUTE'), 'Authenticated users may call invitation preparation');
 select ok(not has_function_privilege('authenticated', 'public.record_class_invitation_delivery(uuid, text, text, text)', 'EXECUTE'), 'Authenticated users cannot record delivery outcomes');
@@ -311,6 +310,159 @@ select is(
   (select delivery_state from public.class_invitations where normalized_email = 'ala@example.test'),
   'failed',
   'A failed delivery result is persisted'
+);
+
+insert into public.class_invitations (
+  id,
+  class_id,
+  normalized_email,
+  token_digest,
+  expires_at,
+  delivery_state,
+  provider_message_id,
+  sent_at
+)
+values (
+  '70000000-0000-0000-0000-000000000001',
+  (select class_id from teacher_one_class),
+  'class-student@example.test',
+  repeat('f', 64),
+  now() + interval '1 day',
+  'sent',
+  'provider-acceptance-test',
+  now()
+);
+
+insert into public.classes (id, teacher_id, name, class_code)
+values
+  ('80000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', 'Expired class', 'EXPIRED1'),
+  ('80000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', 'Failed class', 'FAILED01');
+
+insert into public.class_invitations (
+  class_id,
+  normalized_email,
+  token_digest,
+  expires_at,
+  delivery_state,
+  provider_message_id,
+  sent_at
+)
+values
+  (
+    '80000000-0000-0000-0000-000000000001',
+    'class-student@example.test',
+    repeat('e', 64),
+    now() - interval '1 second',
+    'sent',
+    'provider-expired-test',
+    now() - interval '1 day'
+  ),
+  (
+    '80000000-0000-0000-0000-000000000002',
+    'class-student@example.test',
+    repeat('a', 64),
+    now() + interval '1 day',
+    'failed',
+    null,
+    null
+  );
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '40000000-0000-0000-0000-000000000003', true);
+
+select is(
+  (select already_member from public.accept_class_invitation(repeat('f', 64))),
+  false,
+  'A delivered, current invitation enrolls its matching account'
+);
+
+reset role;
+set local role service_role;
+
+select is(
+  (select redeemed_by from public.class_invitations where token_digest = repeat('f', 64)),
+  '40000000-0000-0000-0000-000000000003'::uuid,
+  'Successful acceptance records the redeemer'
+);
+select is(
+  (select count(*) from public.class_memberships where class_id = (select class_id from teacher_one_class) and student_id = '40000000-0000-0000-0000-000000000003'),
+  1::bigint,
+  'Successful acceptance creates the matching membership'
+);
+select is(
+  (select count(*) from public.profile_roles where user_id = '40000000-0000-0000-0000-000000000003' and role = 'student'),
+  1::bigint,
+  'Successful acceptance grants the additive student role'
+);
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '40000000-0000-0000-0000-000000000003', true);
+
+select is(
+  (select already_member from public.accept_class_invitation(repeat('f', 64))),
+  true,
+  'The same account can safely retry its redeemed invitation'
+);
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '40000000-0000-0000-0000-000000000002', true);
+
+select throws_ok(
+  $$select * from public.accept_class_invitation(repeat('f', 64))$$,
+  'P0002',
+  'Invitation is unavailable',
+  'A wrong-recipient account receives a generic denial'
+);
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '40000000-0000-0000-0000-000000000003', true);
+
+select throws_ok(
+  $$select * from public.accept_class_invitation(repeat('e', 64))$$,
+  'P0002',
+  'Invitation is unavailable',
+  'An invitation expired before acceptance is denied'
+);
+select throws_ok(
+  $$select * from public.accept_class_invitation(repeat('a', 64))$$,
+  'P0002',
+  'Invitation is unavailable',
+  'A failed-delivery invitation is denied'
+);
+
+reset role;
+update auth.users
+set email = 'class-student-old@example.test'
+where id = '40000000-0000-0000-0000-000000000003';
+update auth.users
+set email = 'class-student@example.test'
+where id = '40000000-0000-0000-0000-000000000004';
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '40000000-0000-0000-0000-000000000004', true);
+
+select throws_ok(
+  $$select * from public.accept_class_invitation(repeat('f', 64))$$,
+  'P0002',
+  'Invitation is unavailable',
+  'A different account cannot reuse a redeemed invitation'
+);
+
+reset role;
+update auth.users
+set email = 'ala@example.test'
+where id = '40000000-0000-0000-0000-000000000003';
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '40000000-0000-0000-0000-000000000003', true);
+
+select throws_ok(
+  $$select * from public.accept_class_invitation(repeat('a', 64))$$,
+  'P0002',
+  'Invitation is unavailable',
+  'A token rotated out of the current digest cannot be accepted'
 );
 
 select * from finish();
