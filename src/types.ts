@@ -176,6 +176,32 @@ export interface ClassSummary {
   createdAt: string;
 }
 
+export interface ClassJoinPreview {
+  name: string;
+  teacherDisplayName: string | null;
+  alreadyMember: boolean;
+}
+
+export interface ClassJoinSuccess {
+  redirectTo: "/classes/joined";
+  alreadyMember: boolean;
+}
+
+export interface JoinedClassSummary {
+  id: string;
+  name: string;
+  teacherDisplayName: string | null;
+  joinedAt: string;
+}
+
+export interface JoinedClassesSuccess {
+  classes: JoinedClassSummary[];
+}
+
+export interface DisplayNameUpdateSuccess {
+  displayName: string;
+}
+
 export interface CreateClassSuccess {
   class: ClassSummary;
 }

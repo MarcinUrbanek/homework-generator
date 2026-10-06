@@ -3,7 +3,13 @@ import Layout from "@/layouts/Layout.astro";
 import { resolveClassInvitationStatus } from "@/lib/services/class-invitation-status";
 
 const token = Astro.url.searchParams.get("token");
-const status = await resolveClassInvitationStatus(token, Astro.locals.user?.email ?? null);
+const invitation = await resolveClassInvitationStatus(
+  token,
+  Astro.locals.user?.email ?? null,
+  undefined,
+  Astro.locals.user?.id ?? null,
+);
+const status = typeof invitation === "string" ? invitation : invitation.status;
 const returnTo = `${Astro.url.pathname}${Astro.url.search}`;
 const authQuery = new URLSearchParams({ return_to: returnTo });
 
@@ -18,6 +24,7 @@ const messages = {
     "Zaloguj się na konto, na które otrzymano zaproszenie.",
   ],
   ready: ["Zaproszenie jest gotowe", "Dołączenie do klasy będzie dostępne w kolejnym etapie."],
+  "already-member": ["Jesteś już w tej klasie", "Możesz przejść do swoich klas."],
 } as const;
 const [heading, message] = messages[status];
 ---
