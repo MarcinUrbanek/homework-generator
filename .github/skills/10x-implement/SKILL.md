@@ -355,6 +355,8 @@ When every `- [ ]` in the entire `## Progress` section is now `- [x]`:
    4. Commit via heredoc per the global protocol (never `--no-verify` / `--amend`).
    5. Do NOT write the epilogue's own SHA back into the plan — its only job is to land the trailing edits cleanly.
 
+5. **Synchronize the GitHub issue** after `change.md` is `implemented` and the epilogue write-back is durable. Run the single-item procedure in [`../10x-github-issue/SKILL.md`](../10x-github-issue/SKILL.md). A failure does not undo completed work; report `GitHub sync: failed - <reason>`.
+
 ### "Where am I?" — derived, not stored
 
 Parse the `## Progress` section. The first `- [ ]` line is the next step. The current phase is the `### Phase N:` heading immediately above it. Completion is `count([x]) / count([ ] + [x])`. No JSON, no markers, no sidecar — just the Progress section.
