@@ -350,12 +350,12 @@ Add `profiles.display_name` as nullable so existing accounts and invitation link
 
 #### Automated
 
-- [x] 4.1 Full unit and component suite passes: `npm test`
-- [x] 4.2 Full database suite passes from a clean schema: `npx supabase db reset && npm run db:test`
-- [x] 4.3 Repository lint and production build pass: `npm run lint && npm run build`
-- [x] 4.4 Configured class smoke flow passes without live email delivery: `$env:SMOKE_CLASS_CHECKS='true'; npm run smoke`
+- [x] 4.1 Full unit and component suite passes: `npm test` — 6d6eb47
+- [x] 4.2 Full database suite passes from a clean schema: `npx supabase db reset && npm run db:test` — 6d6eb47
+- [x] 4.3 Repository lint and production build pass: `npm run lint && npm run build` — 6d6eb47
+- [x] 4.4 Configured class smoke flow passes without live email delivery: `$env:SMOKE_CLASS_CHECKS='true'; npm run smoke` — 6d6eb47
 
 #### Manual
 
-- [x] 4.5 Real code and controlled invitation flows confirm preview-before-mutation, atomic membership, idempotent same-user retry, conflicting replay denial, multi-class listing, and no private identity leakage.
-- [x] 4.6 The verification record confirms join-only scope: no roster, leave, teacher removal, code rotation, or homework behavior is exposed.
+- [x] 4.5 Real code and controlled invitation flows confirm preview-before-mutation, atomic membership, idempotent same-user retry, conflicting replay denial, multi-class listing, and no private identity leakage. — 6d6eb47
+- [x] 4.6 The verification record confirms join-only scope: no roster, leave, teacher removal, code rotation, or homework behavior is exposed. — 6d6eb47
