@@ -1,10 +1,33 @@
 // Smoke test: proves the built app, the Cloudflare adapter and the Supabase auth flow still work together.
-// Zero dependencies on purpose. Run against a live server: BASE_URL=http://localhost:4321 node scripts/smoke.mjs
+// Uses existing project dependencies. Set SMOKE_CLASS_CHECKS=true for local class checks and cleanup.
 // Set SMOKE_CONFIGURED_PREVIEW=true when preview loads configured provider credentials.
+
+import { URL } from "node:url";
+
+import { createClient } from "@supabase/supabase-js";
 
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:4321";
 const classChecksEnabled = process.env.SMOKE_CLASS_CHECKS === "true";
 const configuredPreview = process.env.SMOKE_CONFIGURED_PREVIEW === "true";
+const supabaseUrl = process.env.SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+let adminClient = null;
+
+if (classChecksEnabled) {
+  const appHost = new URL(BASE_URL).hostname;
+  const databaseHost = supabaseUrl ? new URL(supabaseUrl).hostname : "";
+  if (!localHosts.has(appHost) || !localHosts.has(databaseHost)) {
+    throw new Error("Class smoke checks are restricted to a local app and Supabase instance");
+  }
+  if (!serviceRoleKey) {
+    throw new Error("Class smoke checks require SUPABASE_SERVICE_ROLE_KEY for cleanup");
+  }
+  adminClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
+
 const email = `smoke-${Date.now()}@example.com`;
 const password = "Smoke-Test-Passw0rd!";
 const className = `Smoke class ${Date.now()}`;
@@ -52,6 +75,26 @@ async function request(path, { method = "GET", form, json } = {}) {
     errorCode: body?.error?.code ?? "",
     body,
   };
+}
+
+async function cleanupSmokeAccount() {
+  if (!adminClient) return;
+
+  for (let page = 1; ; page++) {
+    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw error;
+
+    const smokeUser = data.users.find((user) => user.email?.toLowerCase() === email.toLowerCase());
+    if (smokeUser) {
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(smokeUser.id);
+      if (deleteError) throw deleteError;
+      console.log("PASS  smoke account and related class data cleaned up");
+      return;
+    }
+    if (data.users.length < 1000) break;
+  }
+
+  console.log("PASS  no smoke account found to clean up");
 }
 
 const smokeCandidate = {
@@ -280,17 +323,26 @@ const steps = [
 ];
 
 let failed = 0;
-for (const [name, run, expected] of steps) {
-  const actual = await run();
-  const ok =
-    actual.status === expected.status &&
-    (expected.location === undefined || actual.location.startsWith(expected.location)) &&
-    (expected.errorCode === undefined || actual.errorCode === expected.errorCode) &&
-    (expected.validate === undefined || expected.validate(actual));
-  console.log(`${ok ? "PASS" : "FAIL"}  ${name}  -> ${actual.status} ${actual.location || actual.errorCode}`);
-  if (!ok) {
+try {
+  for (const [name, run, expected] of steps) {
+    const actual = await run();
+    const ok =
+      actual.status === expected.status &&
+      (expected.location === undefined || actual.location.startsWith(expected.location)) &&
+      (expected.errorCode === undefined || actual.errorCode === expected.errorCode) &&
+      (expected.validate === undefined || expected.validate(actual));
+    console.log(`${ok ? "PASS" : "FAIL"}  ${name}  -> ${actual.status} ${actual.location || actual.errorCode}`);
+    if (!ok) {
+      failed++;
+      console.log(`      expected ${expected.status} ${expected.location ?? expected.errorCode ?? ""}`);
+    }
+  }
+} finally {
+  try {
+    await cleanupSmokeAccount();
+  } catch {
     failed++;
-    console.log(`      expected ${expected.status} ${expected.location ?? expected.errorCode ?? ""}`);
+    console.log("FAIL  smoke account cleanup");
   }
 }
 

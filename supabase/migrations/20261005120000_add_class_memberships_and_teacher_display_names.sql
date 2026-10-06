@@ -251,7 +251,8 @@ begin
   if not found
     or invitation_record.delivery_state <> 'sent'
     or invitation_record.expires_at <= statement_timestamp()
-    or invitation_record.normalized_email <> authenticated_email then
+    or authenticated_email is null
+    or invitation_record.normalized_email is distinct from authenticated_email then
     raise exception using
       errcode = 'P0002',
       message = 'Invitation is unavailable';

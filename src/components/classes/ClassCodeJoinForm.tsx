@@ -14,6 +14,7 @@ export default function ClassCodeJoinForm({
 }: ClassCodeJoinFormProps) {
   const [classCode, setClassCode] = useState("");
   const [preview, setPreview] = useState<ClassJoinPreview | null>(null);
+  const [previewedCode, setPreviewedCode] = useState<string | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [joining, setJoining] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -26,15 +27,17 @@ export default function ClassCodeJoinForm({
     event.preventDefault();
     if (!validCode || requestInProgress.current) return;
 
+    const requestedCode = normalizedCode;
     requestInProgress.current = true;
     setLoadingPreview(true);
     setErrorMessage(null);
     setPreview(null);
+    setPreviewedCode(null);
     try {
       const response = await fetch("/api/classes/preview-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ classCode: normalizedCode }),
+        body: JSON.stringify({ classCode: requestedCode }),
       });
       const result = (await response.json()) as { class?: unknown };
       const parsedPreview = classJoinPreviewSchema.safeParse(result.class);
@@ -43,6 +46,7 @@ export default function ClassCodeJoinForm({
         return;
       }
       setPreview(parsedPreview.data);
+      setPreviewedCode(requestedCode);
     } catch {
       setErrorMessage("Nie udało się połączyć z usługą klas. Spróbuj ponownie.");
     } finally {
@@ -52,7 +56,7 @@ export default function ClassCodeJoinForm({
   }
 
   async function confirmJoin(): Promise<void> {
-    if (!preview || requestInProgress.current || joined) return;
+    if (!preview || previewedCode !== normalizedCode || requestInProgress.current || joined) return;
 
     requestInProgress.current = true;
     setJoining(true);
@@ -61,7 +65,7 @@ export default function ClassCodeJoinForm({
       const response = await fetch("/api/classes/join-by-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ classCode: normalizedCode }),
+        body: JSON.stringify({ classCode: previewedCode }),
       });
       const result = (await response.json()) as { redirectTo?: unknown };
       if (!response.ok || result.redirectTo !== "/classes/joined") {
@@ -94,6 +98,7 @@ export default function ClassCodeJoinForm({
             onChange={(event) => {
               setClassCode(event.currentTarget.value);
               setPreview(null);
+              setPreviewedCode(null);
               setErrorMessage(null);
             }}
             className="border-input bg-background h-11 min-w-0 flex-1 rounded-md border px-3 text-sm uppercase"
@@ -114,7 +119,7 @@ export default function ClassCodeJoinForm({
         </p>
       )}
 
-      {preview && (
+      {preview && previewedCode === normalizedCode && (
         <section aria-labelledby="preview-class-name" className="rounded-md border p-4">
           <h2 id="preview-class-name" className="text-lg font-semibold">
             {preview.name}

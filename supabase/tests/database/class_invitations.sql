@@ -1,6 +1,6 @@
 begin;
 
-select plan(57);
+select plan(60);
 
 insert into auth.users (
   id,
@@ -18,14 +18,16 @@ values
   ('40000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'class-teacher-one@example.test', 'not-used-by-tests', now(), '{}', '{}', now(), now()),
   ('40000000-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'class-teacher-two@example.test', 'not-used-by-tests', now(), '{}', '{}', now(), now()),
   ('40000000-0000-0000-0000-000000000003', 'authenticated', 'authenticated', 'class-student@example.test', 'not-used-by-tests', now(), '{}', '{}', now(), now()),
-  ('40000000-0000-0000-0000-000000000004', 'authenticated', 'authenticated', 'class-dual-role@example.test', 'not-used-by-tests', now(), '{}', '{}', now(), now());
+  ('40000000-0000-0000-0000-000000000004', 'authenticated', 'authenticated', 'class-dual-role@example.test', 'not-used-by-tests', now(), '{}', '{}', now(), now()),
+  ('40000000-0000-0000-0000-000000000005', 'authenticated', 'authenticated', null, 'not-used-by-tests', now(), '{}', '{}', now(), now());
 
 delete from public.profile_roles
 where user_id in (
   '40000000-0000-0000-0000-000000000001',
   '40000000-0000-0000-0000-000000000002',
   '40000000-0000-0000-0000-000000000003',
-  '40000000-0000-0000-0000-000000000004'
+  '40000000-0000-0000-0000-000000000004',
+  '40000000-0000-0000-0000-000000000005'
 );
 
 insert into public.profile_roles (user_id, role)
@@ -449,6 +451,48 @@ select throws_ok(
   'P0002',
   'Invitation is unavailable',
   'A different account cannot reuse a redeemed invitation'
+);
+
+reset role;
+set local role service_role;
+insert into public.class_invitations (
+  class_id,
+  normalized_email,
+  token_digest,
+  expires_at,
+  delivery_state,
+  provider_message_id,
+  sent_at
+)
+values (
+  (select class_id from teacher_one_class),
+  'class-no-email@example.test',
+  repeat('c', 64),
+  now() + interval '1 day',
+  'sent',
+  'provider-no-email-test',
+  now()
+);
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '40000000-0000-0000-0000-000000000005', true);
+
+select throws_ok(
+  $$select * from public.accept_class_invitation(repeat('c', 64))$$,
+  'P0002',
+  'Invitation is unavailable',
+  'An account without an email cannot accept an email-bound invitation'
+);
+select is(
+  (select count(*) from public.class_memberships where class_id = (select class_id from teacher_one_class) and student_id = '40000000-0000-0000-0000-000000000005'),
+  0::bigint,
+  'A denied null-email invitation creates no membership'
+);
+select is(
+  (select count(*) from public.profile_roles where user_id = '40000000-0000-0000-0000-000000000005' and role = 'student'),
+  0::bigint,
+  'A denied null-email invitation grants no student role'
 );
 
 reset role;
