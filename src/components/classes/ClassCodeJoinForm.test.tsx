@@ -71,6 +71,79 @@ describe("ClassCodeJoinForm", () => {
     expect(formContainer.textContent).toContain("Dołącz");
   });
 
+  it("does not confirm a stale preview after the code changes during lookup", async () => {
+    interface PreviewResponse {
+      ok: boolean;
+      json: () => Promise<unknown>;
+    }
+    const resolveFirstPreview = vi.fn<(response: PreviewResponse) => void>();
+    const firstPreview = new Promise<PreviewResponse>((resolve) => {
+      resolveFirstPreview.mockImplementation(resolve);
+    });
+    const navigate = vi.fn();
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(firstPreview)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          class: { name: "5B", teacherDisplayName: null, alreadyMember: false },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ redirectTo: "/classes/joined", alreadyMember: false }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const formContainer = renderForm(navigate);
+    const input = formContainer.querySelector("input");
+    const form = formContainer.querySelector("form");
+    if (!(input instanceof HTMLInputElement) || !(form instanceof HTMLFormElement)) {
+      throw new Error("Expected class-code entry form");
+    }
+
+    await act(async () => {
+      setInputValue(input, "ab12cd34");
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      setInputValue(input, "ef56gh78");
+      resolveFirstPreview({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          class: { name: "4A", teacherDisplayName: null, alreadyMember: false },
+        }),
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(formContainer.textContent).not.toContain("4A");
+    expect(formContainer.querySelector("button[type='button']")).toBeNull();
+
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(formContainer.textContent).toContain("5B");
+
+    const confirmButton = formContainer.querySelector<HTMLButtonElement>("button[type='button']");
+    if (!confirmButton) throw new Error("Expected explicit confirmation button");
+    await act(async () => {
+      confirmButton.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/classes/join-by-code",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ classCode: "EF56GH78" }) }),
+    );
+    expect(navigate).toHaveBeenCalledWith("/classes/joined");
+  });
+
   it("joins only after confirmation and navigates to joined classes", async () => {
     const navigate = vi.fn();
     const fetchMock = vi
