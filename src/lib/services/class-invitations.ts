@@ -1,4 +1,5 @@
 import { sendResendClassInvitation, type ResendClassInvitationConfig } from "@/lib/services/resend-class-invitation";
+import { digestClassInvitationToken } from "@/lib/classes/invitation-token";
 import type { InvitationDeliveryResult } from "@/types";
 
 export interface PreparedInvitation {
@@ -33,11 +34,6 @@ function defaultToken(): string {
   return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
 }
 
-async function defaultDigestToken(token: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
-  return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join("");
-}
-
 export async function deliverClassInvitations(
   persistence: ClassInvitationPersistence,
   request: { classId: string; emails: string[] },
@@ -45,7 +41,7 @@ export async function deliverClassInvitations(
   dependencies: ClassInvitationDependencies = {},
 ): Promise<InvitationDeliveryResult[]> {
   const createToken = dependencies.createToken ?? defaultToken;
-  const digestToken = dependencies.digestToken ?? defaultDigestToken;
+  const digestToken = dependencies.digestToken ?? digestClassInvitationToken;
   const send = dependencies.send ?? sendResendClassInvitation;
   const className = await persistence.loadClassName(request.classId);
   if (!className) {

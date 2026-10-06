@@ -314,20 +314,20 @@ Add `profiles.display_name` as nullable so existing accounts and invitation link
 
 #### Automated
 
-- [x] 1.1 New schema applies from a clean local database: `npx supabase db reset`
-- [x] 1.2 Membership, role, invitation, and existing database assertions pass: `npm run db:test`
+- [x] 1.1 New schema applies from a clean local database: `npx supabase db reset` — 19365a5
+- [x] 1.2 Membership, role, invitation, and existing database assertions pass: `npm run db:test` — 19365a5
 
 #### Manual
 
-- [x] 1.3 Supabase inspection shows no duplicate membership, no plaintext token, no teacher email in join results, and existing unnamed teachers remain valid accounts.
+- [x] 1.3 Supabase inspection shows no duplicate membership, no plaintext token, no teacher email in join results, and existing unnamed teachers remain valid accounts. — 19365a5
 
 ### Phase 2: Join and Membership APIs
 
 #### Automated
 
-- [ ] 2.1 Join, membership, display-name, and invitation-status tests pass: `npm test -- src/pages/api/classes src/pages/api/profile src/lib/services/class-invitation-status.test.ts`
-- [ ] 2.2 Existing authentication and class invitation tests remain green: `npm test -- src/pages/api/auth src/pages/api/classes/invite.test.ts src/lib/auth/return-destination.test.ts`
-- [ ] 2.3 Type-aware lint passes for the new contracts and handlers: `npm run lint`
+- [x] 2.1 Join, membership, display-name, and invitation-status tests pass: `npm test -- src/pages/api/classes src/pages/api/profile src/lib/services/class-invitation-status.test.ts`
+- [x] 2.2 Existing authentication and class invitation tests remain green: `npm test -- src/pages/api/auth src/pages/api/classes/invite.test.ts src/lib/auth/return-destination.test.ts`
+- [x] 2.3 Type-aware lint passes for the new contracts and handlers: `npm run lint`
 
 #### Manual
 
