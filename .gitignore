@@ -6,6 +6,8 @@ dist/
 
 # mutation testing
 .stryker-tmp/
+reports/mutation/
+reports/stryker-incremental.json
 
 # dependencies
 node_modules/
