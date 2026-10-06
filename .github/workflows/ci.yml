@@ -48,8 +48,26 @@ jobs:
       - run: npm run build
       - name: Run smoke test against production preview
         run: |
-          npm run preview -- --port 4321 &
+          PREVIEW_URL=http://127.0.0.1:4321
+          npm run preview -- --host 127.0.0.1 --port 4321 > preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --output /dev/null "$PREVIEW_URL/"; then
+              break
+            fi
+            if ! kill -0 "$PREVIEW_PID" 2>/dev/null; then
+              cat preview.log
+              exit 1
+            fi
+            sleep 1
+          done
+          if ! curl --fail --silent --output /dev/null "$PREVIEW_URL/"; then
+            cat preview.log
+            echo "Astro preview did not become ready within 30 seconds" >&2
+            exit 1
+          fi
           source supabase.env
-          BASE_URL=http://localhost:4321 SUPABASE_URL="$API_URL" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" SMOKE_CLASS_CHECKS=true SMOKE_CONFIGURED_PREVIEW=true npm run smoke
+          BASE_URL="$PREVIEW_URL" SUPABASE_URL="$API_URL" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" SMOKE_CLASS_CHECKS=true SMOKE_CONFIGURED_PREVIEW=true npm run smoke
       - if: always()
         run: supabase stop --no-backup
