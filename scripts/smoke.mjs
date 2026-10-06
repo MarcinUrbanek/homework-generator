@@ -8,7 +8,9 @@ const configuredPreview = process.env.SMOKE_CONFIGURED_PREVIEW === "true";
 const email = `smoke-${Date.now()}@example.com`;
 const password = "Smoke-Test-Passw0rd!";
 const className = `Smoke class ${Date.now()}`;
+const teacherDisplayName = `Smoke teacher ${Date.now()}`;
 const jar = new Map();
+let smokeClassCode = "";
 
 function cookieHeader() {
   return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
@@ -38,13 +40,18 @@ async function request(path, { method = "GET", form, json } = {}) {
   });
   storeCookies(response);
   const responseBody = await response.text();
-  let errorCode = "";
+  let body = null;
   try {
-    errorCode = JSON.parse(responseBody).error?.code ?? "";
+    body = JSON.parse(responseBody);
   } catch {
-    // Non-JSON page and redirect responses have no API error code.
+    // Non-JSON page and redirect responses have no body object.
   }
-  return { status: response.status, location: response.headers.get("location") ?? "", errorCode };
+  return {
+    status: response.status,
+    location: response.headers.get("location") ?? "",
+    errorCode: body?.error?.code ?? "",
+    body,
+  };
 }
 
 const smokeCandidate = {
@@ -112,6 +119,16 @@ const steps = [
           () => request("/api/classes/create", { method: "POST", json: { name: className } }),
           { status: 401, errorCode: "UNAUTHENTICATED" },
         ],
+        [
+          "class-code preview rejects anonymous user",
+          () => request("/api/classes/preview-code", { method: "POST", json: { classCode: "SMOKE123" } }),
+          { status: 401, errorCode: "UNAUTHENTICATED" },
+        ],
+        [
+          "class-code confirmation rejects anonymous user",
+          () => request("/api/classes/join-by-code", { method: "POST", json: { classCode: "SMOKE123" } }),
+          { status: 401, errorCode: "UNAUTHENTICATED" },
+        ],
       ]
     : []),
   [
@@ -135,9 +152,79 @@ const steps = [
   ...(classChecksEnabled
     ? [
         [
+          "teacher display name saves for join previews",
+          () => request("/api/profile/display-name", { method: "POST", json: { displayName: teacherDisplayName } }),
+          { status: 200, validate: (actual) => actual.body?.displayName === teacherDisplayName },
+        ],
+        [
           "class creation succeeds for teacher",
-          () => request("/api/classes/create", { method: "POST", json: { name: className } }),
-          { status: 201 },
+          async () => {
+            const actual = await request("/api/classes/create", { method: "POST", json: { name: className } });
+            smokeClassCode = actual.body?.class?.classCode ?? "";
+            return actual;
+          },
+          {
+            status: 201,
+            validate: (actual) => /^[A-Z0-9]{8}$/.test(smokeClassCode) && actual.body?.class?.name === className,
+          },
+        ],
+        [
+          "joined-class list starts empty",
+          () => request("/api/classes/joined"),
+          { status: 200, validate: (actual) => actual.body?.classes?.length === 0 },
+        ],
+        [
+          "code preview reveals the class without creating membership",
+          async () => {
+            const preview = await request("/api/classes/preview-code", {
+              method: "POST",
+              json: { classCode: smokeClassCode.toLowerCase() },
+            });
+            const memberships = await request("/api/classes/joined");
+            const previewClass = preview.body?.class;
+            return {
+              ...preview,
+              safePreview:
+                previewClass?.name === className &&
+                previewClass?.teacherDisplayName === teacherDisplayName &&
+                previewClass?.alreadyMember === false &&
+                Object.keys(previewClass).sort().join(",") === "alreadyMember,name,teacherDisplayName",
+              noMembership: memberships.status === 200 && memberships.body?.classes?.length === 0,
+            };
+          },
+          { status: 200, validate: (actual) => actual.safePreview && actual.noMembership },
+        ],
+        [
+          "code confirmation creates the membership",
+          () => request("/api/classes/join-by-code", { method: "POST", json: { classCode: smokeClassCode } }),
+          {
+            status: 200,
+            validate: (actual) => actual.body?.redirectTo === "/classes/joined" && actual.body?.alreadyMember === false,
+          },
+        ],
+        [
+          "repeated code confirmation is idempotent",
+          () => request("/api/classes/join-by-code", { method: "POST", json: { classCode: smokeClassCode } }),
+          {
+            status: 200,
+            validate: (actual) => actual.body?.redirectTo === "/classes/joined" && actual.body?.alreadyMember === true,
+          },
+        ],
+        [
+          "joined-class list contains only the joined class summary",
+          () => request("/api/classes/joined"),
+          {
+            status: 200,
+            validate: (actual) => {
+              const joinedClass = actual.body?.classes?.[0];
+              return (
+                actual.body?.classes?.length === 1 &&
+                joinedClass?.name === className &&
+                joinedClass?.teacherDisplayName === teacherDisplayName &&
+                Object.keys(joinedClass).sort().join(",") === "id,joinedAt,name,teacherDisplayName"
+              );
+            },
+          },
         ],
         ["class listing succeeds for teacher", () => request("/api/classes/list"), { status: 200 }],
       ]
@@ -198,7 +285,8 @@ for (const [name, run, expected] of steps) {
   const ok =
     actual.status === expected.status &&
     (expected.location === undefined || actual.location.startsWith(expected.location)) &&
-    (expected.errorCode === undefined || actual.errorCode === expected.errorCode);
+    (expected.errorCode === undefined || actual.errorCode === expected.errorCode) &&
+    (expected.validate === undefined || expected.validate(actual));
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}  -> ${actual.status} ${actual.location || actual.errorCode}`);
   if (!ok) {
     failed++;
