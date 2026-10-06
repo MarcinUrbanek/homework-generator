@@ -131,7 +131,7 @@ export async function resolveClassInvitationStatus(
   if (invitation.deliveryState !== "sent") return "delivery-failed";
   if (!authenticatedEmail) return "valid";
   if (authenticatedEmail.trim().toLowerCase() !== invitation.normalizedEmail) return "email-mismatch";
-  if (!authenticatedUserId) return "ready";
+  if (!authenticatedUserId) return "valid";
   if (invitation.redeemedBy && invitation.redeemedBy !== authenticatedUserId) return "invalid";
 
   const loadPreview = dependencies.findClassPreview ?? findClassPreview;
