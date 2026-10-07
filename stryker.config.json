@@ -8,6 +8,7 @@
     "!src/**/*.test.ts"
   ],
   "reporters": ["progress", "clear-text", "html"],
+  "ignorePatterns": [".stryker-tmp/**", ".stryker-tmp-diagnostic/**"],
   "concurrency": 4,
   "coverageAnalysis": "perTest",
   "incremental": true,
