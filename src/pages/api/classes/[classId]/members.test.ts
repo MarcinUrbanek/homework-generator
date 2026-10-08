@@ -20,7 +20,7 @@ function context(pathClassId = classId, userId = "teacher"): APIContext {
     request: new Request(`http://localhost/api/classes/${pathClassId}/members`),
     locals: { user: userId ? { id: userId } : null },
     cookies: {},
-  } as APIContext;
+  } as unknown as APIContext;
 }
 
 async function responseBody<T>(response: Response): Promise<T> {

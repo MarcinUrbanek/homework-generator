@@ -69,6 +69,9 @@ describe("ClassWorkspace", () => {
     });
     expect(workspaceContainer.textContent).toContain("4A");
     expect(workspaceContainer.textContent).toContain("Kod: AB12CD34");
+    expect(
+      workspaceContainer.querySelector('a[href="/classes/00000000-0000-4000-8000-000000000001/assign"]'),
+    ).not.toBeNull();
   });
 
   it("adds a newly created class to the workspace", async () => {
