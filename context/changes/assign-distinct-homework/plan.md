@@ -326,24 +326,24 @@ The forward-only migration creates empty assignment tables and checked functions
 
 #### Automated
 
-- [x] 2.1 Focused allocator and homework handler tests pass capacity, non-identical-set, minimum-overlap, deterministic-randomness, authorization, exclusion, idempotency, and privacy cases: `npm test -- src/lib/homework src/pages/api/homework src/pages/api/classes`.
-- [x] 2.2 Type-aware lint passes for the new contracts, services, and handlers: `npm run lint`.
+- [x] 2.1 Focused allocator and homework handler tests pass capacity, non-identical-set, minimum-overlap, deterministic-randomness, authorization, exclusion, idempotency, and privacy cases: `npm test -- src/lib/homework src/pages/api/homework src/pages/api/classes`. — ef40629
+- [x] 2.2 Type-aware lint passes for the new contracts, services, and handlers: `npm run lint`. — ef40629
 
 #### Manual
 
-- [x] 2.3 Controlled API calls show an owner-only email roster, actionable required/available pool counts, one successful immutable assignment summary, and departed-recipient reporting without canonical answers or roster emails in the creation response.
+- [x] 2.3 Controlled API calls show an owner-only email roster, actionable required/available pool counts, one successful immutable assignment summary, and departed-recipient reporting without canonical answers or roster emails in the creation response. — ef40629
 
 ### Phase 3: Teacher Assignment Workflow
 
 #### Automated
 
-- [ ] 3.1 Homework component tests pass roster selection, review, payload, idempotent retry, capacity, exclusion, error, accessibility, and focus cases: `npm test -- src/components/homework`.
-- [ ] 3.2 The full application suite, type-aware lint, Astro checks, and production SSR build pass after the route and navigation are wired: `npm test && npm run lint && npx astro check && npm run build`.
+- [x] 3.1 Homework component tests pass roster selection, review, payload, idempotent retry, capacity, exclusion, error, accessibility, and focus cases: `npm test -- src/components/homework`.
+- [x] 3.2 The full application suite, type-aware lint, Astro checks, and production SSR build pass after the route and navigation are wired: `npm test && npm run lint && npx astro check && npm run build`.
 
 #### Manual
 
-- [ ] 3.3 At desktop and mobile widths, a teacher can assign from an owned class with all members initially selected, review the exact parameters, recover from a pool shortage, and see successful assigned/excluded counts with no overlap, clipping, stale selection, or inaccessible control.
-- [ ] 3.4 A controlled membership race confirms a departed selected student is omitted and identified to the owner while every remaining selected member receives a complete set.
+- [x] 3.3 At desktop and mobile widths, a teacher can assign from an owned class with all members initially selected, review the exact parameters, recover from a pool shortage, and see successful assigned/excluded counts with no overlap, clipping, stale selection, or inaccessible control.
+- [x] 3.4 A controlled membership race confirms a departed selected student is omitted and identified to the owner while every remaining selected member receives a complete set.
 
 ### Phase 4: Integrated Verification
 

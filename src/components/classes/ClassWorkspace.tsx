@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { ClipboardCheck } from "lucide-react";
 
 import CreateClassForm from "@/components/classes/CreateClassForm";
 import InviteStudentsForm from "@/components/classes/InviteStudentsForm";
 import TeacherDisplayNameForm from "@/components/classes/TeacherDisplayNameForm";
+import { Button } from "@/components/ui/button";
 import type { ClassApiError, ClassSummary, ListClassesSuccess } from "@/types";
 
 interface ClassWorkspaceProps {
@@ -74,6 +76,12 @@ export default function ClassWorkspace({ displayName = null }: ClassWorkspacePro
                 <p className="text-primary font-mono text-sm font-semibold">Kod: {classSummary.classCode}</p>
               </div>
               <InviteStudentsForm classId={classSummary.id} />
+              <Button asChild className="mt-4 min-h-11 w-full sm:w-auto">
+                <a href={`/classes/${encodeURIComponent(classSummary.id)}/assign`}>
+                  <ClipboardCheck aria-hidden="true" />
+                  Przydziel zadania
+                </a>
+              </Button>
             </section>
           ))}
         </div>
