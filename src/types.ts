@@ -261,3 +261,61 @@ export interface SavedExerciseError {
     message: string;
   };
 }
+
+export const HOMEWORK_API_ERROR_CODES = [
+  "INVALID_REQUEST",
+  "UNAUTHENTICATED",
+  "FORBIDDEN",
+  "CLASS_UNAVAILABLE",
+  "EMPTY_ELIGIBLE_ROSTER",
+  "INSUFFICIENT_POOL",
+  "DATABASE_UNAVAILABLE",
+  "PERSISTENCE_FAILURE",
+] as const;
+
+export type HomeworkApiErrorCode = (typeof HOMEWORK_API_ERROR_CODES)[number];
+export type HomeworkGrade = 4;
+
+export interface HomeworkRosterMember {
+  studentId: string;
+  email: string;
+  joinedAt: string;
+}
+
+export interface HomeworkRosterSuccess {
+  members: HomeworkRosterMember[];
+}
+
+export interface HomeworkAssignmentRequest {
+  classId: string;
+  studentIds: string[];
+  title?: string;
+  topic: ExerciseTopicSlug;
+  difficulty: ExerciseDifficulty;
+  exerciseCount: 1 | 2 | 3 | 4 | 5;
+  idempotencyKey: string;
+}
+
+export interface HomeworkRecipientAllocation {
+  studentId: string;
+  exerciseIds: string[];
+}
+
+export interface HomeworkAssignmentSuccess {
+  assignmentId: string;
+  title: string | null;
+  createdAt: string;
+  assignedCount: number;
+  excludedStudentIds: string[];
+  excludedCount: number;
+  replayed: boolean;
+}
+
+export interface HomeworkApiError {
+  error: {
+    code: HomeworkApiErrorCode;
+    message: string;
+    requiredExerciseCount?: number;
+    availableExerciseCount?: number;
+  };
+}

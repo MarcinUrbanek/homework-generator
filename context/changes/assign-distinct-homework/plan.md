@@ -315,23 +315,23 @@ The forward-only migration creates empty assignment tables and checked functions
 
 #### Automated
 
-- [x] 1.1 A clean local reset applies the assignment schema and checked functions: `npx supabase db reset`.
-- [x] 1.2 The full pgTAP suite passes assignment ownership, roster privacy, immutable exercise references, membership-race, uniqueness, validation, rollback, and idempotency assertions: `npm run db:test`.
+- [x] 1.1 A clean local reset applies the assignment schema and checked functions: `npx supabase db reset`. — 07d265c
+- [x] 1.2 The full pgTAP suite passes assignment ownership, roster privacy, immutable exercise references, membership-race, uniqueness, validation, rollback, and idempotency assertions: `npm run db:test`. — 07d265c
 
 #### Manual
 
-- [x] 1.3 Local database inspection confirms only an owning teacher can retrieve roster emails, students cannot read assignment or canonical-answer rows, and one assignment stores complete ordered sets only for still-enrolled recipients.
+- [x] 1.3 Local database inspection confirms only an owning teacher can retrieve roster emails, students cannot read assignment or canonical-answer rows, and one assignment stores complete ordered sets only for still-enrolled recipients. — 07d265c
 
 ### Phase 2: Allocation and Typed APIs
 
 #### Automated
 
-- [ ] 2.1 Focused allocator and homework handler tests pass capacity, non-identical-set, minimum-overlap, deterministic-randomness, authorization, exclusion, idempotency, and privacy cases: `npm test -- src/lib/homework src/pages/api/homework src/pages/api/classes`.
-- [ ] 2.2 Type-aware lint passes for the new contracts, services, and handlers: `npm run lint`.
+- [x] 2.1 Focused allocator and homework handler tests pass capacity, non-identical-set, minimum-overlap, deterministic-randomness, authorization, exclusion, idempotency, and privacy cases: `npm test -- src/lib/homework src/pages/api/homework src/pages/api/classes`.
+- [x] 2.2 Type-aware lint passes for the new contracts, services, and handlers: `npm run lint`.
 
 #### Manual
 
-- [ ] 2.3 Controlled API calls show an owner-only email roster, actionable required/available pool counts, one successful immutable assignment summary, and departed-recipient reporting without canonical answers or roster emails in the creation response.
+- [x] 2.3 Controlled API calls show an owner-only email roster, actionable required/available pool counts, one successful immutable assignment summary, and departed-recipient reporting without canonical answers or roster emails in the creation response.
 
 ### Phase 3: Teacher Assignment Workflow
 
