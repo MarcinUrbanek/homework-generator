@@ -17,6 +17,11 @@ const firstStudentId = "00000000-0000-4000-8000-000000000002";
 const secondStudentId = "00000000-0000-4000-8000-000000000003";
 const idempotencyKey = "00000000-0000-4000-8000-000000000004";
 const approvedAt = "2026-10-08T12:00:00.000Z";
+const rosterRow = (studentId: string) => ({
+  student_id: studentId,
+  student_email: `${studentId.slice(-1)}@example.test`,
+  joined_at: approvedAt,
+});
 
 function exerciseId(index: number): string {
   return `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
@@ -92,34 +97,84 @@ describe("homework assignment adapters", () => {
 
   it("preserves allocations for the same idempotency key and returns summary data only", async () => {
     const exercises = Array.from({ length: 4 }, (_, index) => savedExerciseRow(index + 1));
-    const rpc = vi
-      .fn()
-      .mockResolvedValueOnce({ data: exercises, error: null })
-      .mockResolvedValueOnce({ data: [assignmentRow(false)], error: null })
-      .mockResolvedValueOnce({ data: exercises, error: null })
-      .mockResolvedValueOnce({ data: [assignmentRow(true)], error: null });
+    let replayLookups = 0;
+    const rpc = vi.fn<(name: string, args: Record<string, unknown>) => unknown>((name) => {
+      if (name === "get_homework_assignment_replay") {
+        replayLookups += 1;
+        return { data: replayLookups === 1 ? [] : [assignmentRow(true)], error: null };
+      }
+      if (name === "list_class_homework_roster") {
+        return { data: [rosterRow(firstStudentId), rosterRow(secondStudentId)], error: null };
+      }
+      if (name === "get_saved_exercises") return { data: exercises, error: null };
+      if (name === "create_homework_assignment") return { data: [assignmentRow(false)], error: null };
+      throw new Error(`Unexpected RPC: ${name}`);
+    });
 
     const client = { rpc } as never;
     const firstResult = await createHomeworkAssignment(client, request);
     const retryResult = await createHomeworkAssignment(client, request);
-    const firstCreateArgs = rpc.mock.calls[1][1] as { p_allocations: unknown; p_idempotency_key: string };
-    const retryCreateArgs = rpc.mock.calls[3][1] as { p_allocations: unknown; p_idempotency_key: string };
+    const firstCreateArgs = rpc.mock.calls.find(([name]) => name === "create_homework_assignment")?.[1];
 
     expect(firstResult.replayed).toBe(false);
     expect(retryResult.replayed).toBe(true);
     expect(firstResult.assignmentId).toBe(retryResult.assignmentId);
-    expect(firstCreateArgs.p_idempotency_key).toBe(idempotencyKey);
-    expect(retryCreateArgs.p_idempotency_key).toBe(idempotencyKey);
-    expect(retryCreateArgs.p_allocations).toEqual(firstCreateArgs.p_allocations);
+    expect(firstCreateArgs?.p_idempotency_key).toBe(idempotencyKey);
+    expect(rpc.mock.calls.filter(([name]) => name === "create_homework_assignment")).toHaveLength(1);
+    expect(rpc.mock.calls.filter(([name]) => name === "get_homework_assignment_replay")).toHaveLength(2);
     expect(firstResult).not.toHaveProperty("allocations");
     expect(JSON.stringify(firstResult)).not.toContain("canonical_answer");
     expect(JSON.stringify(firstResult)).not.toContain("exerciseIds");
   });
 
+  it("allocates for current recipients when departed selections exceed pool capacity", async () => {
+    const thirdStudentId = "00000000-0000-4000-8000-000000000006";
+    const exercises = [savedExerciseRow(1), savedExerciseRow(2)];
+    const createdRow = {
+      ...assignmentRow(false),
+      assigned_student_ids: [firstStudentId, secondStudentId],
+      excluded_student_ids: [thirdStudentId],
+    };
+    const rpc = vi.fn<(name: string, args: Record<string, unknown>) => unknown>((name) => {
+      if (name === "get_homework_assignment_replay") return { data: [], error: null };
+      if (name === "list_class_homework_roster") {
+        return { data: [rosterRow(firstStudentId), rosterRow(secondStudentId)], error: null };
+      }
+      if (name === "get_saved_exercises") return { data: exercises, error: null };
+      if (name === "create_homework_assignment") return { data: [createdRow], error: null };
+      throw new Error(`Unexpected RPC: ${name}`);
+    });
+
+    const result = await createHomeworkAssignment({ rpc } as never, {
+      ...request,
+      studentIds: [firstStudentId, secondStudentId, thirdStudentId],
+      exerciseCount: 1,
+    });
+    const createArgs = rpc.mock.calls.find(([name]) => name === "create_homework_assignment")?.[1];
+
+    expect(result).toMatchObject({ assignedCount: 2, excludedStudentIds: [thirdStudentId], excludedCount: 1 });
+    expect(createArgs?.p_allocations).toHaveLength(3);
+    expect(createArgs?.p_allocations).toMatchObject([
+      { student_id: firstStudentId },
+      { student_id: secondStudentId },
+      { student_id: thirdStudentId },
+    ]);
+  });
+
   it("does not call the creation RPC when combination capacity is insufficient", async () => {
-    const rpc = vi
-      .fn()
-      .mockResolvedValue({ data: Array.from({ length: 4 }, (_, index) => savedExerciseRow(index + 1)), error: null });
+    const rpc = vi.fn((name: string) => {
+      if (name === "get_homework_assignment_replay") return { data: [], error: null };
+      if (name === "list_class_homework_roster") {
+        return {
+          data: Array.from({ length: 7 }, (_, index) => rosterRow(exerciseId(index + 101))),
+          error: null,
+        };
+      }
+      if (name === "get_saved_exercises") {
+        return { data: Array.from({ length: 4 }, (_, index) => savedExerciseRow(index + 1)), error: null };
+      }
+      throw new Error(`Unexpected RPC: ${name}`);
+    });
     const oversizedRequest = {
       ...request,
       studentIds: Array.from({ length: 7 }, (_, index) => exerciseId(index + 101)),
@@ -128,15 +183,20 @@ describe("homework assignment adapters", () => {
     await expect(createHomeworkAssignment({ rpc } as never, oversizedRequest)).rejects.toBeInstanceOf(
       HomeworkAssignmentServiceError,
     );
-    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc.mock.calls.map(([name]) => name)).toEqual([
+      "get_homework_assignment_replay",
+      "list_class_homework_roster",
+      "get_saved_exercises",
+    ]);
   });
 
   it("maps a changed idempotency payload to an invalid-request error", async () => {
-    const exercises = Array.from({ length: 4 }, (_, index) => savedExerciseRow(index + 1));
-    const rpc = vi
-      .fn()
-      .mockResolvedValueOnce({ data: exercises, error: null })
-      .mockResolvedValueOnce({ data: null, error: { code: "22023", message: "private SQL detail" } });
+    const rpc = vi.fn((name: string) => {
+      if (name === "get_homework_assignment_replay") {
+        return { data: null, error: { code: "22023", message: "private SQL detail" } };
+      }
+      throw new Error(`Unexpected RPC: ${name}`);
+    });
 
     await expect(createHomeworkAssignment({ rpc } as never, request)).rejects.toMatchObject({
       code: "INVALID_REQUEST",

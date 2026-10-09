@@ -316,6 +316,10 @@ select ok(
   'The atomic assignment function exists'
 );
 select ok(
+  to_regprocedure('public.get_homework_assignment_replay(uuid,text,text,text,integer,uuid,uuid[])') is not null,
+  'The assignment replay lookup exists'
+);
+select ok(
   has_function_privilege(
     'authenticated',
     'public.list_class_homework_roster(uuid)',
@@ -330,6 +334,14 @@ select ok(
     'EXECUTE'
   ),
   'Authenticated sessions can call the assignment function'
+);
+select ok(
+  has_function_privilege(
+    'authenticated',
+    'public.get_homework_assignment_replay(uuid,text,text,text,integer,uuid,uuid[])',
+    'EXECUTE'
+  ),
+  'Authenticated sessions can call the assignment replay lookup'
 );
 select ok(
   not has_table_privilege('authenticated', 'public.homework_assignments', 'SELECT')
@@ -739,6 +751,26 @@ select is(
   ),
   '{10000000-0000-0000-0000-000000000003,10000000-0000-0000-0000-000000000004}|{10000000-0000-0000-0000-000000000005}',
   'Departed selected students are excluded while remaining recipients are assigned'
+);
+select is(
+  (
+    select replayed
+    from public.get_homework_assignment_replay(
+      '20000000-0000-0000-0000-000000000001',
+      null,
+      'addition-subtraction',
+      'easy',
+      1,
+      '90000000-0000-0000-0000-000000000017',
+      array[
+        '10000000-0000-0000-0000-000000000003'::uuid,
+        '10000000-0000-0000-0000-000000000004'::uuid,
+        '10000000-0000-0000-0000-000000000005'::uuid
+      ]
+    )
+  ),
+  true,
+  'A departed selected student does not break assignment replay'
 );
 select throws_ok(
   $$select * from public.create_homework_assignment(

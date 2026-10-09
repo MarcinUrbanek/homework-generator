@@ -55,6 +55,30 @@ function serviceErrorFor(error: unknown): HomeworkAssignmentServiceError {
   return new HomeworkAssignmentServiceError("PERSISTENCE_FAILURE");
 }
 
+function assignmentSuccessFromRow(
+  row: z.infer<typeof homeworkAssignmentRpcRowSchema>,
+  request: HomeworkAssignmentRequest,
+): HomeworkAssignmentSuccess {
+  const requestedStudentIds = new Set(request.studentIds);
+  const returnedStudentIds = [...row.assigned_student_ids, ...row.excluded_student_ids];
+  if (
+    returnedStudentIds.length !== request.studentIds.length ||
+    returnedStudentIds.some((studentId) => !requestedStudentIds.has(studentId))
+  ) {
+    throw new HomeworkAssignmentServiceError("PERSISTENCE_FAILURE");
+  }
+
+  return {
+    assignmentId: row.assignment_id,
+    title: row.assignment_title,
+    createdAt: row.created_at,
+    assignedCount: row.assigned_student_ids.length,
+    excludedStudentIds: row.excluded_student_ids,
+    excludedCount: row.excluded_student_ids.length,
+    replayed: row.replayed,
+  };
+}
+
 async function callRpc(client: RequestClient, name: string, args: Record<string, unknown>): Promise<unknown> {
   let response: unknown;
   try {
@@ -67,6 +91,24 @@ async function callRpc(client: RequestClient, name: string, args: Record<string,
   if (!parsed.success) throw new HomeworkAssignmentServiceError("PERSISTENCE_FAILURE");
   if (parsed.data.error !== null) throw serviceErrorFor(parsed.data.error);
   return parsed.data.data;
+}
+
+async function loadHomeworkAssignmentReplay(
+  client: RequestClient,
+  request: HomeworkAssignmentRequest,
+): Promise<HomeworkAssignmentSuccess | null> {
+  const data = await callRpc(client, "get_homework_assignment_replay", {
+    p_class_id: request.classId,
+    p_title: request.title ?? null,
+    p_topic: request.topic,
+    p_difficulty: request.difficulty,
+    p_exercise_count: request.exerciseCount,
+    p_idempotency_key: request.idempotencyKey,
+    p_student_ids: request.studentIds,
+  });
+  const rows = homeworkAssignmentRpcRowSchema.array().safeParse(data);
+  if (!rows.success || rows.data.length > 1) throw new HomeworkAssignmentServiceError("PERSISTENCE_FAILURE");
+  return rows.data.length === 0 ? null : assignmentSuccessFromRow(rows.data[0], request);
 }
 
 export async function loadHomeworkRoster(client: RequestClient, classId: string): Promise<HomeworkRosterMember[]> {
@@ -137,10 +179,20 @@ export async function createHomeworkAssignment(
   client: RequestClient,
   request: HomeworkAssignmentRequest,
 ): Promise<HomeworkAssignmentSuccess> {
+  const replay = await loadHomeworkAssignmentReplay(client, request);
+  if (replay) return replay;
+
+  const roster = await loadHomeworkRoster(client, request.classId);
+  const currentStudentIds = new Set(roster.map(({ studentId }) => studentId));
+  const eligibleStudentIds = request.studentIds.filter((studentId) => currentStudentIds.has(studentId));
+  if (eligibleStudentIds.length === 0) {
+    throw new HomeworkAssignmentServiceError("EMPTY_ELIGIBLE_ROSTER");
+  }
+
   const exerciseIds = await loadApprovedHomeworkExerciseIds(client, request.topic, request.difficulty);
   const allocation = allocateDistinctSets({
     exerciseIds,
-    studentIds: request.studentIds,
+    studentIds: eligibleStudentIds,
     exerciseCount: request.exerciseCount,
     random: seededRandom(request.idempotencyKey),
   });
@@ -155,6 +207,13 @@ export async function createHomeworkAssignment(
     throw new HomeworkAssignmentServiceError("PERSISTENCE_FAILURE");
   }
 
+  const allocationByStudentId = new Map(allocation.allocations.map((item) => [item.studentId, item.exerciseIds]));
+  const fallbackExerciseIds = allocation.allocations[0].exerciseIds;
+  const completeAllocations = request.studentIds.map((studentId) => ({
+    studentId,
+    exerciseIds: allocationByStudentId.get(studentId) ?? fallbackExerciseIds,
+  }));
+
   const data = await callRpc(client, "create_homework_assignment", {
     p_class_id: request.classId,
     p_title: request.title ?? null,
@@ -162,7 +221,7 @@ export async function createHomeworkAssignment(
     p_difficulty: request.difficulty,
     p_exercise_count: request.exerciseCount,
     p_idempotency_key: request.idempotencyKey,
-    p_allocations: allocation.allocations.map(({ studentId, exerciseIds: assignedExerciseIds }) => ({
+    p_allocations: completeAllocations.map(({ studentId, exerciseIds: assignedExerciseIds }) => ({
       student_id: studentId,
       exercise_ids: assignedExerciseIds,
     })),
@@ -170,23 +229,5 @@ export async function createHomeworkAssignment(
   const rows = homeworkAssignmentRpcRowSchema.array().safeParse(data);
   if (!rows.success || rows.data.length !== 1) throw new HomeworkAssignmentServiceError("PERSISTENCE_FAILURE");
 
-  const row = rows.data[0];
-  const requestedStudentIds = new Set(request.studentIds);
-  const returnedStudentIds = [...row.assigned_student_ids, ...row.excluded_student_ids];
-  if (
-    returnedStudentIds.length !== request.studentIds.length ||
-    returnedStudentIds.some((studentId) => !requestedStudentIds.has(studentId))
-  ) {
-    throw new HomeworkAssignmentServiceError("PERSISTENCE_FAILURE");
-  }
-
-  return {
-    assignmentId: row.assignment_id,
-    title: row.assignment_title,
-    createdAt: row.created_at,
-    assignedCount: row.assigned_student_ids.length,
-    excludedStudentIds: row.excluded_student_ids,
-    excludedCount: row.excluded_student_ids.length,
-    replayed: row.replayed,
-  };
+  return assignmentSuccessFromRow(rows.data[0], request);
 }
