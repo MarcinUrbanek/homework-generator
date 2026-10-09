@@ -1,14 +1,17 @@
 import { z } from "zod";
 
+import { normalizeStudentHomeworkAnswer } from "@/lib/exercises/answer-normalization";
 import {
   EXERCISE_DIFFICULTIES,
   EXERCISE_TOPIC_SLUGS,
   HOMEWORK_API_ERROR_CODES,
+  STUDENT_HOMEWORK_API_ERROR_CODES,
   type HomeworkApiErrorCode,
 } from "@/types";
 
 const uuidSchema = z.uuid();
 const nonEmptyStringSchema = z.string().trim().min(1);
+const nonEmptyPreservedStringSchema = z.string().refine((value) => value.trim().length > 0);
 const exerciseCountSchema = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]);
 
 export const homeworkTopicSchema = z.enum(EXERCISE_TOPIC_SLUGS);
@@ -133,3 +136,316 @@ export const homeworkApiErrorCodeSchema = z.enum(HOMEWORK_API_ERROR_CODES);
 export function isHomeworkApiErrorCode(value: string): value is HomeworkApiErrorCode {
   return homeworkApiErrorCodeSchema.safeParse(value).success;
 }
+
+const studentHomeworkExerciseCountSchema = z.number().int().min(1).max(5);
+const studentHomeworkAnswerPositionSchema = z.number().int().min(1).max(5);
+const studentHomeworkRawAnswerSchema = z
+  .string()
+  .max(200)
+  .nullable()
+  .superRefine((answer, context) => {
+    if (answer !== null && normalizeStudentHomeworkAnswer(answer) === undefined) {
+      context.addIssue({ code: "custom", message: "Answers must be natural numbers or blank" });
+    }
+  });
+
+function validateOrderedPositions(positions: number[], expectedCount: number, context: z.RefinementCtx, path: string) {
+  if (positions.length !== expectedCount || positions.some((position, index) => position !== index + 1)) {
+    context.addIssue({
+      code: "custom",
+      path: [path],
+      message: "Positions must match the assigned exercise order",
+    });
+  }
+}
+
+function validateHomeworkSubmissionSummary(
+  {
+    submitted,
+    submittedAt,
+    correctCount,
+    passed,
+    exerciseCount,
+  }: {
+    submitted: boolean;
+    submittedAt: string | null;
+    correctCount: number | null;
+    passed: boolean | null;
+    exerciseCount: number;
+  },
+  context: z.RefinementCtx,
+) {
+  const hasCompleteResult = submittedAt !== null && correctCount !== null && passed !== null;
+  if (
+    submitted !== hasCompleteResult ||
+    (!submitted && (submittedAt !== null || correctCount !== null || passed !== null))
+  ) {
+    context.addIssue({ code: "custom", path: ["submitted"], message: "Submission summary fields must be consistent" });
+  }
+  if (
+    submitted &&
+    (correctCount === null || correctCount > exerciseCount || passed !== 2 * correctCount >= exerciseCount)
+  ) {
+    context.addIssue({ code: "custom", path: ["correctCount"], message: "Submission score fields must be consistent" });
+  }
+}
+
+const studentHomeworkSubmissionAnswerRpcSchema = z
+  .object({
+    position: studentHomeworkAnswerPositionSchema,
+    answer: studentHomeworkRawAnswerSchema,
+    normalized_answer: z
+      .string()
+      .regex(/^(0|[1-9][0-9]*)$/u)
+      .nullable(),
+    is_correct: z.boolean(),
+  })
+  .strict()
+  .superRefine(({ answer, normalized_answer }, context) => {
+    if (normalizeStudentHomeworkAnswer(answer) !== normalized_answer) {
+      context.addIssue({
+        code: "custom",
+        path: ["normalized_answer"],
+        message: "Normalized answer does not match raw answer",
+      });
+    }
+  });
+
+const studentHomeworkSubmissionResultRpcBaseSchema = z
+  .object({
+    submission_id: z.uuid(),
+    submitted_at: z.iso.datetime({ offset: true }),
+    correct_count: z.number().int().min(0),
+    assigned_count: studentHomeworkExerciseCountSchema,
+    passed: z.boolean(),
+    answers: studentHomeworkSubmissionAnswerRpcSchema.array(),
+  })
+  .strict();
+
+function validateRpcSubmissionResult(
+  {
+    answers,
+    correct_count: correctCount,
+    assigned_count: assignedCount,
+    passed,
+  }: z.infer<typeof studentHomeworkSubmissionResultRpcBaseSchema>,
+  context: z.RefinementCtx,
+) {
+  validateOrderedPositions(
+    answers.map(({ position }) => position),
+    assignedCount,
+    context,
+    "answers",
+  );
+  const actualCorrectCount = answers.filter(({ is_correct: isCorrect }) => isCorrect).length;
+  if (correctCount !== actualCorrectCount || correctCount > assignedCount) {
+    context.addIssue({ code: "custom", path: ["correct_count"], message: "Correct count must match answer results" });
+  }
+  if (passed !== 2 * correctCount >= assignedCount) {
+    context.addIssue({ code: "custom", path: ["passed"], message: "Pass status must match the score threshold" });
+  }
+}
+
+const studentHomeworkSubmissionResultRpcSchema =
+  studentHomeworkSubmissionResultRpcBaseSchema.superRefine(validateRpcSubmissionResult);
+
+export const studentHomeworkSubmitRequestSchema = z
+  .object({
+    answers: z
+      .object({
+        position: studentHomeworkAnswerPositionSchema,
+        answer: studentHomeworkRawAnswerSchema,
+      })
+      .strict()
+      .array()
+      .min(1)
+      .max(5),
+  })
+  .strict()
+  .superRefine(({ answers }, context) => {
+    const positions = answers.map(({ position }) => position);
+    if (new Set(positions).size !== answers.length) {
+      context.addIssue({ code: "custom", path: ["answers"], message: "Answer positions must be unique" });
+    }
+    validateOrderedPositions(
+      [...positions].sort((left, right) => left - right),
+      answers.length,
+      context,
+      "answers",
+    );
+  });
+
+export const studentHomeworkAssignmentIdSchema = uuidSchema;
+
+export const studentHomeworkSummaryRpcRowSchema = z
+  .object({
+    assignment_id: uuidSchema,
+    class_name: nonEmptyStringSchema,
+    assignment_title: nonEmptyStringSchema.nullable(),
+    created_at: z.iso.datetime({ offset: true }),
+    exercise_count: studentHomeworkExerciseCountSchema,
+    submitted: z.boolean(),
+    submitted_at: z.iso.datetime({ offset: true }).nullable(),
+    correct_count: z.number().int().min(0).nullable(),
+    passed: z.boolean().nullable(),
+  })
+  .strict()
+  .superRefine(
+    (
+      { submitted, submitted_at: submittedAt, correct_count: correctCount, passed, exercise_count: exerciseCount },
+      context,
+    ) => {
+      validateHomeworkSubmissionSummary({ submitted, submittedAt, correctCount, passed, exerciseCount }, context);
+    },
+  );
+
+export const studentHomeworkSummarySchema = z
+  .object({
+    assignmentId: uuidSchema,
+    className: nonEmptyStringSchema,
+    title: nonEmptyStringSchema.nullable(),
+    createdAt: z.iso.datetime({ offset: true }),
+    exerciseCount: studentHomeworkExerciseCountSchema,
+    submitted: z.boolean(),
+    submittedAt: z.iso.datetime({ offset: true }).nullable(),
+    correctCount: z.number().int().min(0).nullable(),
+    passed: z.boolean().nullable(),
+  })
+  .strict()
+  .superRefine(({ submitted, submittedAt, correctCount, passed, exerciseCount }, context) => {
+    validateHomeworkSubmissionSummary({ submitted, submittedAt, correctCount, passed, exerciseCount }, context);
+  });
+
+export const studentHomeworkListSuccessSchema = z
+  .object({ assignments: studentHomeworkSummarySchema.array() })
+  .strict();
+
+export const studentHomeworkDetailRpcSchema = z
+  .object({
+    assignment: z
+      .object({
+        assignment_id: uuidSchema,
+        class_name: nonEmptyStringSchema,
+        title: nonEmptyStringSchema.nullable(),
+        created_at: z.iso.datetime({ offset: true }),
+        exercise_count: studentHomeworkExerciseCountSchema,
+      })
+      .strict(),
+    exercises: z
+      .object({
+        position: studentHomeworkAnswerPositionSchema,
+        prompt: nonEmptyPreservedStringSchema,
+      })
+      .strict()
+      .array(),
+    submission: studentHomeworkSubmissionResultRpcSchema.nullable(),
+  })
+  .strict()
+  .superRefine(({ assignment, exercises, submission }, context) => {
+    validateOrderedPositions(
+      exercises.map(({ position }) => position),
+      assignment.exercise_count,
+      context,
+      "exercises",
+    );
+    if (submission && submission.assigned_count !== assignment.exercise_count) {
+      context.addIssue({
+        code: "custom",
+        path: ["submission", "assigned_count"],
+        message: "Submission count mismatch",
+      });
+    }
+  });
+
+export const studentHomeworkSubmitRpcResultSchema = studentHomeworkSubmissionResultRpcBaseSchema
+  .extend({ replayed: z.boolean() })
+  .strict()
+  .superRefine(validateRpcSubmissionResult);
+
+const studentHomeworkSubmissionResultBaseSchema = z
+  .object({
+    submissionId: uuidSchema,
+    submittedAt: z.iso.datetime({ offset: true }),
+    correctCount: z.number().int().min(0),
+    assignedCount: studentHomeworkExerciseCountSchema,
+    passed: z.boolean(),
+    answers: z
+      .object({
+        position: studentHomeworkAnswerPositionSchema,
+        answer: studentHomeworkRawAnswerSchema,
+        isCorrect: z.boolean(),
+      })
+      .strict()
+      .array(),
+  })
+  .strict();
+
+function validatePublicSubmissionResult(
+  { answers, correctCount, assignedCount, passed }: z.infer<typeof studentHomeworkSubmissionResultBaseSchema>,
+  context: z.RefinementCtx,
+) {
+  validateOrderedPositions(
+    answers.map(({ position }) => position),
+    assignedCount,
+    context,
+    "answers",
+  );
+  if (answers.filter(({ isCorrect }) => isCorrect).length !== correctCount || correctCount > assignedCount) {
+    context.addIssue({ code: "custom", path: ["correctCount"], message: "Correct count must match answer results" });
+  }
+  if (passed !== 2 * correctCount >= assignedCount) {
+    context.addIssue({ code: "custom", path: ["passed"], message: "Pass status must match the score threshold" });
+  }
+}
+
+export const studentHomeworkSubmissionResultSchema =
+  studentHomeworkSubmissionResultBaseSchema.superRefine(validatePublicSubmissionResult);
+
+export const studentHomeworkDetailSuccessSchema = z
+  .object({
+    assignment: z
+      .object({
+        assignmentId: uuidSchema,
+        className: nonEmptyStringSchema,
+        title: nonEmptyStringSchema.nullable(),
+        createdAt: z.iso.datetime({ offset: true }),
+        exerciseCount: studentHomeworkExerciseCountSchema,
+      })
+      .strict(),
+    exercises: z
+      .object({
+        position: studentHomeworkAnswerPositionSchema,
+        prompt: nonEmptyPreservedStringSchema,
+      })
+      .strict()
+      .array(),
+    submission: studentHomeworkSubmissionResultSchema.nullable(),
+  })
+  .strict()
+  .superRefine(({ assignment, exercises, submission }, context) => {
+    validateOrderedPositions(
+      exercises.map(({ position }) => position),
+      assignment.exerciseCount,
+      context,
+      "exercises",
+    );
+    if (submission && submission.assignedCount !== assignment.exerciseCount) {
+      context.addIssue({ code: "custom", path: ["submission", "assignedCount"], message: "Submission count mismatch" });
+    }
+  });
+
+export const studentHomeworkSubmitSuccessSchema = studentHomeworkSubmissionResultBaseSchema
+  .extend({ replayed: z.boolean() })
+  .strict()
+  .superRefine(validatePublicSubmissionResult);
+
+export const studentHomeworkApiErrorSchema = z
+  .object({
+    error: z
+      .object({
+        code: z.enum(STUDENT_HOMEWORK_API_ERROR_CODES),
+        message: nonEmptyStringSchema,
+      })
+      .strict(),
+  })
+  .strict();

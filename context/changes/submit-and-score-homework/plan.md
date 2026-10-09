@@ -255,21 +255,21 @@ Rollback the application exposure first while retaining submission data and rest
 
 #### Automated
 
-- [x] 1.1 A clean local migration reset and `npm run db:test` pass, including the new private submission/read/scoring suite.
-- [x] 1.2 Database fixtures prove exact 50% boundaries, blank grading, positional validation, equivalent retry, immutable conflict, and unsupported-canonical rollback.
-- [x] 1.3 Database fixtures prove no cross-student/key disclosure and deny all departed-member reads, submissions, and replays.
+- [x] 1.1 A clean local migration reset and `npm run db:test` pass, including the new private submission/read/scoring suite. — c5cee2b
+- [x] 1.2 Database fixtures prove exact 50% boundaries, blank grading, positional validation, equivalent retry, immutable conflict, and unsupported-canonical rollback. — c5cee2b
+- [x] 1.3 Database fixtures prove no cross-student/key disclosure and deny all departed-member reads, submissions, and replays. — c5cee2b
 
 #### Manual
 
-- [x] 1.4 With two database sessions, simultaneous equivalent/different submissions produce one final submission without partial rows; membership deletion serializes with submission and prevents later access.
+- [x] 1.4 With two database sessions, simultaneous equivalent/different submissions produce one final submission without partial rows; membership deletion serializes with submission and prevents later access. — c5cee2b
 
 ### Phase 2: Typed student APIs
 
 #### Automated
 
-- [ ] 2.1 `npm test -- src/lib/homework/student-schemas.test.ts src/lib/services/student-homework.test.ts src/pages/api/homework/list.test.ts "src/pages/api/homework/[assignmentId]/index.test.ts" "src/pages/api/homework/[assignmentId]/submit.test.ts"` passes.
-- [ ] 2.2 `npm test -- src/lib/exercises/answer-normalization.test.ts src/lib/services/openrouter-exercise-verifier.test.ts src/lib/services/homework-assignments.test.ts src/pages/api/homework/assign.test.ts` preserves existing verification and teacher-assignment behavior.
-- [ ] 2.3 `npm run lint` and `npm run build` pass with the student DTOs and endpoints.
+- [x] 2.1 `npm test -- src/lib/homework/student-schemas.test.ts src/lib/services/student-homework.test.ts src/pages/api/homework/list.test.ts "src/pages/api/homework/[assignmentId]/index.test.ts" "src/pages/api/homework/[assignmentId]/submit.test.ts"` passes.
+- [x] 2.2 `npm test -- src/lib/exercises/answer-normalization.test.ts src/lib/services/openrouter-exercise-verifier.test.ts src/lib/services/homework-assignments.test.ts src/pages/api/homework/assign.test.ts` preserves existing verification and teacher-assignment behavior.
+- [x] 2.3 `npm run lint` and `npm run build` pass with the student DTOs and endpoints.
 
 ### Phase 3: Student workflow and verification
 

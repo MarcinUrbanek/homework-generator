@@ -319,3 +319,84 @@ export interface HomeworkApiError {
     availableExerciseCount?: number;
   };
 }
+
+export const STUDENT_HOMEWORK_API_ERROR_CODES = [
+  "INVALID_REQUEST",
+  "UNAUTHENTICATED",
+  "FORBIDDEN",
+  "HOMEWORK_UNAVAILABLE",
+  "SUBMISSION_CONFLICT",
+  "SCORING_UNAVAILABLE",
+  "DATABASE_UNAVAILABLE",
+  "PERSISTENCE_FAILURE",
+] as const;
+
+export type StudentHomeworkApiErrorCode = (typeof STUDENT_HOMEWORK_API_ERROR_CODES)[number];
+
+export interface StudentHomeworkSummary {
+  assignmentId: string;
+  className: string;
+  title: string | null;
+  createdAt: string;
+  exerciseCount: number;
+  submitted: boolean;
+  submittedAt: string | null;
+  correctCount: number | null;
+  passed: boolean | null;
+}
+
+export interface StudentHomeworkListSuccess {
+  assignments: StudentHomeworkSummary[];
+}
+
+export interface StudentHomeworkDetailAssignment {
+  assignmentId: string;
+  className: string;
+  title: string | null;
+  createdAt: string;
+  exerciseCount: number;
+}
+
+export interface StudentHomeworkExercise {
+  position: number;
+  prompt: string;
+}
+
+export interface StudentHomeworkAnswerResult {
+  position: number;
+  answer: string | null;
+  isCorrect: boolean;
+}
+
+export interface StudentHomeworkSubmissionResult {
+  submissionId: string;
+  submittedAt: string;
+  correctCount: number;
+  assignedCount: number;
+  passed: boolean;
+  answers: StudentHomeworkAnswerResult[];
+}
+
+export interface StudentHomeworkDetailSuccess {
+  assignment: StudentHomeworkDetailAssignment;
+  exercises: StudentHomeworkExercise[];
+  submission: StudentHomeworkSubmissionResult | null;
+}
+
+export interface StudentHomeworkSubmitRequest {
+  answers: {
+    position: number;
+    answer: string | null;
+  }[];
+}
+
+export interface StudentHomeworkSubmitSuccess extends StudentHomeworkSubmissionResult {
+  replayed: boolean;
+}
+
+export interface StudentHomeworkApiError {
+  error: {
+    code: StudentHomeworkApiErrorCode;
+    message: string;
+  };
+}
