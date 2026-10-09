@@ -349,10 +349,10 @@ The forward-only migration creates empty assignment tables and checked functions
 
 #### Automated
 
-- [x] 4.1 The complete database and application suites pass from a clean schema: `npx supabase db reset && npm run db:test && npm test`.
-- [x] 4.2 Repository lint, Astro checks, and production build pass: `npm run lint && npx astro check && npm run build`.
-- [x] 4.3 The configured production-preview smoke flow passes assignment authorization, roster, creation, distinctness, retry, privacy, and cleanup checks: `$env:SMOKE_CLASS_CHECKS='true'; $env:SMOKE_HOMEWORK_CHECKS='true'; npm run smoke`.
+- [x] 4.1 The complete database and application suites pass from a clean schema: `npx supabase db reset && npm run db:test && npm test`. — 12c738b
+- [x] 4.2 Repository lint, Astro checks, and production build pass: `npm run lint && npx astro check && npm run build`. — 12c738b
+- [x] 4.3 The configured production-preview smoke flow passes assignment authorization, roster, creation, distinctness, retry, privacy, and cleanup checks: `$env:SMOKE_CLASS_CHECKS='true'; $env:SMOKE_HOMEWORK_CHECKS='true'; npm run smoke`. — 12c738b
 
 #### Manual
 
-- [x] 4.4 The verification record confirms the complete teacher workflow, minimum-overlap distinct sets, actionable shortage handling, departed-member exclusion, privacy boundaries, and responsive keyboard-accessible UI while retaining S-07 student behavior as out of scope.
+- [x] 4.4 The verification record confirms the complete teacher workflow, minimum-overlap distinct sets, actionable shortage handling, departed-member exclusion, privacy boundaries, and responsive keyboard-accessible UI while retaining S-07 student behavior as out of scope. — 12c738b
