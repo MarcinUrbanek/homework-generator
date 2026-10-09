@@ -19,6 +19,9 @@ This record is a checklist for human observation. `Pending` means the scenario h
 	- `npm run build`: PASS; production SSR build completed.
 	- Configured production-preview smoke: PASS; assignment authorization, roster, creation, distinctness, retry, privacy, and cleanup checks passed.
 	- Deliberate-break check: NOT COMPLETED; the temporary roster authorization inversion was restored, but the preview rebuild failed with `EPERM` while clearing `dist` after overlapping build attempts.
+- Automated verification observed on 2026-10-09:
+	- `npm run build`: PASS; the production SSR preview built successfully.
+	- Local configured-preview smoke with `SMOKE_CLASS_CHECKS=true` and `SMOKE_HOMEWORK_CHECKS=true`: PASS; authorization, roster, assignment persistence, departed-recipient exclusion, idempotent retry, privacy, and cleanup checks passed.
 
 ## Controlled Accounts
 

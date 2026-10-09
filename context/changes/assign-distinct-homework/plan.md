@@ -355,4 +355,4 @@ The forward-only migration creates empty assignment tables and checked functions
 
 #### Manual
 
-- [x] 4.4 The verification record confirms the complete teacher workflow, minimum-overlap distinct sets, actionable shortage handling, departed-member exclusion, privacy boundaries, and responsive keyboard-accessible UI while retaining S-07 student behavior as out of scope. — 12c738b
+- [ ] 4.4 The verification record confirms the complete teacher workflow, minimum-overlap distinct sets, actionable shortage handling, departed-member exclusion, privacy boundaries, and responsive keyboard-accessible UI while retaining S-07 student behavior as out of scope.
