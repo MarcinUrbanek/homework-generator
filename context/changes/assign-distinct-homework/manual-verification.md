@@ -63,3 +63,9 @@ Use labels only; do not retain sign-in identifiers or credentials.
 - Record outcomes only after observing them; use neutral evidence labels and approved storage references.
 - Keep screenshots free of account identifiers, credentials, class codes, assignment payloads, canonical answers, and personal data.
 - Automated command results belong in their run output. Do not mark this manual checklist passed based only on automated coverage.
+
+## Observations
+- Observation 1: successful assignment creation and verification of distinct homework distribution for 4 students with 5 exercises to assign and 8 distinct exercises available.
+- Observation 2: unsuccessful assignment creation attempt when 4 students with 2 exercises to assign and 2 distinct exercises available.
+- Observation 3: only teacher that owns the class can read the roster and create assignments; cross-teacher attempts are denied.
+- Observation 4: anonymous users and students cannot read the owner roster or create assignments.
