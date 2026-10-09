@@ -1,9 +1,9 @@
 ---
 change_id: assign-distinct-homework
 title: Assign distinct homework sets
-status: implementing
+status: implemented
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-10-09
 archived_at: null
 ---
 
