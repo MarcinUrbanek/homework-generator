@@ -3,7 +3,7 @@ project: "Homework generator"
 version: 1
 status: draft
 created: 2026-09-21
-updated: 2026-10-08
+updated: 2026-10-09
 prd_version: 1
 main_goal: market-feedback
 top_blocker: time
@@ -47,7 +47,7 @@ Primary-school classroom math teachers in Poland need many distinct exercises at
 | S-03 | reuse-saved-exercises         | teacher can find and reuse approved exercises by grade and topic                                                         | S-02          | FR-009                        | done |
 | S-04 | invite-students-to-class      | teacher can sign in, create a class, and invite students by email                                                        | —             | FR-001, FR-002                | done |
 | S-05 | join-teacher-managed-class    | student can sign in and join a class through a code or direct invitation link                                            | S-04          | FR-001, FR-003                | done |
-| S-06 | assign-distinct-homework      | teacher can choose an exercise count and assign each selected student a distinct set from one approved difficulty bucket | S-02, S-05    | US-01, FR-010                 | in-progress |
+| S-06 | assign-distinct-homework      | teacher can choose an exercise count and assign each selected student a distinct set from one approved difficulty bucket | S-02, S-05    | US-01, FR-010                 | done |
 | S-07 | submit-and-score-homework     | student can open homework, submit answers, and immediately see pass or fail from the defined score rule                  | S-06          | US-01, FR-011, FR-012, FR-013 | proposed |
 | S-08 | review-submission-feedback    | teacher can review submitted answers and provide feedback that the student can later view                                | S-07          | US-01, FR-013                 | proposed |
 
@@ -160,7 +160,7 @@ What's already in place in the codebase as of `2026-09-21` (auto-researched and 
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** Distinct sets can become unfair if difficulty evidence is not applied consistently, so assignment follows approval and class membership.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-07: Submit and score homework
 
@@ -213,3 +213,4 @@ What's already in place in the codebase as of `2026-09-21` (auto-researched and 
 - **S-03: teacher can find and reuse approved exercises by grade and topic** — Archived 2026-10-02 → `context/archive/2026-10-01-reuse-saved-exercises/`. Lesson: —.
 - **S-04: teacher can sign in, create a class, and invite students by email** — Archived 2026-10-02 → `context/archive/2026-10-01-invite-students-to-class/`. Lesson: —.
 - **S-05: student can sign in and join a class through a code or direct invitation link** — Archived 2026-10-06 → `context/archive/2026-10-05-join-teacher-managed-class/`. Lesson: —.
+- **S-06: teacher can choose an exercise count and assign each selected student a distinct set from one approved difficulty bucket** — Archived 2026-10-09 → `context/archive/2026-10-08-assign-distinct-homework/`. Lesson: —.
