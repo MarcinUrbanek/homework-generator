@@ -2,6 +2,9 @@ const UNGROUPED_NATURAL_NUMBER_PATTERN = /^\d+$/u;
 const GROUPED_NATURAL_NUMBER_PATTERN = /^\d{1,3}(?: \d{3})+$/u;
 const NATURAL_NUMBER_TOKEN_PATTERN =
   /(?<![\p{L}\p{N}+\-*/=,.%^])(?:\d{1,3}(?: \d{3})+|\d+)(?![\p{L}\p{N}+\-*/=,.%^])/gu;
+const STUDENT_UNGROUPED_NATURAL_NUMBER_PATTERN = /^[0-9]+$/u;
+const STUDENT_GROUPED_NATURAL_NUMBER_PATTERN = /^[0-9]{1,3}(?: [0-9]{3})+$/u;
+const STUDENT_ANSWER_ASCII_WHITESPACE_PATTERN = /^[ \t\n\v\f\r]+|[ \t\n\v\f\r]+$/gu;
 
 export interface VerificationAnswerCanonicalization {
   comparisonKey: string;
@@ -12,8 +15,23 @@ export function normalizeExerciseAnswer(value: string): string {
   return value.normalize("NFC").trim().replace(/\s+/gu, " ").toLocaleLowerCase("pl-PL").replace(/\.$/u, "");
 }
 
-function canonicalizeNaturalNumber(value: string): string {
+export function canonicalizeNaturalNumberAnswer(value: string): string {
   return value.replaceAll(" ", "").replace(/^0+(?=\d)/u, "");
+}
+
+export function normalizeStudentHomeworkAnswer(value: string | null): string | null | undefined {
+  if (value === null) return null;
+
+  const trimmedAnswer = value.replace(STUDENT_ANSWER_ASCII_WHITESPACE_PATTERN, "");
+  if (trimmedAnswer === "") return null;
+  if (
+    !STUDENT_UNGROUPED_NATURAL_NUMBER_PATTERN.test(trimmedAnswer) &&
+    !STUDENT_GROUPED_NATURAL_NUMBER_PATTERN.test(trimmedAnswer)
+  ) {
+    return undefined;
+  }
+
+  return canonicalizeNaturalNumberAnswer(trimmedAnswer);
 }
 
 export function canonicalizeExerciseAnswerForVerification(value: string): VerificationAnswerCanonicalization {
@@ -33,7 +51,7 @@ export function canonicalizeExerciseAnswerForVerification(value: string): Verifi
   }
 
   if (numericAnswer !== undefined) {
-    const canonicalAnswer = canonicalizeNaturalNumber(numericAnswer);
+    const canonicalAnswer = canonicalizeNaturalNumberAnswer(numericAnswer);
     return { comparisonKey: `natural-number:${canonicalAnswer}`, canonicalAnswer };
   }
 
