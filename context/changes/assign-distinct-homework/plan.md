@@ -337,22 +337,22 @@ The forward-only migration creates empty assignment tables and checked functions
 
 #### Automated
 
-- [x] 3.1 Homework component tests pass roster selection, review, payload, idempotent retry, capacity, exclusion, error, accessibility, and focus cases: `npm test -- src/components/homework`.
-- [x] 3.2 The full application suite, type-aware lint, Astro checks, and production SSR build pass after the route and navigation are wired: `npm test && npm run lint && npx astro check && npm run build`.
+- [x] 3.1 Homework component tests pass roster selection, review, payload, idempotent retry, capacity, exclusion, error, accessibility, and focus cases: `npm test -- src/components/homework`. — e0e4df3
+- [x] 3.2 The full application suite, type-aware lint, Astro checks, and production SSR build pass after the route and navigation are wired: `npm test && npm run lint && npx astro check && npm run build`. — e0e4df3
 
 #### Manual
 
-- [x] 3.3 At desktop and mobile widths, a teacher can assign from an owned class with all members initially selected, review the exact parameters, recover from a pool shortage, and see successful assigned/excluded counts with no overlap, clipping, stale selection, or inaccessible control.
-- [x] 3.4 A controlled membership race confirms a departed selected student is omitted and identified to the owner while every remaining selected member receives a complete set.
+- [x] 3.3 At desktop and mobile widths, a teacher can assign from an owned class with all members initially selected, review the exact parameters, recover from a pool shortage, and see successful assigned/excluded counts with no overlap, clipping, stale selection, or inaccessible control. — e0e4df3
+- [x] 3.4 A controlled membership race confirms a departed selected student is omitted and identified to the owner while every remaining selected member receives a complete set. — e0e4df3
 
 ### Phase 4: Integrated Verification
 
 #### Automated
 
-- [ ] 4.1 The complete database and application suites pass from a clean schema: `npx supabase db reset && npm run db:test && npm test`.
-- [ ] 4.2 Repository lint, Astro checks, and production build pass: `npm run lint && npx astro check && npm run build`.
-- [ ] 4.3 The configured production-preview smoke flow passes assignment authorization, roster, creation, distinctness, retry, privacy, and cleanup checks: `$env:SMOKE_CLASS_CHECKS='true'; $env:SMOKE_HOMEWORK_CHECKS='true'; npm run smoke`.
+- [x] 4.1 The complete database and application suites pass from a clean schema: `npx supabase db reset && npm run db:test && npm test`.
+- [x] 4.2 Repository lint, Astro checks, and production build pass: `npm run lint && npx astro check && npm run build`.
+- [x] 4.3 The configured production-preview smoke flow passes assignment authorization, roster, creation, distinctness, retry, privacy, and cleanup checks: `$env:SMOKE_CLASS_CHECKS='true'; $env:SMOKE_HOMEWORK_CHECKS='true'; npm run smoke`.
 
 #### Manual
 
-- [ ] 4.4 The verification record confirms the complete teacher workflow, minimum-overlap distinct sets, actionable shortage handling, departed-member exclusion, privacy boundaries, and responsive keyboard-accessible UI while retaining S-07 student behavior as out of scope.
+- [x] 4.4 The verification record confirms the complete teacher workflow, minimum-overlap distinct sets, actionable shortage handling, departed-member exclusion, privacy boundaries, and responsive keyboard-accessible UI while retaining S-07 student behavior as out of scope.
