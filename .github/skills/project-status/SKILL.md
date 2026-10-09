@@ -1,9 +1,8 @@
 ---
-name: "Project Status"
-description: "Summarize roadmap and change progress, identify the next ready task, and show the commands needed to continue it"
-agent: "agent"
+name: project-status
+description: Summarize roadmap and change progress, identify the next ready task, and show the commands needed to continue it
+disable-model-invocation: true
 ---
-
 Report the current status of this project using repository evidence. Do not modify files or synchronize GitHub issues.
 
 Use these sources in this priority order:
