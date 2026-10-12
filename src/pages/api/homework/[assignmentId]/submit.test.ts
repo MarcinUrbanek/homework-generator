@@ -43,7 +43,7 @@ function context(body: string, userId: string | null = "student", pathAssignment
     params: { assignmentId: pathAssignmentId },
     locals: { user: userId ? { id: userId } : null },
     cookies: {},
-  } as APIContext;
+  } as never as APIContext;
 }
 
 async function responseBody<T>(response: Response): Promise<T> {
