@@ -374,11 +374,12 @@ describe("StudentHomeworkForm", () => {
     });
 
     expect(requestSignal).toBeInstanceOf(AbortSignal);
-    expect(requestSignal?.aborted).toBe(false);
+    expect(requestSignal).not.toBeNull();
+    expect(requestSignal!.aborted).toBe(false);
     act(() => {
       root.unmount();
     });
     rootMounted = false;
-    expect(requestSignal?.aborted).toBe(true);
+    expect(requestSignal!.aborted).toBe(true);
   });
 });
