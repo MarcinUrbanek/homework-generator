@@ -70,6 +70,7 @@ describe("GET /api/homework/:assignmentId", () => {
     const response = await handler(context(null, "not-a-uuid"));
 
     expect(response.status).toBe(400);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect((await responseBody<{ error: { code: string } }>(response)).error.code).toBe("INVALID_REQUEST");
     expect(authorize).not.toHaveBeenCalled();
     expect(getHomework).not.toHaveBeenCalled();
@@ -105,6 +106,7 @@ describe("GET /api/homework/:assignmentId", () => {
     const body = await responseBody<StudentHomeworkDetailSuccess>(response);
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(body).toEqual(savedDetail);
     expect(body.exercises.map(({ position }) => position)).toEqual([1, 2]);
     expect(getHomework).toHaveBeenCalledWith(expect.anything(), assignmentId);

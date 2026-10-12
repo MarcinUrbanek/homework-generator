@@ -1,7 +1,7 @@
 import { defineMiddleware } from "astro:middleware";
 import { createClient } from "@/lib/supabase";
 
-const PROTECTED_ROUTES = ["/dashboard", "/exercises", "/classes"];
+const PROTECTED_ROUTES = ["/dashboard", "/exercises", "/classes", "/homework"];
 
 export const onRequest = defineMiddleware(async (context, next) => {
   if (import.meta.env.PROD && context.url.pathname.startsWith("/dev/")) {

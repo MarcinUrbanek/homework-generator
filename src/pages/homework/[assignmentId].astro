@@ -1,0 +1,112 @@
+---
+import StudentHomeworkForm from "@/components/homework/StudentHomeworkForm";
+import Layout from "@/layouts/Layout.astro";
+import { exerciseNoun } from "@/lib/exercises/exercise-count";
+import { loadProfileRoles } from "@/lib/services/profile-roles";
+import { StudentHomeworkServiceError, getStudentHomework } from "@/lib/services/student-homework";
+import { createClient } from "@/lib/supabase";
+import type { StudentHomeworkDetailSuccess } from "@/types";
+
+const user = Astro.locals.user;
+Astro.response.headers.set("Cache-Control", "private, no-store");
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+const roleResult = await loadProfileRoles(supabase, user?.id ?? null);
+let detail: StudentHomeworkDetailSuccess | null = null;
+let pageState: "ready" | "forbidden" | "unavailable" | "error" = "ready";
+let statusCode = 200;
+
+if (roleResult.status === "unavailable") {
+  pageState = "error";
+  statusCode = 503;
+} else if (!roleResult.roles.includes("student")) {
+  pageState = "forbidden";
+  statusCode = 403;
+} else if (!supabase) {
+  pageState = "error";
+  statusCode = 503;
+} else {
+  try {
+    detail = await getStudentHomework(supabase, Astro.params.assignmentId ?? "");
+  } catch (error) {
+    if (
+      error instanceof StudentHomeworkServiceError &&
+      (error.code === "HOMEWORK_UNAVAILABLE" || error.code === "INVALID_REQUEST" || error.code === "FORBIDDEN")
+    ) {
+      pageState = "unavailable";
+      statusCode = 404;
+    } else {
+      pageState = "error";
+      statusCode =
+        error instanceof StudentHomeworkServiceError &&
+        ["DATABASE_UNAVAILABLE", "SCORING_UNAVAILABLE"].includes(error.code)
+          ? 503
+          : 500;
+    }
+  }
+}
+
+if (pageState === "ready" && !detail) {
+  pageState = "error";
+  statusCode = 500;
+}
+Astro.response.status = statusCode;
+const messages = {
+  forbidden: {
+    heading: "Brak dostępu do zadań domowych",
+    message: "Szczegóły zadań domowych są dostępne dla kont uczniów.",
+  },
+  unavailable: {
+    heading: "Zadanie domowe jest niedostępne",
+    message: "Nie można otworzyć tego zadania. Może już nie być dostępne dla Twojego konta.",
+  },
+  error: {
+    heading: "Nie udało się wczytać zadania",
+    message: "Nie udało się potwierdzić dostępu lub pobrać zadania. Spróbuj ponownie później.",
+  },
+} as const;
+const errorMessages =
+  pageState === "forbidden" ? messages.forbidden : pageState === "unavailable" ? messages.unavailable : messages.error;
+---
+
+<Layout title={pageState === "ready" && detail ? (detail.assignment.title ?? "Zadanie domowe") : "Zadanie domowe"}>
+  <main data-role="student" class="min-h-screen bg-background px-4 py-8 text-foreground sm:py-12">
+    <div class="mx-auto w-full max-w-3xl">
+      <a class="text-sm font-semibold text-primary underline-offset-4 hover:underline" href="/homework">
+        Powrót do zadań domowych
+      </a>
+      {pageState === "ready" && detail ? (
+        <>
+          <header class="mt-6">
+            <p class="text-sm font-semibold text-primary">{detail.assignment.className}</p>
+            <h1 class="mt-2 break-words text-3xl font-bold sm:text-4xl">
+              {detail.assignment.title ?? "Zadanie domowe"}
+            </h1>
+            <p class="text-muted-foreground mt-3 text-sm">
+              {detail.assignment.exerciseCount} {exerciseNoun(detail.assignment.exerciseCount)}
+            </p>
+          </header>
+          <section class="bg-card mt-7 rounded-lg border p-4 shadow-sm sm:p-6">
+            <StudentHomeworkForm
+              assignment={detail.assignment}
+              exercises={detail.exercises}
+              submission={detail.submission}
+              client:load
+            />
+          </section>
+        </>
+      ) : (
+        <section class="mt-6 rounded-lg border bg-card p-6 shadow-sm sm:p-8" role="alert">
+          <p class="text-sm font-semibold text-destructive">{pageState === "error" ? "Błąd" : "Niedostępne"}</p>
+          <h1 class="mt-2 text-2xl font-bold">{errorMessages.heading}</h1>
+          <p class="text-muted-foreground mt-3 leading-7">{errorMessages.message}</p>
+          <a
+            class="mt-5 inline-flex min-h-11 items-center justify-center rounded-md border px-4 text-sm font-semibold transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2"
+            href="/homework"
+          >
+            Wróć do listy zadań
+          </a>
+        </section>
+      )}
+    </div>
+  </main>
+</Layout>

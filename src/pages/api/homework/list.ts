@@ -29,7 +29,10 @@ export interface StudentHomeworkListHandlerDependencies {
 function jsonResponse(body: StudentHomeworkApiError | StudentHomeworkListSuccess, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json; charset=utf-8" },
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "private, no-store",
+    },
   });
 }
 

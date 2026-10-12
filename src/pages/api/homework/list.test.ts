@@ -69,6 +69,7 @@ describe("GET /api/homework/list", () => {
     })(context(null));
 
     expect(response.status).toBe(401);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(await responseBody(response)).toEqual({
       error: { code: "UNAUTHENTICATED", message: "Zaloguj się, aby zobaczyć zadania domowe." },
     });
@@ -103,6 +104,7 @@ describe("GET /api/homework/list", () => {
     const body = await responseBody<StudentHomeworkListSuccess>(response);
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(body).toEqual(manyAssignments);
     expect(body.assignments).toHaveLength(24);
     expect(list).toHaveBeenCalledWith(expect.anything());

@@ -145,15 +145,39 @@ Users can then sign in immediately after sign-up without clicking a confirmation
 
 ### Auth routes
 
-| Route                 | Description                                                             |
-| --------------------- | ----------------------------------------------------------------------- |
-| `/auth/signin`        | Email/password sign-in form                                             |
-| `/auth/signup`        | Email/password sign-up form                                             |
-| `/auth/confirm-email` | Post-signup "check your inbox" page                                     |
-| `/dashboard`          | Example protected page (redirects to `/auth/signin` if unauthenticated) |
-| `/exercises/request`  | Teacher-only Polish exercise candidate request page                      |
+| Route                     | Description                                                             |
+| ------------------------- | ----------------------------------------------------------------------- |
+| `/auth/signin`            | Email/password sign-in form                                             |
+| `/auth/signup`            | Email/password sign-up form                                             |
+| `/auth/confirm-email`     | Post-signup "check your inbox" page                                     |
+| `/dashboard`              | Example protected page (redirects to `/auth/signin` if unauthenticated) |
+| `/homework`               | Student's current homework list, when the account has a student role    |
+| `/homework/:assignmentId` | One student's allocated homework and final result                       |
+| `/exercises/request`      | Teacher-only Polish exercise candidate request page                     |
 
 Route protection is handled in `src/middleware.ts`. Add paths to the `PROTECTED_ROUTES` array there to require authentication.
+
+## Student homework
+
+Student-role accounts can open **Zadania domowe** from the dashboard. Pending assignments appear before submitted assignments. Each detail page is scoped to the signed-in student's allocation and the class membership that is current when the page or API request is made. Teacher tools remain available to teacher-role accounts; dual-role accounts see both student and teacher entry points. Class-join links stay available from the dashboard even before a student joins a class.
+
+Submission is final. The review screen counts every blank answer, including an entirely blank submission, and explains that blanks are graded incorrect. A submission passes when at least half of the assigned exercises are correct. Answers accept natural numbers as digit strings, including correctly space-grouped thousands such as `12 345`; prose, decimals, signs, and malformed grouping are rejected. Unfinished answers are held only in the current page and are lost on navigation or refresh. Once submitted, answers and per-exercise correctness are read-only and the persisted result is restored on reload.
+
+Leaving a class removes access to that class's homework: its list entries are hidden and detail, submission, result reload, and equivalent retry requests are unavailable. The student UI clears displayed answer/result content after an access-denied response. Do not use a teacher account or an assignment identifier as a substitute for current student membership.
+
+### Verifying the student flow
+
+For a live check, start the local Supabase stack with the repository migrations applied and run the app with `SUPABASE_URL` and `SUPABASE_KEY` configured. Use one teacher and two independently enrolled student accounts:
+
+To generate disposable local test accounts and the class, approved exercises, and assignments used by the manual checks, configure `SUPABASE_SERVICE_ROLE_KEY` in `.dev.vars` or `.env` and run `npm run seed:homework-manual-test`. The command refuses non-local Supabase URLs. Sign-in details and scenario-specific URLs and answers are printed by the command and recorded in [the manual verification guide](./context/changes/submit-and-score-homework/manual-verification.md).
+
+1. Assign separate two- and five-exercise homework to the students. Confirm each list/detail shows only that student's allocation and that no canonical answer, verifier data, or classmate data appears in rendered HTML or network responses.
+2. On separate assignments, test one of two correct, two of five correct, three of five correct, and all blank. Confirm pass, fail, pass, and fail. Try a grouped number, a large integer string, prose, a decimal, a negative number, and malformed grouping.
+3. Simulate a lost response and retry without changing the vector; then try a different vector from another tab. Confirm the persisted result remains final and the conflict view loads that saved result.
+4. Remove a student's class membership and verify that list, detail, submit, result reload, and equivalent retry are denied. Check anonymous deep-link return after sign-in and student-only, teacher-only, dual-role, and not-yet-enrolled dashboard entry points.
+5. Check keyboard-only use, screen-reader status and focus movement, a narrow viewport, empty/unavailable states, and a recoverable network failure.
+
+The implementation's focused UI/role tests are `npm test -- src/components/homework/StudentHomeworkForm.test.tsx src/lib/services/profile-roles.test.ts`. Broader validation commands are `npm test`, `npm run db:test`, `npm run lint`, `npm run build`, and `npm run smoke` against a configured running app and local Supabase. Record observed outcomes in `context/changes/submit-and-score-homework/manual-verification.md`; do not mark a check complete without evidence.
 
 ## Deployment
 

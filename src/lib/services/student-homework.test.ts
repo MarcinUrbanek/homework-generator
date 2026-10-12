@@ -117,7 +117,7 @@ describe("student homework adapters", () => {
         created_at: "2026-10-09T10:00:00.000Z",
       }),
     ];
-    const rpc = vi.fn().mockResolvedValue({ data: rows, error: null });
+    const rpc = vi.fn().mockResolvedValue({ success: true, data: rows, error: null });
 
     const result = await listStudentHomework(rpcClient(rpc));
 

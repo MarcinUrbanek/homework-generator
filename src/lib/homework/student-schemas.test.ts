@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -10,6 +11,17 @@ import {
 
 const assignmentId = "00000000-0000-4000-8000-000000000001";
 const submittedAt = "2026-10-09T12:00:00.000Z";
+const answerFormatCases = readFileSync(
+  new URL("../../../supabase/tests/database/homework-answer-format-cases.csv", import.meta.url),
+  "utf8",
+)
+  .split(/\r?\n/)
+  .slice(1)
+  .filter((line) => line.length > 0)
+  .map((line) => {
+    const [name, answer, accepted] = line.split(",");
+    return { name, answer, accepted: accepted === "true" };
+  });
 
 function validSummary() {
   return {
@@ -72,6 +84,14 @@ function validDetail() {
 }
 
 describe("student homework request schemas", () => {
+  it.each(answerFormatCases)("$name matches the shared database answer-format fixture", ({ answer, accepted }) => {
+    expect(
+      studentHomeworkSubmitRequestSchema.safeParse({
+        answers: [{ position: 1, answer }],
+      }).success,
+    ).toBe(accepted);
+  });
+
   it("accepts positional numeric answers and preserves the exact raw text", () => {
     const request = {
       answers: [
@@ -194,6 +214,17 @@ describe("student homework RPC schemas", () => {
       studentHomeworkSubmitRpcResultSchema.safeParse({
         ...validSubmission(true),
         answers: [{ position: 1, answer: " 0001 ", normalized_answer: "2", is_correct: true }],
+      }).success,
+    ).toBe(false);
+    expect(
+      studentHomeworkSubmitRpcResultSchema.safeParse({
+        ...validSubmission(true),
+        answers: [
+          { position: 1, answer: " 0001 ", normalized_answer: "1", is_correct: true },
+          { position: 2, answer: null, normalized_answer: null, is_correct: true },
+        ],
+        correct_count: 2,
+        passed: true,
       }).success,
     ).toBe(false);
     expect(

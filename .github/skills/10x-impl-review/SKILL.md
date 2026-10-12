@@ -1,6 +1,6 @@
 ---
 name: 10x-impl-review
-description: Review implementation against plan for drift, dangerous decisions, and pattern compliance
+description: Review implementation against plan for drift, dangerous decisions, and pattern compliance; resume and fix findings from a previous review without repeating it
 ---
 
 # Implementation Review
@@ -14,14 +14,23 @@ Two granularities:
 Two modes:
 - **Fresh review**: analyze → findings → interactive triage
 - **Resume triage**: load a saved report and jump to per-issue triage
+- **Findings follow-up**: load the latest saved report with pending findings and fix those findings directly, without repeating the review
 
 ## Input resolution
 
-1. Argument points to a saved review file (contains `<!-- IMPL-REVIEW-REPORT -->`) → **resume triage** (skip to Step 5)
-2. Argument is a `<change-id>` and `context/changes/<change-id>/plan.md` exists → fresh review on that plan
-3. Plan path provided (e.g. `@context/changes/<change-id>/plan.md`) → fresh review on that plan
-4. Phase number provided (e.g. "phase 3") → review only that phase
-5. No argument → enumerate `context/changes/*/change.md`; pick the most recently `updated` change with `status` in `{implementing, implemented}` and ask the user to confirm.
+1. An explicit request for a **fresh review** or to **rerun the review** → follow the fresh-review routes below, even if an older report exists.
+2. An explicit request to **triage** or **resume** a saved report → load the requested report and enter interactive triage at Step 5 without editing.
+3. Otherwise, look for a saved report for the requested change (or, with no argument, the most recently updated report across non-archived changes) that contains at least one `Decision: PENDING`.
+   - If found, enter **findings follow-up**: load that report and go directly to Step 5. Do not repeat Steps 1–4.
+   - If more than one report for the selected change has pending findings, ask which report to resolve.
+   - If no argument was supplied and there are pending reports for multiple changes, ask which change to resolve.
+4. Argument points to a saved review file (contains `<!-- IMPL-REVIEW-REPORT -->`) → **resume triage** (skip to Step 5).
+5. Argument is a `<change-id>` and `context/changes/<change-id>/plan.md` exists → fresh review on that plan.
+6. Plan path provided (e.g. `@context/changes/<change-id>/plan.md`) → fresh review on that plan.
+7. Phase number provided (e.g. "phase 3") → review only that phase.
+8. No argument → enumerate `context/changes/*/change.md`; pick the most recently `updated` change with `status` in `{implementing, implemented}` and ask the user to confirm.
+
+In findings follow-up, treat the request to continue after a review as authorization to apply the report's recommended fixes. For each pending finding, use its single fix or its `⭐ Recommended` option, inspect only the relevant code and context, make the smallest targeted change, and run focused verification. Ask the user only when the report has no clear recommendation or the fix requires a material decision not resolved in the report. Do not perform a new broad scan or add new findings in this mode. If the user explicitly asks only to triage, use the interactive triage flow without editing.
 
 If the resolved plan path starts with `context/archive/`, refuse: print "This change is archived. Reviews are not appended to archived plans." and STOP.
 
@@ -355,6 +364,10 @@ Update the task status to "Triage".
 
 If entered via saved file: read it, parse `### F` headers, filter to `Decision: PENDING`. If none: "All findings triaged." Done.
 
+### Findings follow-up mode
+
+Read the saved report and process only findings whose `Decision:` is `PENDING`, in severity order. Apply each finding's stated fix (or its `⭐ Recommended` option) directly; do not ask for routine approval and do not repeat the full implementation review. Inspect the relevant source and nearby patterns before editing, make only the change needed to resolve that finding, and run focused verification for the affected behavior. After each successful fix, update that finding's `Decision:` to `FIXED` and record the applied option. If a fix cannot be safely determined from the report, ask a focused question and leave that finding pending until resolved. Do not mark a finding fixed if verification fails or the issue remains.
+
 ### Triage loop
 
 Walk findings in severity order (CRITICAL → WARNING → OBSERVATION). For each:
@@ -442,7 +455,7 @@ Update the saved report with the final decisions. Mark the review task completed
 
 ## Notes
 
-- This is a **review** skill. Default to analyzing and reporting — only make edits during triage when the user explicitly chooses "Apply Fix" or "Fix differently" for a specific finding.
+- This is a **review** skill. Fresh reviews default to analyzing and reporting. Findings follow-up is different: when a prior report has pending findings, fix those findings directly as described above instead of rerunning the review.
 - Be specific. "src/auth/handler.ts:42 — SQL query built with string concatenation, vulnerable to injection" — not "there might be a security issue somewhere".
 - Don't flag style preferences unless they matter. If the code works and follows the plan, minor style differences from existing code are observations, not warnings.
 - If the plan itself was flawed (e.g., planned an insecure approach), flag it — this review catches plan issues too.

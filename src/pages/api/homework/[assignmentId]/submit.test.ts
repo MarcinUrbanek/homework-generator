@@ -93,6 +93,7 @@ describe("POST /api/homework/:assignmentId/submit", () => {
     for (const body of bodies) {
       const response = await handler(context(body));
       expect(response.status).toBe(400);
+      expect(response.headers.get("Cache-Control")).toBe("private, no-store");
       expect((await responseBody<{ error: { code: string } }>(response)).error.code).toBe("INVALID_REQUEST");
     }
     expect(authorize).not.toHaveBeenCalled();
@@ -129,6 +130,7 @@ describe("POST /api/homework/:assignmentId/submit", () => {
     const body = await responseBody<StudentHomeworkSubmitSuccess>(response);
 
     expect(response.status).toBe(201);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(body).toEqual(firstSubmission);
     expect(submit).toHaveBeenCalledWith(expect.anything(), assignmentId, request);
     const serialized = JSON.stringify(body);
