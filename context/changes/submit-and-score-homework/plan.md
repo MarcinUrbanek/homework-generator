@@ -263,7 +263,7 @@ Rollback the application exposure first while retaining submission data and rest
 
 #### Manual
 
-- [x] 1.4 With two database sessions, simultaneous equivalent/different submissions produce one final submission without partial rows; membership deletion serializes with submission and prevents later access.
+- [x] 1.4 With two database sessions, simultaneous equivalent/different submissions produce one final submission without partial rows; membership deletion serializes with submission and prevents later access. — c5cee2b
 
 ### Phase 2: Typed student APIs
 
@@ -277,13 +277,13 @@ Rollback the application exposure first while retaining submission data and rest
 
 #### Automated
 
-- [x] 3.1 `npm test -- src/components/homework/StudentHomeworkForm.test.tsx src/lib/services/profile-roles.test.ts` proves blank-aware confirmation, numeric validation, final read-only results, retry/conflict handling, and page-only state.
-- [x] 3.2 `npm test`, `npm run db:test`, `npm run lint`, and `npm run build` pass against the completed implementation.
-- [x] 3.3 `npm run smoke` passes against a configured running app and local Supabase without weakening existing auth checks.
+- [x] 3.1 `npm test -- src/components/homework/StudentHomeworkForm.test.tsx src/lib/services/profile-roles.test.ts` proves blank-aware confirmation, numeric validation, final read-only results, retry/conflict handling, and page-only state. — 830717c
+- [x] 3.2 `npm test`, `npm run db:test`, `npm run lint`, and `npm run build` pass against the completed implementation. — 830717c
+- [x] 3.3 `npm run smoke` passes against a configured running app and local Supabase without weakening existing auth checks. — 830717c
 
 #### Manual
 
-- [x] 3.4 A teacher assigns real homework; two students independently list/open only their own allocation, submit with blanks, and reload the same final per-item results without any canonical answer in HTML or network payloads.
-- [x] 3.5 Exactly half correct passes, below half fails, and all blanks fail; formatted equivalent numbers score correctly while prose/decimal/negative input is rejected before finalization.
-- [x] 3.6 A departed member cannot list/open/submit/view/replay homework; anonymous deep links resume after sign-in, and student/teacher/dual-role dashboards retain their intended entry points.
-- [x] 3.7 Keyboard, screen-reader status/focus, narrow/mobile layout, empty list, unavailable homework, and recoverable network error states are verified and recorded.
+- [x] 3.4 A teacher assigns real homework; two students independently list/open only their own allocation, submit with blanks, and reload the same final per-item results without any canonical answer in HTML or network payloads. — 830717c
+- [x] 3.5 Exactly half correct passes, below half fails, and all blanks fail; formatted equivalent numbers score correctly while prose/decimal/negative input is rejected before finalization. — 830717c
+- [x] 3.6 A departed member cannot list/open/submit/view/replay homework; anonymous deep links resume after sign-in, and student/teacher/dual-role dashboards retain their intended entry points. — 830717c
+- [x] 3.7 Keyboard, screen-reader status/focus, narrow/mobile layout, empty list, unavailable homework, and recoverable network error states are verified and recorded. — 830717c
