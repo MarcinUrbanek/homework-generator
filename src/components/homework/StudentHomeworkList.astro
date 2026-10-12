@@ -1,0 +1,148 @@
+---
+import { exerciseNoun } from "@/lib/exercises/exercise-count";
+import type { StudentHomeworkSummary } from "@/types";
+
+interface Props {
+  status: "ready" | "forbidden" | "unavailable" | "error";
+  assignments: StudentHomeworkSummary[];
+}
+
+const { status, assignments } = Astro.props;
+const pending = assignments.filter(({ submitted }) => !submitted);
+const submitted = assignments.filter(({ submitted }) => submitted);
+const dateFormatter = new Intl.DateTimeFormat("pl-PL", {
+  dateStyle: "long",
+  timeStyle: "short",
+  timeZone: "Europe/Warsaw",
+});
+
+function cardTitle(assignment: StudentHomeworkSummary): string {
+  return assignment.title ?? "Zadanie domowe";
+}
+---
+
+{status !== "ready" ? (
+  <section
+    class:list={[
+      "mt-8 rounded-lg border p-5 text-sm leading-6 sm:p-6",
+      status === "forbidden" && "border-destructive bg-destructive/5",
+    ]}
+    role="alert"
+  >
+    <h2 class="font-semibold">
+      {status === "forbidden"
+        ? "Brak dostępu do zadań domowych"
+        : status === "unavailable"
+          ? "Nie udało się potwierdzić uprawnień"
+          : "Nie udało się wczytać zadań domowych"}
+    </h2>
+    <p class="text-muted-foreground mt-1">
+      {status === "forbidden"
+        ? "Lista zadań domowych jest dostępna dla kont uczniów."
+        : status === "unavailable"
+          ? "Spróbuj ponownie później."
+          : "Nie można teraz wyświetlić listy. Spróbuj ponownie później."}
+    </p>
+    <a
+      class="mt-4 inline-flex min-h-11 items-center font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+      href="/dashboard"
+    >
+      Wróć do panelu
+    </a>
+  </section>
+) : assignments.length === 0 ? (
+  <section class="mt-8 rounded-lg border bg-card p-5 sm:p-6" aria-labelledby="homework-empty-heading">
+    <h2 id="homework-empty-heading" class="font-semibold">
+      Nie masz jeszcze zadań domowych
+    </h2>
+    <p class="text-muted-foreground mt-2 leading-6">
+      Gdy nauczyciel przydzieli Ci zadanie, znajdziesz je tutaj. Dołącz do klasy, jeśli jeszcze do żadnej nie należysz.
+    </p>
+    <a
+      class="mt-4 inline-flex min-h-11 items-center justify-center rounded-md border px-4 text-sm font-semibold transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2"
+      href="/classes/join-code"
+    >
+      Dołącz do klasy za pomocą kodu
+    </a>
+  </section>
+) : (
+  <div class="mt-8 grid gap-8">
+    <section class="grid gap-4" aria-labelledby="homework-pending-heading">
+      <h2 id="homework-pending-heading" class="text-xl font-semibold">
+        Do zrobienia ({pending.length})
+      </h2>
+      {pending.length === 0 ? (
+        <p class="text-muted-foreground rounded-lg border border-dashed p-5 text-sm">Nie ma nieoddanych zadań.</p>
+      ) : (
+        <ul class="grid gap-3">
+          {pending.map((assignment) => (
+            <li>
+              <article class="bg-card rounded-lg border p-4 shadow-sm sm:p-5">
+                <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                  <div class="min-w-0">
+                    <h3 class="break-words text-lg font-semibold">{cardTitle(assignment)}</h3>
+                    <p class="text-muted-foreground mt-1 break-words text-sm">{assignment.className}</p>
+                    <p class="text-muted-foreground mt-2 text-sm">
+                      Przydzielono:{" "}
+                      <time datetime={assignment.createdAt}>
+                        {dateFormatter.format(new Date(assignment.createdAt))}
+                      </time>
+                      {" · "}
+                      {assignment.exerciseCount} {exerciseNoun(assignment.exerciseCount)}
+                    </p>
+                  </div>
+                  <a
+                    class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2"
+                    href={`/homework/${encodeURIComponent(assignment.assignmentId)}`}
+                  >
+                    Otwórz zadanie
+                  </a>
+                </div>
+              </article>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+
+    {submitted.length > 0 && (
+      <section class="grid gap-4" aria-labelledby="homework-submitted-heading">
+        <h2 id="homework-submitted-heading" class="text-xl font-semibold">
+          Wysłane ({submitted.length})
+        </h2>
+        <ul class="grid gap-3">
+          {submitted.map((assignment) => (
+            <li>
+              <article class="bg-card rounded-lg border p-4 shadow-sm sm:p-5">
+                <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                  <div class="min-w-0">
+                    <h3 class="break-words text-lg font-semibold">{cardTitle(assignment)}</h3>
+                    <p class="text-muted-foreground mt-1 break-words text-sm">{assignment.className}</p>
+                    <p class="text-muted-foreground mt-2 text-sm">
+                      Przydzielono:{" "}
+                      <time datetime={assignment.createdAt}>
+                        {dateFormatter.format(new Date(assignment.createdAt))}
+                      </time>
+                      {" · "}
+                      {assignment.exerciseCount} {exerciseNoun(assignment.exerciseCount)}
+                    </p>
+                    <p class="mt-2 text-sm font-medium">
+                      {assignment.passed ? "Zaliczone" : "Nie zaliczone"} · {assignment.correctCount}/
+                      {assignment.exerciseCount} poprawnych
+                    </p>
+                  </div>
+                  <a
+                    class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md border px-4 text-sm font-semibold transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2"
+                    href={`/homework/${encodeURIComponent(assignment.assignmentId)}`}
+                  >
+                    Zobacz wynik
+                  </a>
+                </div>
+              </article>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+  </div>
+)}

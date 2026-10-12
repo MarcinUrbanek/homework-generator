@@ -1,0 +1,57 @@
+---
+import StudentHomeworkList from "@/components/homework/StudentHomeworkList.astro";
+import Layout from "@/layouts/Layout.astro";
+import { loadProfileRoles } from "@/lib/services/profile-roles";
+import { StudentHomeworkServiceError, listStudentHomework } from "@/lib/services/student-homework";
+import { createClient } from "@/lib/supabase";
+import type { StudentHomeworkSummary } from "@/types";
+
+const user = Astro.locals.user;
+Astro.response.headers.set("Cache-Control", "private, no-store");
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+const roleResult = await loadProfileRoles(supabase, user?.id ?? null);
+let status: "ready" | "forbidden" | "unavailable" | "error" = "ready";
+let assignments: StudentHomeworkSummary[] = [];
+
+if (roleResult.status === "unavailable") {
+  status = "unavailable";
+  Astro.response.status = 503;
+} else if (!roleResult.roles.includes("student")) {
+  status = "forbidden";
+  Astro.response.status = 403;
+} else if (!supabase) {
+  status = "unavailable";
+  Astro.response.status = 503;
+} else {
+  try {
+    assignments = (await listStudentHomework(supabase)).assignments;
+  } catch (error) {
+    status =
+      error instanceof StudentHomeworkServiceError && error.code === "HOMEWORK_UNAVAILABLE" ? "unavailable" : "error";
+    Astro.response.status =
+      status === "unavailable"
+        ? 404
+        : error instanceof StudentHomeworkServiceError && error.code === "DATABASE_UNAVAILABLE"
+          ? 503
+          : 500;
+  }
+}
+---
+
+<Layout title="Zadania domowe">
+  <main data-role="student" class="min-h-screen bg-background px-4 py-8 text-foreground sm:py-12">
+    <div class="mx-auto w-full max-w-4xl">
+      <a class="text-sm font-semibold text-primary underline-offset-4 hover:underline" href="/dashboard">
+        Powrót do panelu
+      </a>
+      <header class="mt-6">
+        <p class="text-sm font-semibold text-primary">Przestrzeń ucznia</p>
+        <h1 class="mt-2 text-3xl font-bold sm:text-4xl">Twoje zadania domowe</h1>
+        <p class="text-muted-foreground mt-3 max-w-2xl text-sm leading-6 sm:text-base">
+          Otwórz przydzielony zestaw, prześlij odpowiedzi tylko raz i wróć tutaj, aby sprawdzić zapisany wynik.
+        </p>
+      </header>
+      <StudentHomeworkList status={status} assignments={assignments} />
+    </div>
+  </main>
+</Layout>

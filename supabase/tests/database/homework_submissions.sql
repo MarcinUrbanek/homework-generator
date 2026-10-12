@@ -2,6 +2,15 @@ begin;
 
 select no_plan();
 
+create temporary table homework_answer_format_cases (
+  case_name text primary key,
+  answer text not null,
+  accepted boolean not null,
+  case_order integer not null
+);
+\copy homework_answer_format_cases from 'homework-answer-format-cases.csv' with (format csv, header true)
+grant select on homework_answer_format_cases to authenticated;
+
 insert into auth.users (
   id,
   aud,
@@ -418,35 +427,17 @@ select throws_ok(
   'A raw answer longer than 200 characters is rejected'
 );
 select throws_ok(
-  $$select public.submit_student_homework('90000000-0000-0000-0000-000000000010', '[{"position":1,"answer":"four"}]'::jsonb)$$,
+  format(
+    'select public.submit_student_homework(%L, %L::jsonb)',
+    '90000000-0000-0000-0000-000000000010',
+    jsonb_build_array(jsonb_build_object('position', 1, 'answer', answer))::text
+  ),
   '22023',
   'Invalid homework answers',
-  'Prose is not accepted as a natural-number answer'
-);
-select throws_ok(
-  $$select public.submit_student_homework('90000000-0000-0000-0000-000000000010', '[{"position":1,"answer":"1."}]'::jsonb)$$,
-  '22023',
-  'Invalid homework answers',
-  'Trailing punctuation is not accepted'
-);
-select throws_ok(
-  $$select public.submit_student_homework('90000000-0000-0000-0000-000000000010', '[{"position":1,"answer":"+1"}]'::jsonb)$$,
-  '22023',
-  'Invalid homework answers',
-  'Signed numbers are not accepted'
-);
-select throws_ok(
-  $$select public.submit_student_homework('90000000-0000-0000-0000-000000000010', '[{"position":1,"answer":"1.0"}]'::jsonb)$$,
-  '22023',
-  'Invalid homework answers',
-  'Decimals are not accepted'
-);
-select throws_ok(
-  $$select public.submit_student_homework('90000000-0000-0000-0000-000000000010', '[{"position":1,"answer":"12 34"}]'::jsonb)$$,
-  '22023',
-  'Invalid homework answers',
-  'Incorrectly grouped thousands are not accepted'
-);
+  case_name || ' is rejected as an invalid answer format'
+)
+from homework_answer_format_cases
+where not accepted;
 reset role;
 select is(
   (select count(*) from public.homework_submissions),
@@ -661,7 +652,19 @@ select ok(
       and result #>> '{answers,1,normalized_answer}' = '0'
     from public.submit_student_homework(
       '90000000-0000-0000-0000-000000000009',
-      '[{"position":1,"answer":"\t001 234 567 890 123 456 789 012 345 678 901 234 567 890 \n"},{"position":2,"answer":"000"}]'::jsonb
+      (
+        select jsonb_agg(
+          jsonb_build_object('position', position, 'answer', answer)
+          order by position
+        )
+        from (
+          select
+            case_order as position,
+            answer
+          from homework_answer_format_cases
+          where accepted
+        ) as accepted_cases
+      )
     ) as result
   ),
   'Grouped large string integers, outer whitespace, leading zeros, and zero normalize without numeric conversion'

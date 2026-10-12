@@ -28,6 +28,7 @@ interface DatabaseFailure {
 
 const supabaseResponseSchema = z
   .object({
+    success: z.boolean().optional(),
     data: z.unknown(),
     error: z.unknown().nullable(),
     count: z.number().nullable().optional(),

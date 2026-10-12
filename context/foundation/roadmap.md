@@ -48,7 +48,7 @@ Primary-school classroom math teachers in Poland need many distinct exercises at
 | S-04 | invite-students-to-class      | teacher can sign in, create a class, and invite students by email                                                        | —             | FR-001, FR-002                | done |
 | S-05 | join-teacher-managed-class    | student can sign in and join a class through a code or direct invitation link                                            | S-04          | FR-001, FR-003                | done |
 | S-06 | assign-distinct-homework      | teacher can choose an exercise count and assign each selected student a distinct set from one approved difficulty bucket | S-02, S-05    | US-01, FR-010                 | done |
-| S-07 | submit-and-score-homework     | student can open homework, submit answers, and immediately see pass or fail from the defined score rule                  | S-06          | US-01, FR-011, FR-012, FR-013 | proposed |
+| S-07 | submit-and-score-homework     | student can open homework, submit answers, and immediately see pass or fail from the defined score rule                  | S-06          | US-01, FR-011, FR-012, FR-013 | in-progress |
 | S-08 | review-submission-feedback    | teacher can review submitted answers and provide feedback that the student can later view                                | S-07          | US-01, FR-013                 | proposed |
 
 ## Streams
@@ -172,7 +172,7 @@ What's already in place in the codebase as of `2026-09-21` (auto-researched and 
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** Immediate results are only trustworthy when scoring uses the immutable valid answers from approved assigned exercises.
-- **Status:** proposed
+- **Status:** in-progress
 
 ### S-08: Review submission feedback
 

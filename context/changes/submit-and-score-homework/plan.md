@@ -180,11 +180,13 @@ Deliver the Polish student list/form/result experience, role-aware dashboard, an
 
 #### 3. Verification record and directly related documentation
 
-**Files**: `README.md`; new `context/changes/submit-and-score-homework/manual-verification.md` during implementation only
+**Files**: `README.md`, `package.json`, `scripts/seed-homework-manual-test.mjs`; new `context/changes/submit-and-score-homework/manual-verification.md` during implementation only
 
 **Intent**: Document student entry points, irreversible blank-aware submission, membership revocation, and how to verify the shipped behavior.
 
 **Contract**: Record actual database/API/UI outcomes, not unexecuted claims. Run focused new UI/role tests first, then the full existing application/database suites once at final integration. Use existing auth smoke against a configured running server; do not expand it into the deferred test-plan critical-flow rollout. Add no gate/strategy changes.
+
+**Implementation Note**: `npm run seed:homework-manual-test` provisions local-only accounts and homework fixtures for these manual checks. The script refuses non-local Supabase URLs; setup details and fixture limitations are recorded in `manual-verification.md`.
 
 ### Success Criteria:
 
@@ -261,27 +263,27 @@ Rollback the application exposure first while retaining submission data and rest
 
 #### Manual
 
-- [x] 1.4 With two database sessions, simultaneous equivalent/different submissions produce one final submission without partial rows; membership deletion serializes with submission and prevents later access. — c5cee2b
+- [x] 1.4 With two database sessions, simultaneous equivalent/different submissions produce one final submission without partial rows; membership deletion serializes with submission and prevents later access.
 
 ### Phase 2: Typed student APIs
 
 #### Automated
 
-- [x] 2.1 `npm test -- src/lib/homework/student-schemas.test.ts src/lib/services/student-homework.test.ts src/pages/api/homework/list.test.ts "src/pages/api/homework/[assignmentId]/index.test.ts" "src/pages/api/homework/[assignmentId]/submit.test.ts"` passes.
-- [x] 2.2 `npm test -- src/lib/exercises/answer-normalization.test.ts src/lib/services/openrouter-exercise-verifier.test.ts src/lib/services/homework-assignments.test.ts src/pages/api/homework/assign.test.ts` preserves existing verification and teacher-assignment behavior.
-- [x] 2.3 `npm run lint` and `npm run build` pass with the student DTOs and endpoints.
+- [x] 2.1 `npm test -- src/lib/homework/student-schemas.test.ts src/lib/services/student-homework.test.ts src/pages/api/homework/list.test.ts "src/pages/api/homework/[assignmentId]/index.test.ts" "src/pages/api/homework/[assignmentId]/submit.test.ts"` passes. — 38fcb37
+- [x] 2.2 `npm test -- src/lib/exercises/answer-normalization.test.ts src/lib/services/openrouter-exercise-verifier.test.ts src/lib/services/homework-assignments.test.ts src/pages/api/homework/assign.test.ts` preserves existing verification and teacher-assignment behavior. — 38fcb37
+- [x] 2.3 `npm run lint` and `npm run build` pass with the student DTOs and endpoints. — 38fcb37
 
 ### Phase 3: Student workflow and verification
 
 #### Automated
 
-- [ ] 3.1 `npm test -- src/components/homework/StudentHomeworkForm.test.tsx src/lib/services/profile-roles.test.ts` proves blank-aware confirmation, numeric validation, final read-only results, retry/conflict handling, and page-only state.
-- [ ] 3.2 `npm test`, `npm run db:test`, `npm run lint`, and `npm run build` pass against the completed implementation.
-- [ ] 3.3 `npm run smoke` passes against a configured running app and local Supabase without weakening existing auth checks.
+- [x] 3.1 `npm test -- src/components/homework/StudentHomeworkForm.test.tsx src/lib/services/profile-roles.test.ts` proves blank-aware confirmation, numeric validation, final read-only results, retry/conflict handling, and page-only state.
+- [x] 3.2 `npm test`, `npm run db:test`, `npm run lint`, and `npm run build` pass against the completed implementation.
+- [x] 3.3 `npm run smoke` passes against a configured running app and local Supabase without weakening existing auth checks.
 
 #### Manual
 
-- [ ] 3.4 A teacher assigns real homework; two students independently list/open only their own allocation, submit with blanks, and reload the same final per-item results without any canonical answer in HTML or network payloads.
-- [ ] 3.5 Exactly half correct passes, below half fails, and all blanks fail; formatted equivalent numbers score correctly while prose/decimal/negative input is rejected before finalization.
-- [ ] 3.6 A departed member cannot list/open/submit/view/replay homework; anonymous deep links resume after sign-in, and student/teacher/dual-role dashboards retain their intended entry points.
-- [ ] 3.7 Keyboard, screen-reader status/focus, narrow/mobile layout, empty list, unavailable homework, and recoverable network error states are verified and recorded.
+- [x] 3.4 A teacher assigns real homework; two students independently list/open only their own allocation, submit with blanks, and reload the same final per-item results without any canonical answer in HTML or network payloads.
+- [x] 3.5 Exactly half correct passes, below half fails, and all blanks fail; formatted equivalent numbers score correctly while prose/decimal/negative input is rejected before finalization.
+- [x] 3.6 A departed member cannot list/open/submit/view/replay homework; anonymous deep links resume after sign-in, and student/teacher/dual-role dashboards retain their intended entry points.
+- [x] 3.7 Keyboard, screen-reader status/focus, narrow/mobile layout, empty list, unavailable homework, and recoverable network error states are verified and recorded.

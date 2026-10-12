@@ -201,12 +201,19 @@ const studentHomeworkSubmissionAnswerRpcSchema = z
     is_correct: z.boolean(),
   })
   .strict()
-  .superRefine(({ answer, normalized_answer }, context) => {
+  .superRefine(({ answer, normalized_answer, is_correct }, context) => {
     if (normalizeStudentHomeworkAnswer(answer) !== normalized_answer) {
       context.addIssue({
         code: "custom",
         path: ["normalized_answer"],
         message: "Normalized answer does not match raw answer",
+      });
+    }
+    if (normalized_answer === null && is_correct) {
+      context.addIssue({
+        code: "custom",
+        path: ["is_correct"],
+        message: "Blank answers cannot be correct",
       });
     }
   });
