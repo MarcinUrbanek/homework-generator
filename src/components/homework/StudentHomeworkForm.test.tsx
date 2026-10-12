@@ -361,9 +361,11 @@ describe("StudentHomeworkForm", () => {
   });
 
   it("aborts an in-flight submission when the form unmounts", async () => {
-    let requestSignal: AbortSignal | null = null;
+    const requestSignals: AbortSignal[] = [];
     const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
-      requestSignal = init?.signal ?? null;
+      if (init?.signal) {
+        requestSignals.push(init.signal);
+      }
       return new Promise<Response>(() => undefined);
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -373,13 +375,16 @@ describe("StudentHomeworkForm", () => {
       button("Wyślij ostateczne odpowiedzi").click();
     });
 
-    expect(requestSignal).toBeInstanceOf(AbortSignal);
-    expect(requestSignal).not.toBeNull();
-    expect(requestSignal!.aborted).toBe(false);
+    const submittedSignal = requestSignals.at(0);
+    expect(submittedSignal).toBeInstanceOf(AbortSignal);
+    if (submittedSignal === undefined) {
+      throw new Error("Expected submission to provide an abort signal");
+    }
+    expect(submittedSignal.aborted).toBe(false);
     act(() => {
       root.unmount();
     });
     rootMounted = false;
-    expect(requestSignal!.aborted).toBe(true);
+    expect(submittedSignal.aborted).toBe(true);
   });
 });
