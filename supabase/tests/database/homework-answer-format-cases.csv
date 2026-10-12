@@ -1,0 +1,8 @@
+case_name,answer,accepted,case_order
+outer-whitespace-and-grouping, 001 234 567 890 123 456 789 012 345 678 901 234 567 890 ,true,1
+leading-zeroes,000,true,2
+prose,four,false,3
+trailing-punctuation,1.,false,4
+signed-number,+1,false,5
+decimal,1.0,false,6
+incorrect-grouping,12 34,false,7
