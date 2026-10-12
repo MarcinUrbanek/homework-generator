@@ -1,10 +1,10 @@
 ---
 change_id: submit-and-score-homework
 title: Submit and score homework
-status: impl_reviewed
+status: archived
 created: 2026-10-09
-updated: 2026-10-10
-archived_at: null
+updated: 2026-10-12
+archived_at: 2026-10-12T10:57:12Z
 ---
 
 ## Notes
