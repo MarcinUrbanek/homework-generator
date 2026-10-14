@@ -87,6 +87,29 @@ export const exerciseGenerationErrorSchema = z
   })
   .strict();
 
+export const exerciseGenerationAdmissionResultSchema = z.discriminatedUnion("status", [
+  z
+    .object({
+      status: z.literal("admitted"),
+      reservation_id: z.uuid(),
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal("quota-exceeded"),
+      retry_after_seconds: z.number().int().positive(),
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal("in-progress"),
+      retry_after_seconds: z.number().int().positive(),
+    })
+    .strict(),
+]);
+
+export const exerciseGenerationReleaseResultSchema = z.boolean();
+
 const uuidSchema = z.uuid();
 const nonEmptyStringSchema = z.string().trim().min(1);
 

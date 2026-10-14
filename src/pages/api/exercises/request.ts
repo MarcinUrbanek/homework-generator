@@ -6,6 +6,7 @@ import {
   generateOpenRouterExercises,
   OpenRouterExerciseGeneratorError,
 } from "@/lib/services/openrouter-exercise-generator";
+import { admitExerciseGeneration, releaseExerciseGeneration } from "@/lib/services/exercise-generation-admission";
 import { authorizeTeacher } from "@/lib/services/teacher-authorization";
 import { createClient } from "@/lib/supabase";
 import type { ExerciseGenerationError, ExerciseGenerationErrorCode, ExerciseGenerationSuccess } from "@/types";
@@ -17,6 +18,9 @@ const ERROR_MESSAGES: Record<ExerciseGenerationErrorCode, string> = {
   UNAUTHENTICATED: "Zaloguj się, aby wygenerować zadania.",
   FORBIDDEN: "Generowanie zadań jest dostępne tylko dla nauczycieli.",
   PROVIDER_NOT_CONFIGURED: "Generator zadań nie jest skonfigurowany.",
+  GENERATION_LIMIT_EXCEEDED: "Osiągnięto limit 10 żądań generowania w ciągu godziny. Spróbuj ponownie później.",
+  GENERATION_IN_PROGRESS: "Generowanie zadań już trwa. Spróbuj ponownie po jego zakończeniu.",
+  ADMISSION_UNAVAILABLE: "Nie można teraz sprawdzić limitu generowania. Spróbuj ponownie później.",
   PROVIDER_FAILURE: "Nie udało się wygenerować zadań. Spróbuj ponownie później.",
   PROVIDER_TIMEOUT: "Generator zadań nie odpowiedział na czas. Spróbuj ponownie.",
 };
@@ -24,10 +28,14 @@ const ERROR_MESSAGES: Record<ExerciseGenerationErrorCode, string> = {
 type AuthorizationFunction = typeof authorizeTeacher;
 type GenerationFunction = typeof generateOpenRouterExercises;
 type ClientFactory = typeof createClient;
+type AdmissionFunction = typeof admitExerciseGeneration;
+type ReleaseFunction = typeof releaseExerciseGeneration;
 
 export interface ExerciseRequestHandlerDependencies {
   authorize?: AuthorizationFunction;
   generate?: GenerationFunction;
+  admit?: AdmissionFunction;
+  release?: ReleaseFunction;
   createSupabaseClient?: ClientFactory;
   providerConfig?: {
     apiKey?: string;
@@ -35,20 +43,31 @@ export interface ExerciseRequestHandlerDependencies {
   };
 }
 
-function jsonResponse(body: ExerciseGenerationError | ExerciseGenerationSuccess, status: number): Response {
+function jsonResponse(
+  body: ExerciseGenerationError | ExerciseGenerationSuccess,
+  status: number,
+  headers: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json; charset=utf-8" },
+    headers: { "Content-Type": "application/json; charset=utf-8", ...headers },
   });
 }
 
-function errorResponse(code: ExerciseGenerationErrorCode, status: number, message = ERROR_MESSAGES[code]): Response {
-  return jsonResponse({ error: { code, message } }, status);
+function errorResponse(
+  code: ExerciseGenerationErrorCode,
+  status: number,
+  message = ERROR_MESSAGES[code],
+  headers: Record<string, string> = {},
+): Response {
+  return jsonResponse({ error: { code, message } }, status, headers);
 }
 
 export function createExerciseRequestHandler(dependencies: ExerciseRequestHandlerDependencies = {}): APIRoute {
   const authorize = dependencies.authorize ?? authorizeTeacher;
   const generate = dependencies.generate ?? generateOpenRouterExercises;
+  const admit = dependencies.admit ?? admitExerciseGeneration;
+  const release = dependencies.release ?? releaseExerciseGeneration;
   const createSupabaseClient = dependencies.createSupabaseClient ?? createClient;
   const providerConfig = dependencies.providerConfig ?? {
     apiKey: OPENROUTER_API_KEY,
@@ -85,28 +104,68 @@ export function createExerciseRequestHandler(dependencies: ExerciseRequestHandle
       return errorResponse("PROVIDER_NOT_CONFIGURED", 503);
     }
 
+    let admission: Awaited<ReturnType<AdmissionFunction>>;
     try {
-      const candidates = await generate(parsedRequest.data, {
-        apiKey: providerConfig.apiKey,
-        model: providerConfig.model,
+      admission = await admit(supabase);
+    } catch {
+      admission = { status: "unavailable" as const };
+    }
+
+    if (admission.status === "forbidden") {
+      return errorResponse("FORBIDDEN", 403);
+    }
+    if (admission.status === "quota-exceeded") {
+      return errorResponse("GENERATION_LIMIT_EXCEEDED", 429, ERROR_MESSAGES.GENERATION_LIMIT_EXCEEDED, {
+        "Retry-After": String(admission.retryAfterSeconds),
       });
-      if (candidates.length < 1 || candidates.length > 5) {
+    }
+    if (admission.status === "in-progress") {
+      return errorResponse("GENERATION_IN_PROGRESS", 429, ERROR_MESSAGES.GENERATION_IN_PROGRESS, {
+        "Retry-After": String(admission.retryAfterSeconds),
+      });
+    }
+    if (admission.status === "unavailable") {
+      // eslint-disable-next-line no-console -- Emit only a sanitized admission failure signal.
+      console.error("exercise_generation_admission_unavailable");
+      return errorResponse("ADMISSION_UNAVAILABLE", 503);
+    }
+
+    const reservationId = admission.reservationId;
+    try {
+      try {
+        const candidates = await generate(parsedRequest.data, {
+          apiKey: providerConfig.apiKey,
+          model: providerConfig.model,
+        });
+        if (candidates.length < 1 || candidates.length > 5) {
+          return errorResponse("PROVIDER_FAILURE", 502);
+        }
+        const validCount = candidates.length as 1 | 2 | 3 | 4 | 5;
+        const response: ExerciseGenerationSuccess = {
+          requestedCount: 5,
+          validCount,
+          candidates,
+          ...(validCount < 5 ? { partial_batch: true as const } : {}),
+        };
+
+        return jsonResponse(response, 200);
+      } catch (error) {
+        if (error instanceof OpenRouterExerciseGeneratorError && error.code === "PROVIDER_TIMEOUT") {
+          return errorResponse("PROVIDER_TIMEOUT", 504);
+        }
         return errorResponse("PROVIDER_FAILURE", 502);
       }
-      const validCount = candidates.length as 1 | 2 | 3 | 4 | 5;
-      const response: ExerciseGenerationSuccess = {
-        requestedCount: 5,
-        validCount,
-        candidates,
-        ...(validCount < 5 ? { partial_batch: true as const } : {}),
-      };
-
-      return jsonResponse(response, 200);
-    } catch (error) {
-      if (error instanceof OpenRouterExerciseGeneratorError && error.code === "PROVIDER_TIMEOUT") {
-        return errorResponse("PROVIDER_TIMEOUT", 504);
+    } finally {
+      try {
+        const releaseResult = await release(supabase, reservationId);
+        if (releaseResult === "unavailable") {
+          // eslint-disable-next-line no-console -- Emit only a sanitized release failure signal.
+          console.error("exercise_generation_release_unavailable");
+        }
+      } catch {
+        // eslint-disable-next-line no-console -- Emit only a sanitized release failure signal.
+        console.error("exercise_generation_release_unavailable");
       }
-      return errorResponse("PROVIDER_FAILURE", 502);
     }
   };
 }
