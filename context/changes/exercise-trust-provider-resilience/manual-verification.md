@@ -15,7 +15,7 @@ Manual verification completed per user report on 2026-10-14. The exact browser v
   - `npx.cmd supabase start`
   - `npx.cmd supabase migration up --local`
   - `npm.cmd run dev`
-  - Admission-unavailability simulation: temporarily changed the local admission RPC to raise SQLSTATE `P0001`, then restored its saved definition
+  - Admission-unavailability simulation: temporarily changed the local admission RPC to raise SQLSTATE `P0001`; a later review found the local function still overridden despite the attempted restore. The original function and grants were restored from the committed migration without resetting the database, after which the focused admission suite passed (84 tests) and the full database suite passed (381 tests).
 - Automated commands run:
   - `npm.cmd test -- src\components\exercises\RequestExercisesForm.test.tsx src\lib\services\exercise-generation-admission.test.ts src\pages\api\exercises\request.test.ts src\lib\services\openrouter-exercise-generator.test.ts` — passed, 4 files / 76 tests
   - `npx.cmd supabase test db --local supabase\tests\database\exercise_generation_admission.sql` — passed, 1 file / 84 tests
