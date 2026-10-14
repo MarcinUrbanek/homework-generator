@@ -1,7 +1,7 @@
 ---
 change_id: testing-exercise-trust-and-provider-resilience
 title: Exercise trust and provider resilience test rollout
-status: implemented
+status: impl_reviewed
 created: 2026-10-14
 updated: 2026-10-14
 archived_at: null
