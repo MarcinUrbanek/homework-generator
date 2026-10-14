@@ -141,9 +141,9 @@ function validProviderExercises(count = 5) {
 }
 
 function composedHandler(admissionResponse: unknown, providerFetch: typeof fetch) {
-  const rpc = vi.fn((name: string) => {
+  const rpc = vi.fn((name: string, ...args: unknown[]) => {
     if (name === "admit_exercise_generation") return admissionResponse;
-    if (name === "release_exercise_generation") return { data: true, error: null };
+    if (name === "release_exercise_generation" && args.length === 1) return { data: true, error: null };
     throw new Error("Unexpected RPC");
   });
   const { client } = teacherClient(rpc);
@@ -551,5 +551,40 @@ describe("POST /api/exercises/request", () => {
     expect((await responseBody<ExerciseGenerationSuccess>(response)).partial_batch).toBe(true);
     expect(providerFetch).toHaveBeenCalledTimes(1);
     expect(rpc.mock.calls.map(([name]) => name)).toEqual(["admit_exercise_generation", "release_exercise_generation"]);
+  });
+
+  it("filters mixed provider candidates in the composed path without retrying and releases the reservation", async () => {
+    const providerFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        providerResponse([
+          { text: "Oblicz 1 + 1.", proposedCanonicalAnswer: "2" },
+          { text: " ", proposedCanonicalAnswer: "3" },
+          { text: "Oblicz 2 + 2.", proposedCanonicalAnswer: "4" },
+          { text: "Oblicz 3 + 2.", proposedCanonicalAnswer: "" },
+          { text: "Oblicz 4 + 2." },
+        ]),
+      );
+    const { handler, rpc } = composedHandler(
+      { data: { status: "admitted", reservation_id: reservationId }, error: null },
+      providerFetch,
+    );
+
+    const response = await invoke(handler);
+    const body = await responseBody<ExerciseGenerationSuccess>(response);
+
+    expect(response.status).toBe(200);
+    expect(body.requestedCount).toBe(5);
+    expect(body.validCount).toBe(2);
+    expect(body.partial_batch).toBe(true);
+    expect(body.candidates.map(({ text, proposedCanonicalAnswer }) => ({ text, proposedCanonicalAnswer }))).toEqual([
+      { text: "Oblicz 1 + 1.", proposedCanonicalAnswer: "2" },
+      { text: "Oblicz 2 + 2.", proposedCanonicalAnswer: "4" },
+    ]);
+    expect(providerFetch).toHaveBeenCalledTimes(1);
+    expect(rpc.mock.calls).toEqual([
+      ["admit_exercise_generation"],
+      ["release_exercise_generation", { p_reservation_id: reservationId }],
+    ]);
   });
 });
