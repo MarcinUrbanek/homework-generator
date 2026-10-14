@@ -260,23 +260,23 @@ For an application rollback, disable generation by removing its provider configu
 
 #### Automated
 
-- [x] 1.1 The additive migration applies on an isolated local stack with `npx supabase migration up --local`.
-- [x] 1.2 Focused pgTAP passes with `npx supabase test db --local supabase\tests\database\exercise_generation_admission.sql`, including exact time boundaries and genuine synchronized quota/reservation races.
+- [x] 1.1 The additive migration applies on an isolated local stack with `npx supabase migration up --local`. — 85dcb2f
+- [x] 1.2 Focused pgTAP passes with `npx supabase test db --local supabase\tests\database\exercise_generation_admission.sql`, including exact time boundaries and genuine synchronized quota/reservation races. — 85dcb2f
 
 #### Manual
 
-- [x] 1.3 Review RPC grants, default-deny table access, and test cleanup to confirm authenticated users cannot edit quota state and race fixtures do not remain after a failed test.
+- [x] 1.3 Review RPC grants, default-deny table access, and test cleanup to confirm authenticated users cannot edit quota state and race fixtures do not remain after a failed test. — 85dcb2f
 
 ### Phase 2: API Enforcement
 
 #### Automated
 
-- [ ] 2.1 Focused service/handler/adapter tests pass with `npm test -- src\lib\services\exercise-generation-admission.test.ts src\pages\api\exercises\request.test.ts src\lib\services\openrouter-exercise-generator.test.ts`.
-- [ ] 2.2 `npm run lint` and `npm run build` pass with required Supabase build configuration, without live provider calls.
+- [x] 2.1 Focused service/handler/adapter tests pass with `npm test -- src\lib\services\exercise-generation-admission.test.ts src\pages\api\exercises\request.test.ts src\lib\services\openrouter-exercise-generator.test.ts`.
+- [x] 2.2 `npm run lint` and `npm run build` pass with required Supabase build configuration, without live provider calls.
 
 #### Manual
 
-- [ ] 2.3 Inspect representative quota, reservation, and admission-unavailable HTTP responses: status, Polish message, Retry-After units, and absence of sensitive data match the contract.
+- [x] 2.3 Inspect representative quota, reservation, and admission-unavailable HTTP responses: status, Polish message, Retry-After units, and absence of sensitive data match the contract.
 
 ### Phase 3: UX and Operational Handoff
 
