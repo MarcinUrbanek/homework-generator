@@ -102,7 +102,7 @@ None. The plan changes test coverage and cookbook documentation only.
 
 #### Automated
 
-- [x] 1.1 The composed test uses the real generator through the request handler and asserts the partial status, valid-item count, no filter-only retry, and reservation release.
-- [x] 1.2 `npm test -- src/pages/api/exercises/request.test.ts src/lib/services/openrouter-exercise-generator.test.ts src/pages/api/exercises/verify.test.ts` passes, including the existing per-item timeout-retention case.
-- [x] 1.3 `npx eslint src/pages/api/exercises/request.test.ts` passes.
-- [x] 1.4 Test-plan §6.3 and §6.6 document the shipped Risk #5 pattern and the distinct Risk #2/#3 ownership without changing strategy or gates.
+- [x] 1.1 The composed test uses the real generator through the request handler and asserts the partial status, valid-item count, no filter-only retry, and reservation release. — 3956ab3
+- [x] 1.2 `npm test -- src/pages/api/exercises/request.test.ts src/lib/services/openrouter-exercise-generator.test.ts src/pages/api/exercises/verify.test.ts` passes, including the existing per-item timeout-retention case. — 3956ab3
+- [x] 1.3 `npx eslint src/pages/api/exercises/request.test.ts` passes. — 3956ab3
+- [x] 1.4 Test-plan §6.3 and §6.6 document the shipped Risk #5 pattern and the distinct Risk #2/#3 ownership without changing strategy or gates. — 3956ab3
