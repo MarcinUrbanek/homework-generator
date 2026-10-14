@@ -452,7 +452,7 @@ describe("RequestExercisesForm", () => {
       "Mnożenie i dzielenie liczb naturalnych",
     );
     expect(container.querySelector<HTMLButtonElement>("#difficulty-hard")?.getAttribute("aria-checked")).toBe("true");
-    expect(container.querySelector("form fieldset")?.disabled).toBe(false);
+    expect(container.querySelector<HTMLFieldSetElement>("form fieldset")?.disabled).toBe(false);
     expect(container.querySelector<HTMLButtonElement>('form button[type="submit"]')?.disabled).toBe(false);
     expect(container.querySelector<HTMLButtonElement>("#topic")?.disabled).toBe(false);
     expect(hardDifficulty?.disabled).toBe(false);

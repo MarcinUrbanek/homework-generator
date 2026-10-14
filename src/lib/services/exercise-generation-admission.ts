@@ -47,7 +47,6 @@ export async function admitExerciseGeneration(
       case "in-progress":
         return { status: result.data.status, retryAfterSeconds: result.data.retry_after_seconds };
     }
-    return { status: "unavailable" };
   } catch {
     return { status: "unavailable" };
   }
