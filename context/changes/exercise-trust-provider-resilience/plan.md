@@ -282,11 +282,11 @@ For an application rollback, disable generation by removing its provider configu
 
 #### Automated
 
-- [x] 3.1 Focused regression tests pass with `npm test -- src\components\exercises\RequestExercisesForm.test.tsx src\lib\services\exercise-generation-admission.test.ts src\pages\api\exercises\request.test.ts src\lib\services\openrouter-exercise-generator.test.ts`.
-- [x] 3.2 Database regression coverage passes with `npm run db:test` on an isolated migrated local stack.
-- [x] 3.3 `npm run lint` and `npm run build` pass, and changed Markdown passes the existing Prettier check.
+- [x] 3.1 Focused regression tests pass with `npm test -- src\components\exercises\RequestExercisesForm.test.tsx src\lib\services\exercise-generation-admission.test.ts src\pages\api\exercises\request.test.ts src\lib\services\openrouter-exercise-generator.test.ts`. — e8631e5
+- [x] 3.2 Database regression coverage passes with `npm run db:test` on an isolated migrated local stack. — e8631e5
+- [x] 3.3 `npm run lint` and `npm run build` pass, and changed Markdown passes the existing Prettier check. — e8631e5
 
 #### Manual
 
-- [x] 3.4 With a stubbed provider, two signed-in tabs show reservation denial without losing results or selections; completion releases the slot, the eleventh hourly start is denied, and lease/window recovery matches the documented boundaries.
-- [x] 3.5 Simulated admission unavailability blocks provider work; simulated release failure preserves settled output and emits only sanitized operation signals, with observed results recorded in the manual verification document.
+- [x] 3.4 With a stubbed provider, two signed-in tabs show reservation denial without losing results or selections; completion releases the slot, the eleventh hourly start is denied, and lease/window recovery matches the documented boundaries. — e8631e5
+- [x] 3.5 Simulated admission unavailability blocks provider work; simulated release failure preserves settled output and emits only sanitized operation signals, with observed results recorded in the manual verification document. — e8631e5

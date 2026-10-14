@@ -1,7 +1,7 @@
 ---
 change_id: exercise-trust-provider-resilience
 title: Bound repeated exercise-generation requests
-status: implementing
+status: implemented
 created: 2026-10-14
 updated: 2026-10-14
 archived_at: null
