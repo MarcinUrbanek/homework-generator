@@ -15,7 +15,10 @@ After archiving, every other 10x skill refuses to write inside `context/archive/
 
 When this command is invoked:
 
-1. **Check if any argument was provided**:
+1. **Read the command argument from the invocation**: use the text immediately after `/10x-archive` in the user's invoking message as the raw argument string.
+   - Any non-whitespace text there counts as an argument.
+   - Do not show the no-argument prompt just because the user did not repeat the argument in prose or a later message.
+2. **Check if any argument was provided**:
    - If an argument was provided, parse it (see "Argument Parsing" below) and proceed to "Resolution".
    - If NO argument was provided, respond with the following message and **STOP**:
 
@@ -40,6 +43,8 @@ Take the first whitespace-delimited token. Normalize:
 3. If the result contains `/`, take the last non-empty path segment.
 
 The result is `<change-id>`.
+
+Example: `/10x-archive exercise-trust-provider-resilience` provides the change-id `exercise-trust-provider-resilience`.
 
 ## Resolution
 
