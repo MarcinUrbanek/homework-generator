@@ -221,6 +221,25 @@ For a manual live-provider check, sign in with a teacher profile, open `/exercis
 
 For deployment, provision `OPENROUTER_API_KEY` as a Cloudflare secret and `OPENROUTER_MODEL` as a server-only environment value. Do not add real provider credentials to committed files or CI variables used by the smoke job.
 
+### Generation request admission
+
+Before deploying the API code, apply the `20261014160000_add_exercise_generation_admission.sql` migration. For a local stack, run:
+
+```bash
+npx supabase migration up --local
+```
+
+Each authenticated teacher can start at most 10 admitted generation requests in a rolling 60-minute window. An admission charges one application request, including a request that times out, fails, or returns a partial batch; there are no refunds. One admitted request can make up to two provider attempts.
+
+Only one unexpired generation reservation is allowed per teacher. It normally releases when the request finishes and expires after 120 seconds if the request cannot release it. An expired reservation can be replaced, but expiry does not stop provider work that was already started, so old and replacement requests may overlap. Admission is fail-closed: a quota or active-reservation denial returns HTTP 429 with `Retry-After` in whole seconds and makes no provider call; an admission-storage failure returns HTTP 503 and also blocks provider work.
+
+Targeted regression checks:
+
+```bash
+npm test -- src/components/exercises/RequestExercisesForm.test.tsx src/lib/services/exercise-generation-admission.test.ts src/pages/api/exercises/request.test.ts src/lib/services/openrouter-exercise-generator.test.ts
+npx supabase test db --local supabase/tests/database/exercise_generation_admission.sql
+```
+
 ## Exercise verification and approval
 
 Verification runs server-side with a dedicated model and writes the immutable ledger through a service-role client. Add these to `.dev.vars` (never commit real values):

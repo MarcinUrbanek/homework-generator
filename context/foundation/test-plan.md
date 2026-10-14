@@ -6,7 +6,7 @@
 >
 > Refresh: re-run `/10x-test-plan --refresh` when stale (see §8).
 >
-> Last updated: 2026-10-07
+> Last updated: 2026-10-14
 
 ## 1. Strategy
 
@@ -127,7 +127,9 @@ that establishes its canonical pattern.
 
 ### 6.3 Adding a provider-boundary or verification test
 
-- TBD — see §3 Phase 2 for timeout, partial-result, resource-bound, and independent-oracle patterns.
+- For generation-admission risk #2, prove persisted quota and reservation behavior at the database boundary, including exact time limits and synchronized contention; mocked handler tests alone do not establish shared-state atomicity. At the API boundary, assert denied or unavailable admission makes no provider call. At the form boundary, assert recognized 429/503 errors preserve the reviewed batch, selected verification IDs, and chosen inputs without automatic retries or a countdown.
+- One admitted request consumes one quota unit even when the provider retries (up to two attempts), fails, times out, or returns partial results. Releasing its reservation never refunds that unit. Keep tests at the provider boundary and use stubbed fetches rather than live provider credits.
+- Verify the bounded admission work with `npm test -- src/components/exercises/RequestExercisesForm.test.tsx src/lib/services/exercise-generation-admission.test.ts src/pages/api/exercises/request.test.ts src/lib/services/openrouter-exercise-generator.test.ts`, `npx supabase test db --local supabase/tests/database/exercise_generation_admission.sql`, and `npm run db:test`. This covers risk #2 admission only; approval evidence and per-item verification resilience remain pending.
 
 ### 6.4 Adding an assignment or scoring test
 
@@ -143,6 +145,7 @@ that establishes its canonical pattern.
 - Phase 1 shipped separate route-level denial/no-work tests (including one real authorizer composition) and authenticated-claim pgTAP checks for role and ownership boundaries; run the §6.1 commands for those layers.
 - Phase 1 shipped role/ownership denials and pre-enrollment invitation status/auth-continuation tests. These do not prove enrollment or replay safety.
 - S-05 separately shipped the atomic acceptance operation and pgTAP coverage for acceptance-time eligibility, membership creation, same-user retry, wrong-recipient denial, and replay denial. Keep these guarantees attributed to S-05 rather than retroactively expanding Phase 1's test scope.
+- The `exercise-trust-provider-resilience` change covers only bounded generation admission for risk #2. Approval evidence and per-item verification resilience remain pending; this note does not mark rollout Phase 2 complete.
 
 ## 7. What We Deliberately Don't Test
 

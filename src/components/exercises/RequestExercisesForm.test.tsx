@@ -97,6 +97,13 @@ function storeSelectedReviewedBatch(): void {
   storeSessionExerciseBatch(sessionStorage, batch);
 }
 
+function storeFullySelectedReviewedBatch(): void {
+  let batch = applyExerciseVerificationResults(createExerciseReviewBatch(firstBatch), [firstSuccess, secondSuccess]);
+  batch = selectExerciseVerification(batch, firstVerificationId, true);
+  batch = selectExerciseVerification(batch, secondVerificationId, true);
+  storeSessionExerciseBatch(sessionStorage, batch);
+}
+
 function renderForm(): void {
   container = document.createElement("div");
   document.body.append(container);
@@ -121,6 +128,7 @@ afterEach(() => {
   act(() => {
     root.unmount();
   });
+  vi.useRealTimers();
   container.remove();
   vi.unstubAllGlobals();
 });
@@ -284,6 +292,28 @@ function submitForm(): void {
   form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
 }
 
+function selectTopic(label: string): void {
+  const topicTrigger = container.querySelector<HTMLButtonElement>("#topic");
+  if (!topicTrigger) {
+    throw new Error("Expected topic selector");
+  }
+
+  act(() => {
+    topicTrigger.click();
+  });
+
+  const option = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="select-item"]')).find(
+    (element) => element.textContent === label,
+  );
+  if (!option) {
+    throw new Error(`Expected topic option: ${label}`);
+  }
+
+  act(() => {
+    option.click();
+  });
+}
+
 describe("RequestExercisesForm", () => {
   it("submits the selected payload, locks duplicate requests, and replaces the prior batch", async () => {
     storeBatch(generationBatch);
@@ -366,5 +396,72 @@ describe("RequestExercisesForm", () => {
 
     expect(container.textContent).not.toContain("Oblicz 12 + 7.");
     expect(sessionStorage.getItem("latest-successful-exercise-batch")).toBeNull();
+  });
+
+  it.each([
+    {
+      label: "the hourly generation limit",
+      code: "GENERATION_LIMIT_EXCEEDED",
+      message: "Osiągnięto limit 10 żądań generowania w ciągu godziny. Spróbuj ponownie później.",
+    },
+    {
+      label: "an in-progress generation",
+      code: "GENERATION_IN_PROGRESS",
+      message: "Generowanie zadań już trwa. Spróbuj ponownie po jego zakończeniu.",
+    },
+    {
+      label: "admission unavailability",
+      code: "ADMISSION_UNAVAILABLE",
+      message: "Nie można teraz sprawdzić limitu generowania. Spróbuj ponownie później.",
+    },
+  ])("preserves reviewed work after $label", async ({ code, message }) => {
+    storeFullySelectedReviewedBatch();
+    const storedBefore = sessionStorage.getItem("latest-successful-exercise-batch");
+    const batchBefore = restoreSessionExerciseBatch(sessionStorage);
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ error: { code, message } }, false));
+    vi.stubGlobal("fetch", fetchMock);
+    renderForm();
+
+    selectTopic("Mnożenie i dzielenie liczb naturalnych");
+    const hardDifficulty = container.querySelector<HTMLButtonElement>("#difficulty-hard");
+    expect(hardDifficulty).not.toBeNull();
+    act(() => hardDifficulty?.click());
+
+    vi.useFakeTimers();
+    await act(async () => {
+      submitForm();
+      await Promise.resolve();
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(exerciseGenerationRequestSchema.parse(requestBody(fetchMock, 0))).toEqual({
+      grade: 4,
+      topic: "multiplication-division",
+      difficulty: "hard",
+    });
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      `${message} Poprzednie wyniki, jeśli były dostępne, pozostały bez zmian.`,
+    );
+    expect(sessionStorage.getItem("latest-successful-exercise-batch")).toBe(storedBefore);
+    expect(restoreSessionExerciseBatch(sessionStorage)).toEqual(batchBefore);
+    expect(batchBefore?.selectedVerificationIds).toEqual([firstVerificationId, secondVerificationId]);
+    const checkboxes = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'));
+    expect(checkboxes.map(({ checked }) => checked)).toEqual([true, true]);
+
+    expect(container.querySelector<HTMLButtonElement>("#topic")?.textContent).toContain(
+      "Mnożenie i dzielenie liczb naturalnych",
+    );
+    expect(container.querySelector<HTMLButtonElement>("#difficulty-hard")?.getAttribute("aria-checked")).toBe("true");
+    expect(container.querySelector("form fieldset")?.disabled).toBe(false);
+    expect(container.querySelector<HTMLButtonElement>('form button[type="submit"]')?.disabled).toBe(false);
+    expect(container.querySelector<HTMLButtonElement>("#topic")?.disabled).toBe(false);
+    expect(hardDifficulty?.disabled).toBe(false);
+    expect(checkboxes.every(({ disabled }) => !disabled)).toBe(true);
+    expect(button("Zatwierdź i zapisz").disabled).toBe(false);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
