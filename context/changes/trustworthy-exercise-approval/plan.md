@@ -554,24 +554,24 @@ until explicitly supported; version strings alone cannot silently widen the doma
 
 #### Automated
 
-- [x] 2.1 Verification/approval tests prove exact structure binding, stale-evidence denial, conflict/reuse behavior, typed failures, and no model-verifier call: `npm test -- src/lib/services/arithmetic-exercise-verifier.test.ts src/pages/api/exercises/verify.test.ts src/pages/api/exercises/approve.test.ts`.
-- [x] 2.2 Local migrations apply without deleting historical rows: `npx supabase migration up --local`.
-- [x] 2.3 Database tests reject forged success, unlinked trusted writes, wrong-owner promotion, and certified snapshot mutation while preserving valid idempotent approval: `npx supabase test db --local supabase/tests/database/exercise_verification_approval.sql supabase/tests/database/verified_exercise_persistence.sql`.
+- [x] 2.1 Verification/approval tests prove exact structure binding, stale-evidence denial, conflict/reuse behavior, typed failures, and no model-verifier call: `npm test -- src/lib/services/arithmetic-exercise-verifier.test.ts src/pages/api/exercises/verify.test.ts src/pages/api/exercises/approve.test.ts`. — a74f038
+- [x] 2.2 Local migrations apply without deleting historical rows: `npx supabase migration up --local`. — a74f038
+- [x] 2.3 Database tests reject forged success, unlinked trusted writes, wrong-owner promotion, and certified snapshot mutation while preserving valid idempotent approval: `npx supabase test db --local supabase/tests/database/exercise_verification_approval.sql supabase/tests/database/verified_exercise_persistence.sql`. — a74f038
 
 #### Manual
 
-- [ ] 2.4 Inspect one certified and one retained legacy ledger/pool pair; only the certified pair passes approval and its structure, rendered prompt, answer, and ownership agree.
+- [x] 2.4 Inspect one certified and one retained legacy ledger/pool pair; only the certified pair passes approval and its structure, rendered prompt, answer, and ownership agree. — a74f038
 
 ### Phase 3: Discovery and homework protection
 
 #### Automated
 
-- [ ] 3.1 Consumer database tests prove hidden discovery rows, rejected new allocations, all-or-nothing mixed legacy detail/submission denial, and unchanged historical result/retry behavior: `npx supabase test db --local supabase/tests/database/saved_exercise_discovery.sql supabase/tests/database/homework_assignments.sql supabase/tests/database/homework_submissions.sql`.
-- [ ] 3.2 Homework service/API/UI tests prove result-only reload and quarantine denial without prompt or canonical-answer leakage: `npm test -- src/lib/services/student-homework.test.ts src/lib/services/homework-assignments.test.ts src/pages/api/homework src/components/homework/StudentHomeworkForm.test.tsx`.
+- [x] 3.1 Consumer database tests prove hidden discovery rows, rejected new allocations, all-or-nothing mixed legacy detail/submission denial, and unchanged historical result/retry behavior: `npx supabase test db --local supabase/tests/database/saved_exercise_discovery.sql supabase/tests/database/homework_assignments.sql supabase/tests/database/homework_submissions.sql`. — 2026-10-16: 158 assertions passed across the three suites after correcting the invalid-format fixture target; uncommitted worktree.
+- [x] 3.2 Homework service/API/UI tests prove result-only reload and quarantine denial without prompt or canonical-answer leakage: `npm test -- src/lib/services/student-homework.test.ts src/lib/services/homework-assignments.test.ts src/pages/api/homework src/components/homework/StudentHomeworkForm.test.tsx`.
 
 #### Manual
 
-- [ ] 3.3 With an authorized student, legacy pending homework is unavailable, legacy submitted homework shows the original result without prompts, and current certified homework remains readable and submittable; another student and revoked membership remain denied.
+- [x] 3.3 With an authorized student, legacy pending homework is unavailable, legacy submitted homework shows the original result without prompts, and current certified homework remains readable and submittable; another student and revoked membership remain denied.
 
 ### Phase 4: Teacher review compatibility
 

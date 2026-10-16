@@ -415,11 +415,20 @@ export interface StudentHomeworkSubmissionResult {
   answers: StudentHomeworkAnswerResult[];
 }
 
-export interface StudentHomeworkDetailSuccess {
+export interface StudentHomeworkPromptDetailSuccess {
+  kind: "prompts";
   assignment: StudentHomeworkDetailAssignment;
   exercises: StudentHomeworkExercise[];
   submission: StudentHomeworkSubmissionResult | null;
 }
+
+export interface StudentHomeworkResultOnlyDetailSuccess {
+  kind: "result-only";
+  assignment: StudentHomeworkDetailAssignment;
+  result: StudentHomeworkSubmissionResult;
+}
+
+export type StudentHomeworkDetailSuccess = StudentHomeworkPromptDetailSuccess | StudentHomeworkResultOnlyDetailSuccess;
 
 export interface StudentHomeworkSubmitRequest {
   answers: {
@@ -428,9 +437,8 @@ export interface StudentHomeworkSubmitRequest {
   }[];
 }
 
-export interface StudentHomeworkSubmitSuccess extends StudentHomeworkSubmissionResult {
-  replayed: boolean;
-}
+export type StudentHomeworkSubmitSuccess = StudentHomeworkSubmissionResult &
+  ({ kind: "scored"; replayed: boolean } | { kind: "result-only"; replayed: true });
 
 export interface StudentHomeworkApiError {
   error: {

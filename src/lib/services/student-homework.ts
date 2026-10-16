@@ -163,35 +163,44 @@ export async function getStudentHomework(
   const detail = studentHomeworkDetailRpcSchema.safeParse(data);
   if (!detail.success) throw new StudentHomeworkServiceError("PERSISTENCE_FAILURE");
 
-  const submissionResult = studentHomeworkSubmissionResultSchema.nullable().safeParse(
-    detail.data.submission
-      ? {
-          submissionId: detail.data.submission.submission_id,
-          submittedAt: detail.data.submission.submitted_at,
-          correctCount: detail.data.submission.correct_count,
-          assignedCount: detail.data.submission.assigned_count,
-          passed: detail.data.submission.passed,
-          answers: detail.data.submission.answers.map(({ position, answer, is_correct: isCorrect }) => ({
-            position,
-            answer,
-            isCorrect,
-          })),
-        }
-      : null,
-  );
-  if (!submissionResult.success) throw new StudentHomeworkServiceError("PERSISTENCE_FAILURE");
+  const assignment = {
+    assignmentId: detail.data.assignment.assignment_id,
+    className: detail.data.assignment.class_name,
+    title: detail.data.assignment.title,
+    createdAt: detail.data.assignment.created_at,
+    exerciseCount: detail.data.assignment.exercise_count,
+  };
+  const submission = detail.data.kind === "result-only" ? detail.data.result : detail.data.submission;
+  const submissionResult = submission
+    ? studentHomeworkSubmissionResultSchema.safeParse({
+        submissionId: submission.submission_id,
+        submittedAt: submission.submitted_at,
+        correctCount: submission.correct_count,
+        assignedCount: submission.assigned_count,
+        passed: submission.passed,
+        answers: submission.answers.map(({ position, answer, is_correct: isCorrect }) => ({
+          position,
+          answer,
+          isCorrect,
+        })),
+      })
+    : null;
+  if (submissionResult && !submissionResult.success) throw new StudentHomeworkServiceError("PERSISTENCE_FAILURE");
 
-  const result = studentHomeworkDetailSuccessSchema.safeParse({
-    assignment: {
-      assignmentId: detail.data.assignment.assignment_id,
-      className: detail.data.assignment.class_name,
-      title: detail.data.assignment.title,
-      createdAt: detail.data.assignment.created_at,
-      exerciseCount: detail.data.assignment.exercise_count,
-    },
-    exercises: detail.data.exercises.map(({ position, prompt }) => ({ position, prompt })),
-    submission: submissionResult.data,
-  });
+  const result = studentHomeworkDetailSuccessSchema.safeParse(
+    detail.data.kind === "result-only"
+      ? {
+          kind: "result-only",
+          assignment,
+          result: submissionResult?.success ? submissionResult.data : null,
+        }
+      : {
+          kind: "prompts",
+          assignment,
+          exercises: detail.data.exercises.map(({ position, prompt }) => ({ position, prompt })),
+          submission: submissionResult?.success ? submissionResult.data : null,
+        },
+  );
   if (!result.success) throw new StudentHomeworkServiceError("PERSISTENCE_FAILURE");
   return result.data;
 }
@@ -225,6 +234,7 @@ export async function submitStudentHomework(
       answer,
       isCorrect,
     })),
+    kind: result.data.kind,
     replayed: result.data.replayed,
   };
   const parsedResult = studentHomeworkSubmitSuccessSchema.safeParse(publicResult);

@@ -48,24 +48,37 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 function detailResponse(submission: StudentHomeworkSubmissionResult | null): StudentHomeworkDetailSuccess {
-  return { assignment, exercises, submission };
+  return { kind: "prompts", assignment, exercises, submission };
 }
 
-function submitResponse(overrides: Partial<StudentHomeworkSubmitSuccess> = {}): StudentHomeworkSubmitSuccess {
+function resultOnlyDetail(): StudentHomeworkDetailSuccess {
+  return {
+    kind: "result-only",
+    assignment,
+    result: persistedResult,
+  };
+}
+
+function submitResponse(overrides: Partial<StudentHomeworkSubmissionResult> = {}): StudentHomeworkSubmitSuccess {
   return {
     ...persistedResult,
-    replayed: false,
     ...overrides,
+    kind: "scored",
+    replayed: false,
   };
 }
 
 function renderForm(submission: StudentHomeworkSubmissionResult | null = null): void {
+  renderDetail(detailResponse(submission));
+}
+
+function renderDetail(detail: StudentHomeworkDetailSuccess): void {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
   rootMounted = true;
   act(() => {
-    root.render(<StudentHomeworkForm assignment={assignment} exercises={exercises} submission={submission} />);
+    root.render(<StudentHomeworkForm detail={detail} />);
   });
 }
 
@@ -281,6 +294,61 @@ describe("StudentHomeworkForm", () => {
     expect(container.textContent).toContain("Twoja odpowiedź: 8");
     expect(container.textContent).not.toContain("999");
     expect(container.textContent).not.toContain("private canonical answer");
+    expect(container.querySelector("input")).toBeNull();
+  });
+
+  it("renders a result-only SSR detail without prompts or an editable form", () => {
+    vi.stubGlobal("fetch", vi.fn());
+    renderDetail(resultOnlyDetail());
+
+    expect(container.textContent).toContain("Wynik zadania domowego");
+    expect(container.textContent).toContain("Poprawne odpowiedzi: 2 z 3");
+    expect(container.textContent).toContain("Pozycja 1");
+    expect(container.textContent).toContain("Twoja odpowiedź: 2");
+    expect(container.textContent).not.toContain("Ile to");
+    expect(container.textContent).not.toContain("Odpowiedź do zadania");
+    expect(container.querySelector("input")).toBeNull();
+  });
+
+  it("recovers a prompt-free historical result after a submission retry", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ error: { code: "SUBMISSION_CONFLICT", message: "private answer" } }, 409))
+      .mockResolvedValueOnce(jsonResponse(resultOnlyDetail()));
+    vi.stubGlobal("fetch", fetchMock);
+    renderForm();
+    await openReview();
+    await confirmAnswers();
+
+    expect(container.textContent).toContain("Wynik zadania domowego");
+    expect(container.textContent).toContain("Pozycja 1");
+    expect(container.textContent).not.toContain("Ile to");
+    expect(container.querySelector("input")).toBeNull();
+  });
+
+  it("clears old prompts when recovery or a recovery retry is denied", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ error: { code: "SUBMISSION_CONFLICT", message: "private answer" } }, 409))
+      .mockResolvedValueOnce(jsonResponse({ error: { code: "DATABASE_UNAVAILABLE", message: "unavailable" } }, 503))
+      .mockResolvedValueOnce(jsonResponse({ error: { code: "HOMEWORK_UNAVAILABLE", message: "unavailable" } }, 404));
+    vi.stubGlobal("fetch", fetchMock);
+    renderForm();
+    await openReview();
+    await confirmAnswers();
+
+    expect(container.textContent).toContain("Nie udało się pobrać zapisanego wyniku");
+    expect(container.textContent).toContain("Ile to 1 + 1?");
+    await act(async () => {
+      button("Pobierz zapisany wynik").click();
+      await Promise.resolve();
+    });
+    await flushPromises();
+
+    expect(container.textContent).toContain("Zadanie domowe jest niedostępne");
+    expect(container.textContent).toContain("skontaktuj się z nauczycielem");
+    expect(container.textContent).not.toContain("Ile to");
+    expect(container.textContent).not.toContain("Poprawne odpowiedzi:");
     expect(container.querySelector("input")).toBeNull();
   });
 

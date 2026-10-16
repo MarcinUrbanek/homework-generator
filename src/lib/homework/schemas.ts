@@ -327,17 +327,20 @@ export const studentHomeworkListSuccessSchema = z
   .object({ assignments: studentHomeworkSummarySchema.array() })
   .strict();
 
-export const studentHomeworkDetailRpcSchema = z
+const studentHomeworkAssignmentRpcSchema = z
   .object({
-    assignment: z
-      .object({
-        assignment_id: uuidSchema,
-        class_name: nonEmptyStringSchema,
-        title: nonEmptyStringSchema.nullable(),
-        created_at: z.iso.datetime({ offset: true }),
-        exercise_count: studentHomeworkExerciseCountSchema,
-      })
-      .strict(),
+    assignment_id: uuidSchema,
+    class_name: nonEmptyStringSchema,
+    title: nonEmptyStringSchema.nullable(),
+    created_at: z.iso.datetime({ offset: true }),
+    exercise_count: studentHomeworkExerciseCountSchema,
+  })
+  .strict();
+
+const studentHomeworkPromptDetailRpcSchema = z
+  .object({
+    kind: z.literal("prompts"),
+    assignment: studentHomeworkAssignmentRpcSchema,
     exercises: z
       .object({
         position: studentHomeworkAnswerPositionSchema,
@@ -364,10 +367,106 @@ export const studentHomeworkDetailRpcSchema = z
     }
   });
 
-export const studentHomeworkSubmitRpcResultSchema = studentHomeworkSubmissionResultRpcBaseSchema
-  .extend({ replayed: z.boolean() })
+const studentHomeworkResultOnlyAnswerRpcSchema = z
+  .object({
+    position: studentHomeworkAnswerPositionSchema,
+    answer: studentHomeworkRawAnswerSchema,
+    is_correct: z.boolean(),
+  })
+  .strict()
+  .superRefine(({ answer, is_correct: isCorrect }, context) => {
+    if (normalizeStudentHomeworkAnswer(answer) === null && isCorrect) {
+      context.addIssue({
+        code: "custom",
+        path: ["is_correct"],
+        message: "Blank answers cannot be correct",
+      });
+    }
+  });
+
+const studentHomeworkResultOnlySubmissionRpcSchema = z
+  .object({
+    submission_id: z.uuid(),
+    submitted_at: z.iso.datetime({ offset: true }),
+    correct_count: z.number().int().min(0),
+    assigned_count: studentHomeworkExerciseCountSchema,
+    passed: z.boolean(),
+    answers: studentHomeworkResultOnlyAnswerRpcSchema.array(),
+  })
+  .strict()
+  .superRefine(({ answers, correct_count: correctCount, assigned_count: assignedCount, passed }, context) => {
+    validateOrderedPositions(
+      answers.map(({ position }) => position),
+      assignedCount,
+      context,
+      "answers",
+    );
+    if (answers.filter(({ is_correct: isCorrect }) => isCorrect).length !== correctCount) {
+      context.addIssue({ code: "custom", path: ["correct_count"], message: "Correct count must match answer results" });
+    }
+    if (correctCount > assignedCount || passed !== 2 * correctCount >= assignedCount) {
+      context.addIssue({ code: "custom", path: ["passed"], message: "Pass status must match the score threshold" });
+    }
+  });
+
+const studentHomeworkResultOnlyDetailRpcSchema = z
+  .object({
+    kind: z.literal("result-only"),
+    assignment: studentHomeworkAssignmentRpcSchema,
+    result: studentHomeworkResultOnlySubmissionRpcSchema,
+  })
+  .strict()
+  .superRefine(({ assignment, result }, context) => {
+    if (result.assigned_count !== assignment.exercise_count) {
+      context.addIssue({
+        code: "custom",
+        path: ["result", "assigned_count"],
+        message: "Submission count mismatch",
+      });
+    }
+  });
+
+export const studentHomeworkDetailRpcSchema = z.discriminatedUnion("kind", [
+  studentHomeworkPromptDetailRpcSchema,
+  studentHomeworkResultOnlyDetailRpcSchema,
+]);
+
+const studentHomeworkScoredSubmitRpcResultSchema = studentHomeworkSubmissionResultRpcBaseSchema
+  .extend({ kind: z.literal("scored"), replayed: z.boolean() })
   .strict()
   .superRefine(validateRpcSubmissionResult);
+
+const studentHomeworkResultOnlySubmitRpcResultSchema = z
+  .object({
+    kind: z.literal("result-only"),
+    submission_id: z.uuid(),
+    submitted_at: z.iso.datetime({ offset: true }),
+    correct_count: z.number().int().min(0),
+    assigned_count: studentHomeworkExerciseCountSchema,
+    passed: z.boolean(),
+    answers: studentHomeworkResultOnlyAnswerRpcSchema.array(),
+    replayed: z.literal(true),
+  })
+  .strict()
+  .superRefine(({ answers, correct_count: correctCount, assigned_count: assignedCount, passed }, context) => {
+    validateOrderedPositions(
+      answers.map(({ position }) => position),
+      assignedCount,
+      context,
+      "answers",
+    );
+    if (answers.filter(({ is_correct: isCorrect }) => isCorrect).length !== correctCount) {
+      context.addIssue({ code: "custom", path: ["correct_count"], message: "Correct count must match answer results" });
+    }
+    if (correctCount > assignedCount || passed !== 2 * correctCount >= assignedCount) {
+      context.addIssue({ code: "custom", path: ["passed"], message: "Pass status must match the score threshold" });
+    }
+  });
+
+export const studentHomeworkSubmitRpcResultSchema = z.discriminatedUnion("kind", [
+  studentHomeworkScoredSubmitRpcResultSchema,
+  studentHomeworkResultOnlySubmitRpcResultSchema,
+]);
 
 const studentHomeworkSubmissionResultBaseSchema = z
   .object({
@@ -408,8 +507,9 @@ function validatePublicSubmissionResult(
 export const studentHomeworkSubmissionResultSchema =
   studentHomeworkSubmissionResultBaseSchema.superRefine(validatePublicSubmissionResult);
 
-export const studentHomeworkDetailSuccessSchema = z
+const studentHomeworkPromptDetailSuccessSchema = z
   .object({
+    kind: z.literal("prompts"),
     assignment: z
       .object({
         assignmentId: uuidSchema,
@@ -441,10 +541,50 @@ export const studentHomeworkDetailSuccessSchema = z
     }
   });
 
-export const studentHomeworkSubmitSuccessSchema = studentHomeworkSubmissionResultBaseSchema
-  .extend({ replayed: z.boolean() })
+const studentHomeworkResultOnlyDetailSuccessSchema = z
+  .object({
+    kind: z.literal("result-only"),
+    assignment: z
+      .object({
+        assignmentId: uuidSchema,
+        className: nonEmptyStringSchema,
+        title: nonEmptyStringSchema.nullable(),
+        createdAt: z.iso.datetime({ offset: true }),
+        exerciseCount: studentHomeworkExerciseCountSchema,
+      })
+      .strict(),
+    result: studentHomeworkSubmissionResultSchema,
+  })
+  .strict()
+  .superRefine(({ assignment, result }, context) => {
+    if (result.assignedCount !== assignment.exerciseCount) {
+      context.addIssue({
+        code: "custom",
+        path: ["result", "assignedCount"],
+        message: "Submission count mismatch",
+      });
+    }
+  });
+
+export const studentHomeworkDetailSuccessSchema = z.discriminatedUnion("kind", [
+  studentHomeworkPromptDetailSuccessSchema,
+  studentHomeworkResultOnlyDetailSuccessSchema,
+]);
+
+const studentHomeworkScoredSubmitSuccessSchema = studentHomeworkSubmissionResultBaseSchema
+  .extend({ kind: z.literal("scored"), replayed: z.boolean() })
   .strict()
   .superRefine(validatePublicSubmissionResult);
+
+const studentHomeworkResultOnlySubmitSuccessSchema = studentHomeworkSubmissionResultBaseSchema
+  .extend({ kind: z.literal("result-only"), replayed: z.literal(true) })
+  .strict()
+  .superRefine(validatePublicSubmissionResult);
+
+export const studentHomeworkSubmitSuccessSchema = z.discriminatedUnion("kind", [
+  studentHomeworkScoredSubmitSuccessSchema,
+  studentHomeworkResultOnlySubmitSuccessSchema,
+]);
 
 export const studentHomeworkApiErrorSchema = z
   .object({

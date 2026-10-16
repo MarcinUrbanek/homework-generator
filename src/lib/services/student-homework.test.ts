@@ -41,6 +41,7 @@ function summaryRow(overrides: Record<string, unknown> = {}) {
 
 function submissionRow(replayed: boolean) {
   return {
+    kind: "scored",
     submission_id: "00000000-0000-4000-8000-000000000003",
     submitted_at: submittedAt,
     correct_count: 1,
@@ -56,6 +57,7 @@ function submissionRow(replayed: boolean) {
 
 function detailRow(withSubmission = false) {
   return {
+    kind: "prompts",
     assignment: {
       assignment_id: assignmentId,
       class_name: "Matematyka 4A",
@@ -80,6 +82,30 @@ function detailRow(withSubmission = false) {
           ],
         }
       : null,
+  };
+}
+
+function resultOnlyDetailRow() {
+  return {
+    kind: "result-only",
+    assignment: {
+      assignment_id: assignmentId,
+      class_name: "Matematyka 4A",
+      title: "Powtórka",
+      created_at: "2026-10-09T10:00:00.000Z",
+      exercise_count: 2,
+    },
+    result: {
+      submission_id: "00000000-0000-4000-8000-000000000003",
+      submitted_at: submittedAt,
+      correct_count: 1,
+      assigned_count: 2,
+      passed: true,
+      answers: [
+        { position: 1, answer: " 0001 ", is_correct: true },
+        { position: 2, answer: null, is_correct: false },
+      ],
+    },
   };
 }
 
@@ -170,6 +196,7 @@ describe("student homework adapters", () => {
     expect(rpc).toHaveBeenCalledTimes(1);
     expect(rpc).toHaveBeenCalledWith("get_student_homework", { p_assignment_id: assignmentId });
     expect(result).toEqual({
+      kind: "prompts",
       assignment: {
         assignmentId,
         className: "Matematyka 4A",
@@ -194,6 +221,35 @@ describe("student homework adapters", () => {
       },
     });
     expect(JSON.stringify(result)).not.toMatch(/normalized_answer|canonical_answer|exercise_id|verifier|classmate/i);
+  });
+
+  it("loads a prompt-free historical result with only saved answers and correctness", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: resultOnlyDetailRow(), error: null });
+
+    const result = await getStudentHomework(rpcClient(rpc), assignmentId);
+
+    expect(result).toEqual({
+      kind: "result-only",
+      assignment: {
+        assignmentId,
+        className: "Matematyka 4A",
+        title: "Powtórka",
+        createdAt: "2026-10-09T10:00:00.000Z",
+        exerciseCount: 2,
+      },
+      result: {
+        submissionId: "00000000-0000-4000-8000-000000000003",
+        submittedAt,
+        correctCount: 1,
+        assignedCount: 2,
+        passed: true,
+        answers: [
+          { position: 1, answer: " 0001 ", isCorrect: true },
+          { position: 2, answer: null, isCorrect: false },
+        ],
+      },
+    });
+    expect(JSON.stringify(result)).not.toMatch(/prompt|canonical_answer|normalized_answer|authority/i);
   });
 
   it("rejects malformed detail results and invalid IDs without disclosing SQL messages", async () => {
@@ -232,6 +288,7 @@ describe("student homework adapters", () => {
         { position: 1, answer: " 0001 ", isCorrect: true },
         { position: 2, answer: null, isCorrect: false },
       ],
+      kind: "scored",
       replayed: false,
     });
     expect(JSON.stringify(result)).not.toMatch(/normalized_answer|canonical_answer|exercise_id|verifier|classmate/i);
@@ -250,6 +307,34 @@ describe("student homework adapters", () => {
     expect(retry.replayed).toBe(true);
     expect(retry.submissionId).toBe(first.submissionId);
     expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it("marks an equivalent replay of quarantined homework as result-only", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        kind: "result-only",
+        submission_id: "00000000-0000-4000-8000-000000000003",
+        submitted_at: submittedAt,
+        correct_count: 1,
+        assigned_count: 2,
+        passed: true,
+        answers: [
+          { position: 1, answer: " 0001 ", is_correct: true },
+          { position: 2, answer: null, is_correct: false },
+        ],
+        replayed: true,
+      },
+      error: null,
+    });
+
+    const result = await submitStudentHomework(rpcClient(rpc), assignmentId, request);
+
+    expect(result).toMatchObject({
+      kind: "result-only",
+      replayed: true,
+      submissionId: "00000000-0000-4000-8000-000000000003",
+    });
+    expect(JSON.stringify(result)).not.toContain("normalized_answer");
   });
 
   it("rejects invalid requests before making the submit RPC", async () => {

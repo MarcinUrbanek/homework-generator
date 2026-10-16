@@ -17,6 +17,7 @@ const exerciseId = "00000000-0000-4000-8000-000000000002";
 const privateCanonicalAnswer = "private-canonical-answer";
 
 const detail: StudentHomeworkDetailSuccess = {
+  kind: "prompts",
   assignment: {
     assignmentId,
     className: "Matematyka 4A",
@@ -108,6 +109,8 @@ describe("GET /api/homework/:assignmentId", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(body).toEqual(savedDetail);
+    expect(body.kind).toBe("prompts");
+    if (body.kind !== "prompts") throw new Error("Expected a prompt detail");
     expect(body.exercises.map(({ position }) => position)).toEqual([1, 2]);
     expect(getHomework).toHaveBeenCalledWith(expect.anything(), assignmentId);
     const serialized = JSON.stringify(body);
@@ -125,9 +128,41 @@ describe("GET /api/homework/:assignmentId", () => {
     expect(serialized).toContain('"answer":" 2 "');
   });
 
+  it("returns authorized legacy results in the typed prompt-free shape", async () => {
+    const savedResult: StudentHomeworkDetailSuccess = {
+      kind: "result-only",
+      assignment: detail.assignment,
+      result: {
+        submissionId: "00000000-0000-4000-8000-000000000003",
+        submittedAt: "2026-10-09T11:00:00.000Z",
+        correctCount: 1,
+        assignedCount: 2,
+        passed: true,
+        answers: [
+          { position: 1, answer: " 2 ", isCorrect: true },
+          { position: 2, answer: "3", isCorrect: false },
+        ],
+      },
+    };
+    const { handler } = handlerFor({ detail: savedResult });
+
+    const response = await handler(context());
+    const body = await responseBody<StudentHomeworkDetailSuccess>(response);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(body).toEqual(savedResult);
+    expect(body.kind).toBe("result-only");
+    const serialized = JSON.stringify(body);
+    for (const privateValue of [privateCanonicalAnswer, exerciseId, "prompt", "canonical_answer", "authorityVersion"]) {
+      expect(serialized).not.toContain(privateValue);
+    }
+  });
+
   it("composes the handler with the session-bound detail RPC adapter", async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: {
+        kind: "prompts",
         assignment: {
           assignment_id: assignmentId,
           class_name: "Matematyka 4A",
@@ -185,7 +220,10 @@ describe("GET /api/homework/:assignmentId", () => {
 
     expect(response.status).toBe(404);
     expect(await responseBody(response)).toEqual({
-      error: { code: "HOMEWORK_UNAVAILABLE", message: "Zadanie domowe jest niedostępne." },
+      error: {
+        code: "HOMEWORK_UNAVAILABLE",
+        message: "Zadanie domowe jest niedostępne. W razie wątpliwości skontaktuj się z nauczycielem.",
+      },
     });
     expect(getHomework).toHaveBeenCalledTimes(1);
   });

@@ -23,7 +23,8 @@ export type StudentHomeworkViewStatus =
   | "result"
   | "unavailable";
 
-interface StudentHomeworkViewProps {
+interface StudentHomeworkPromptViewProps {
+  mode: "prompts";
   assignment: StudentHomeworkDetailAssignment;
   exercises: StudentHomeworkExercise[];
   answers: Record<number, string>;
@@ -39,40 +40,124 @@ interface StudentHomeworkViewProps {
   onRetry: () => void;
 }
 
+interface StudentHomeworkResultOnlyViewProps {
+  mode: "result-only";
+  assignment: StudentHomeworkDetailAssignment;
+  result: StudentHomeworkSubmissionResult;
+}
+
+type StudentHomeworkViewProps = StudentHomeworkPromptViewProps | StudentHomeworkResultOnlyViewProps;
+
 function displayAnswer(answer: StudentHomeworkAnswerResult["answer"]): string {
   return answer === null || answer.trim() === "" ? "Bez odpowiedzi" : answer;
 }
 
-export default function StudentHomeworkView({
-  assignment,
-  exercises,
-  answers,
-  validationErrors,
-  unansweredCount,
-  status,
-  errorMessage,
-  result,
-  onAnswerChange,
-  onReview,
-  onConfirm,
-  onBack,
-  onRetry,
-}: StudentHomeworkViewProps) {
+function ResultSummary({ result }: { result: StudentHomeworkSubmissionResult }) {
+  return (
+    <Alert variant={result.passed ? "default" : "warning"}>
+      {result.passed ? <CheckCircle2 aria-hidden="true" /> : <XCircle aria-hidden="true" />}
+      <AlertDescription>
+        <p className="font-semibold">{result.passed ? "Zaliczone" : "Nie zaliczone"}</p>
+        <p>
+          Poprawne odpowiedzi: {result.correctCount} z {result.assignedCount}. Próg zaliczenia wynosi co najmniej połowę
+          przydzielonych zadań.
+        </p>
+        <p>
+          Wysłano:{" "}
+          <time dateTime={result.submittedAt}>
+            {new Intl.DateTimeFormat("pl-PL", {
+              dateStyle: "long",
+              timeStyle: "short",
+              timeZone: "Europe/Warsaw",
+            }).format(new Date(result.submittedAt))}
+          </time>
+        </p>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+export default function StudentHomeworkView(props: StudentHomeworkViewProps) {
   const reviewHeading = useRef<HTMLHeadingElement>(null);
   const resultHeading = useRef<HTMLHeadingElement>(null);
   const messageHeading = useRef<HTMLHeadingElement>(null);
   const errorHeading = useRef<HTMLHeadingElement>(null);
-  const hasValidationErrors = Object.keys(validationErrors).length > 0;
-  const showAnswers = ["editing", "submitting", "retryable-failure", "recovery-failure"].includes(status);
-  const canEdit = status === "editing";
+  const hasValidationErrors = props.mode === "prompts" && Object.keys(props.validationErrors).length > 0;
 
   useEffect(() => {
-    if (status === "review") reviewHeading.current?.focus();
-    else if (status === "result") resultHeading.current?.focus();
-    else if (status === "unavailable" || status === "retryable-failure" || status === "recovery-failure") {
+    if (props.mode !== "prompts") return;
+    if (props.status === "review") reviewHeading.current?.focus();
+    else if (props.status === "result") resultHeading.current?.focus();
+    else if (
+      props.status === "unavailable" ||
+      props.status === "retryable-failure" ||
+      props.status === "recovery-failure"
+    ) {
       messageHeading.current?.focus();
     } else if (hasValidationErrors) errorHeading.current?.focus();
-  }, [hasValidationErrors, status]);
+  }, [hasValidationErrors, props]);
+
+  if (props.mode === "result-only") {
+    const answersByPosition = new Map(props.result.answers.map((answer) => [answer.position, answer]));
+
+    return (
+      <section className="grid gap-5" aria-labelledby="student-homework-result-heading">
+        <h2 id="student-homework-result-heading" tabIndex={-1} className="text-2xl font-bold outline-none">
+          Wynik zadania domowego
+        </h2>
+        <ResultSummary result={props.result} />
+        <ol className="grid gap-3">
+          {props.result.answers.map((answer) => {
+            const savedAnswer = answersByPosition.get(answer.position);
+            const isCorrect = savedAnswer?.isCorrect ?? false;
+            const isBlank = normalizeStudentHomeworkAnswer(savedAnswer?.answer ?? null) === null;
+
+            return (
+              <li
+                key={answer.position}
+                className={cn(
+                  "rounded-lg border p-4 sm:p-5",
+                  isCorrect ? "border-success/30 bg-success/5" : "border-warning/30 bg-warning/5",
+                )}
+              >
+                <h3 className="font-semibold">Pozycja {answer.position}</h3>
+                <p className="mt-3 text-sm">
+                  Twoja odpowiedź: <span className="font-medium">{displayAnswer(answer.answer)}</span>
+                </p>
+                <p className={cn("mt-1 text-sm font-semibold", isCorrect ? "text-success" : "text-warning")}>
+                  {isCorrect ? "Poprawna" : isBlank ? "Brak odpowiedzi — niepoprawna" : "Niepoprawna"}
+                </p>
+              </li>
+            );
+          })}
+        </ol>
+        <a
+          className="hover:bg-accent inline-flex min-h-11 w-fit items-center justify-center rounded-md border px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+          href="/homework"
+        >
+          Wróć do listy zadań
+        </a>
+      </section>
+    );
+  }
+
+  const {
+    assignment,
+    exercises,
+    answers,
+    validationErrors,
+    unansweredCount,
+    status,
+    errorMessage,
+    result,
+    onAnswerChange,
+    onReview,
+    onConfirm,
+    onBack,
+    onRetry,
+  } = props;
+  const showAnswers = ["editing", "submitting", "retryable-failure", "recovery-failure"].includes(status);
+  const canEdit = status === "editing";
 
   if (status === "unavailable") {
     return (
@@ -86,7 +171,8 @@ export default function StudentHomeworkView({
           Zadanie domowe jest niedostępne
         </h2>
         <p className="text-muted-foreground leading-7">
-          Nie można już wyświetlić tego zadania ani jego wyniku. Wróć do listy zadań domowych.
+          Nie można już wyświetlić tego zadania ani jego wyniku. Jeśli uważasz, że to pomyłka, skontaktuj się z
+          nauczycielem.
         </p>
         <a
           className="text-primary inline-flex min-h-11 w-fit items-center font-semibold underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
@@ -111,26 +197,7 @@ export default function StudentHomeworkView({
         >
           Wynik zadania domowego
         </h2>
-        <Alert variant={result.passed ? "default" : "warning"}>
-          {result.passed ? <CheckCircle2 aria-hidden="true" /> : <XCircle aria-hidden="true" />}
-          <AlertDescription>
-            <p className="font-semibold">{result.passed ? "Zaliczone" : "Nie zaliczone"}</p>
-            <p>
-              Poprawne odpowiedzi: {result.correctCount} z {result.assignedCount}. Próg zaliczenia wynosi co najmniej
-              połowę przydzielonych zadań.
-            </p>
-            <p>
-              Wysłano:{" "}
-              <time dateTime={result.submittedAt}>
-                {new Intl.DateTimeFormat("pl-PL", {
-                  dateStyle: "long",
-                  timeStyle: "short",
-                  timeZone: "Europe/Warsaw",
-                }).format(new Date(result.submittedAt))}
-              </time>
-            </p>
-          </AlertDescription>
-        </Alert>
+        <ResultSummary result={result} />
         <ol className="grid gap-3">
           {exercises.map((exercise) => {
             const submittedAnswer = answersByPosition.get(exercise.position);
