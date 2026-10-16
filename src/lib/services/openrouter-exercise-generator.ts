@@ -1,17 +1,21 @@
 import { z } from "zod";
 
-import { GRADE_4_EXERCISE_CATALOG } from "@/lib/exercises/catalog";
-import type { ExerciseCandidate, ExerciseGenerationRequest } from "@/types";
+import {
+  ARITHMETIC_AUTHORITY_V1_LIMITS,
+  ArithmeticAuthorityError,
+  arithmeticExpressionSchema,
+  renderArithmeticExercise,
+} from "@/lib/exercises/arithmetic-authority";
+import { GRADE_4_EXERCISE_CATALOG, isSupportedArithmeticTopic } from "@/lib/exercises/catalog";
+import type { ExerciseGenerationRequest, GeneratedExerciseCandidate } from "@/types";
 
 const OPENROUTER_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions";
 const REQUESTED_COUNT = 5;
 const DEFAULT_DEADLINE_MS = 30_000;
-const CANONICAL_NATURAL_NUMBER_PATTERN = "^(0|[1-9][0-9]*)$";
 
 const providerCandidateSchema = z
   .object({
-    text: z.string().trim().min(1),
-    proposedCanonicalAnswer: z.string().trim().min(1),
+    expression: arithmeticExpressionSchema,
   })
   .strict();
 
@@ -33,7 +37,48 @@ const providerEnvelopeSchema = z.looseObject({
     .min(1),
 });
 
-export type OpenRouterExerciseGeneratorErrorCode = "PROVIDER_FAILURE" | "PROVIDER_TIMEOUT";
+export type OpenRouterExerciseGeneratorErrorCode = "PROVIDER_FAILURE" | "PROVIDER_TIMEOUT" | "UNSUPPORTED_TOPIC";
+
+const expressionReference = { $ref: "#/$defs/expression" };
+
+function providerBinaryExpressionSchema(kind: "add" | "subtract" | "multiply" | "divide") {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "left", "right"],
+    properties: {
+      kind: { type: "string", enum: [kind] },
+      left: expressionReference,
+      right: expressionReference,
+    },
+  };
+}
+
+const providerExpressionSchema = {
+  $defs: {
+    expression: {
+      anyOf: [
+        {
+          type: "object",
+          additionalProperties: false,
+          required: ["kind", "value"],
+          properties: {
+            kind: { type: "string", enum: ["number"] },
+            value: {
+              type: "integer",
+              minimum: 0,
+              maximum: ARITHMETIC_AUTHORITY_V1_LIMITS.maxIntermediateValue,
+            },
+          },
+        },
+        providerBinaryExpressionSchema("add"),
+        providerBinaryExpressionSchema("subtract"),
+        providerBinaryExpressionSchema("multiply"),
+        providerBinaryExpressionSchema("divide"),
+      ],
+    },
+  },
+};
 
 export class OpenRouterExerciseGeneratorError extends Error {
   readonly code: OpenRouterExerciseGeneratorErrorCode;
@@ -59,17 +104,18 @@ export interface OpenRouterExerciseGeneratorDependencies {
 function buildPrompt(request: ExerciseGenerationRequest): string {
   const topic = GRADE_4_EXERCISE_CATALOG.find(({ slug }) => slug === request.topic);
 
-  if (!topic) {
-    throw new OpenRouterExerciseGeneratorError("PROVIDER_FAILURE");
+  if (!topic || !isSupportedArithmeticTopic(request.topic)) {
+    throw new OpenRouterExerciseGeneratorError("UNSUPPORTED_TOPIC");
   }
 
   return [
-    "Wygeneruj dokładnie 5 różnych zadań matematycznych w języku polskim.",
+    "Zaproponuj dokładnie 5 różnych struktur działań matematycznych dla ucznia klasy 4.",
     `Poziom: klasa ${request.grade}.`,
     `Temat: ${topic.label}.`,
     `Kryterium trudności: ${topic.guidance[request.difficulty]}`,
-    "Każde zadanie musi mieć niepustą treść i jedną proponowaną odpowiedź kanoniczną.",
-    "Odpowiedź kanoniczna musi być jedną niepogrupowaną liczbą naturalną zapisaną cyframi dziesiętnymi, bez zdania, etykiety, jednostki, działania ani wyjaśnienia.",
+    "Liście struktur zawierają wyłącznie nieujemne liczby całkowite, a węzły wyłącznie działania +, -, mnożenia lub dzielenia.",
+    "Zwróć wyłącznie struktury w polu expression. Nie zwracaj treści zadań ani proponowanych odpowiedzi; serwer je wyliczy i wyrenderuje.",
+    "Każde wyrażenie musi być poprawne w podanym temacie i poziomie trudności; dzielenie musi być bez reszty.",
     "Zwróć wyłącznie dane zgodne z podanym schematem JSON.",
   ].join("\n");
 }
@@ -86,6 +132,7 @@ function buildRequestBody(request: ExerciseGenerationRequest, model: string) {
         name: "grade_4_polish_exercises",
         strict: true,
         schema: {
+          ...providerExpressionSchema,
           type: "object",
           additionalProperties: false,
           required: ["exercises"],
@@ -97,14 +144,9 @@ function buildRequestBody(request: ExerciseGenerationRequest, model: string) {
               items: {
                 type: "object",
                 additionalProperties: false,
-                required: ["text", "proposedCanonicalAnswer"],
+                required: ["expression"],
                 properties: {
-                  text: { type: "string", minLength: 1 },
-                  proposedCanonicalAnswer: {
-                    type: "string",
-                    minLength: 1,
-                    pattern: CANONICAL_NATURAL_NUMBER_PATTERN,
-                  },
+                  expression: expressionReference,
                 },
               },
             },
@@ -124,7 +166,12 @@ function parseCandidates(
   envelopeValue: unknown,
   request: ExerciseGenerationRequest,
   createId: () => string,
-): ExerciseCandidate[] {
+): GeneratedExerciseCandidate[] {
+  if (!isSupportedArithmeticTopic(request.topic)) {
+    throw new OpenRouterExerciseGeneratorError("UNSUPPORTED_TOPIC");
+  }
+  const supportedRequest = { ...request, topic: request.topic };
+
   const envelope = providerEnvelopeSchema.safeParse(envelopeValue);
   if (!envelope.success) {
     throw new OpenRouterExerciseGeneratorError("PROVIDER_FAILURE");
@@ -143,7 +190,7 @@ function parseCandidates(
   }
 
   const seenTexts = new Set<string>();
-  const candidates: ExerciseCandidate[] = [];
+  const candidates: GeneratedExerciseCandidate[] = [];
 
   for (const value of payload.data.exercises) {
     const candidate = providerCandidateSchema.safeParse(value);
@@ -151,7 +198,18 @@ function parseCandidates(
       continue;
     }
 
-    const comparisonText = normalizeForComparison(candidate.data.text);
+    let rendered: ReturnType<typeof renderArithmeticExercise>;
+    try {
+      rendered = renderArithmeticExercise(supportedRequest, {
+        version: 1,
+        expression: candidate.data.expression,
+      });
+    } catch (error) {
+      if (error instanceof ArithmeticAuthorityError) continue;
+      throw error;
+    }
+
+    const comparisonText = normalizeForComparison(rendered.text);
     if (seenTexts.has(comparisonText)) {
       continue;
     }
@@ -159,10 +217,11 @@ function parseCandidates(
     seenTexts.add(comparisonText);
     candidates.push({
       id: createId(),
-      text: candidate.data.text,
-      proposedCanonicalAnswer: candidate.data.proposedCanonicalAnswer,
-      ...request,
+      text: rendered.text,
+      proposedCanonicalAnswer: rendered.proposedCanonicalAnswer,
+      ...supportedRequest,
       approvalStatus: "unverified",
+      arithmeticStructure: rendered.arithmeticStructure,
     });
   }
 
@@ -175,7 +234,7 @@ async function makeAttempt(
   fetchImplementation: typeof fetch,
   deadlineMs: number,
   createId: () => string,
-): Promise<{ candidates?: ExerciseCandidate[]; retryableFailure?: true }> {
+): Promise<{ candidates?: GeneratedExerciseCandidate[]; retryableFailure?: true }> {
   const controller = new AbortController();
   const deadline = setTimeout(() => {
     controller.abort();
@@ -218,7 +277,11 @@ export async function generateOpenRouterExercises(
   request: ExerciseGenerationRequest,
   config: OpenRouterExerciseGeneratorConfig,
   dependencies: OpenRouterExerciseGeneratorDependencies = {},
-): Promise<ExerciseCandidate[]> {
+): Promise<GeneratedExerciseCandidate[]> {
+  if (!isSupportedArithmeticTopic(request.topic)) {
+    throw new OpenRouterExerciseGeneratorError("UNSUPPORTED_TOPIC");
+  }
+
   const fetchImplementation = dependencies.fetch ?? fetch;
   const deadlineMs = dependencies.deadlineMs ?? DEFAULT_DEADLINE_MS;
   const createId = dependencies.createId ?? (() => crypto.randomUUID());

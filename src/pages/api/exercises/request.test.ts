@@ -31,12 +31,21 @@ const teacherId = "b1000000-0000-4000-8000-000000000010";
 const studentId = "b1000000-0000-4000-8000-000000000011";
 const reservationId = "b1000000-0000-4000-8000-000000000012";
 
+function number(value: number) {
+  return { kind: "number" as const, value };
+}
+
+function addition(left: number, right: number) {
+  return { kind: "add" as const, left: number(left), right: number(right) };
+}
+
 const candidate: ExerciseCandidate = {
   id: "candidate-1",
-  text: "Oblicz 20 + 5.",
+  text: "Oblicz wartość wyrażenia: (20 + 5). Podaj wynik jako jedną liczbę naturalną.",
   proposedCanonicalAnswer: "25",
   ...validRequest,
   approvalStatus: "unverified",
+  arithmeticStructure: { version: 1, expression: addition(20, 5) },
 };
 
 function authenticatedUser(id: string): User {
@@ -135,8 +144,7 @@ function providerResponse(exercises: unknown[]): Response {
 
 function validProviderExercises(count = 5) {
   return Array.from({ length: count }, (_, index) => ({
-    text: `Oblicz ${index + 1} + 1.`,
-    proposedCanonicalAnswer: String(index + 2),
+    expression: addition(index + 1, 1),
   }));
 }
 
@@ -186,6 +194,26 @@ describe("POST /api/exercises/request", () => {
       error: { code: "INVALID_REQUEST", message: "Nieprawidłowe dane żądania." },
     });
     expect(authorize).not.toHaveBeenCalled();
+    expect(admit).not.toHaveBeenCalled();
+    expect(generate).not.toHaveBeenCalled();
+    expect(release).not.toHaveBeenCalled();
+  });
+
+  it("returns a typed unsupported-topic error before reserving quota or calling the provider", async () => {
+    const { handler, generate, admit, release } = handlerFor();
+    const unsupportedRequest = { ...validRequest, topic: "word-problems" };
+
+    const response = await invoke(handler, JSON.stringify(unsupportedRequest));
+    const body = await responseBody<ExerciseGenerationError>(response);
+
+    expect(response.status).toBe(422);
+    expect(body).toEqual({
+      error: {
+        code: "UNSUPPORTED_TOPIC",
+        message: "W tej wersji można generować tylko zadania z działań arytmetycznych.",
+      },
+    });
+    expect(exerciseGenerationErrorSchema.safeParse(body).success).toBe(true);
     expect(admit).not.toHaveBeenCalled();
     expect(generate).not.toHaveBeenCalled();
     expect(release).not.toHaveBeenCalled();
@@ -558,11 +586,11 @@ describe("POST /api/exercises/request", () => {
       .fn<typeof fetch>()
       .mockResolvedValue(
         providerResponse([
-          { text: "Oblicz 1 + 1.", proposedCanonicalAnswer: "2" },
-          { text: " ", proposedCanonicalAnswer: "3" },
-          { text: "Oblicz 2 + 2.", proposedCanonicalAnswer: "4" },
-          { text: "Oblicz 3 + 2.", proposedCanonicalAnswer: "" },
-          { text: "Oblicz 4 + 2." },
+          { expression: addition(1, 1) },
+          { expression: "malformed" },
+          { expression: addition(2, 2) },
+          { ...{ expression: addition(3, 2) }, text: "provider text is ignored only by rejection" },
+          { missing: "expression" },
         ]),
       );
     const { handler, rpc } = composedHandler(
@@ -578,8 +606,14 @@ describe("POST /api/exercises/request", () => {
     expect(body.validCount).toBe(2);
     expect(body.partial_batch).toBe(true);
     expect(body.candidates.map(({ text, proposedCanonicalAnswer }) => ({ text, proposedCanonicalAnswer }))).toEqual([
-      { text: "Oblicz 1 + 1.", proposedCanonicalAnswer: "2" },
-      { text: "Oblicz 2 + 2.", proposedCanonicalAnswer: "4" },
+      {
+        text: "Oblicz wartość wyrażenia: (1 + 1). Podaj wynik jako jedną liczbę naturalną.",
+        proposedCanonicalAnswer: "2",
+      },
+      {
+        text: "Oblicz wartość wyrażenia: (2 + 2). Podaj wynik jako jedną liczbę naturalną.",
+        proposedCanonicalAnswer: "4",
+      },
     ]);
     expect(providerFetch).toHaveBeenCalledTimes(1);
     expect(rpc.mock.calls).toEqual([

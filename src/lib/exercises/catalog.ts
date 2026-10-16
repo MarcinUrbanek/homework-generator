@@ -1,6 +1,16 @@
-import type { ExerciseDifficulty, ExerciseTopicSlug } from "@/types";
+import {
+  SUPPORTED_ARITHMETIC_TOPIC_SLUGS,
+  type ExerciseDifficulty,
+  type ExerciseTopicSlug,
+  type SupportedArithmeticTopicSlug,
+} from "@/types";
 
 export const GRADE_4 = 4 as const;
+export const SUPPORTED_GRADE_4_ARITHMETIC_TOPICS = SUPPORTED_ARITHMETIC_TOPIC_SLUGS;
+
+export function isSupportedArithmeticTopic(topic: ExerciseTopicSlug): topic is SupportedArithmeticTopicSlug {
+  return SUPPORTED_GRADE_4_ARITHMETIC_TOPICS.some((supportedTopic) => supportedTopic === topic);
+}
 
 export const DIFFICULTY_LABELS: Record<ExerciseDifficulty, string> = {
   easy: "Łatwy",

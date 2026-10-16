@@ -5,10 +5,17 @@ export const EXERCISE_TOPIC_SLUGS = [
   "word-problems",
 ] as const;
 
+export const SUPPORTED_ARITHMETIC_TOPIC_SLUGS = [
+  "addition-subtraction",
+  "multiplication-division",
+  "order-of-operations",
+] as const;
+
 export const EXERCISE_DIFFICULTIES = ["easy", "medium", "hard"] as const;
 
 export const EXERCISE_GENERATION_ERROR_CODES = [
   "INVALID_REQUEST",
+  "UNSUPPORTED_TOPIC",
   "UNAUTHENTICATED",
   "FORBIDDEN",
   "PROVIDER_NOT_CONFIGURED",
@@ -50,6 +57,7 @@ export const SAVED_EXERCISE_ERROR_CODES = [
 ] as const;
 
 export type ExerciseTopicSlug = (typeof EXERCISE_TOPIC_SLUGS)[number];
+export type SupportedArithmeticTopicSlug = (typeof SUPPORTED_ARITHMETIC_TOPIC_SLUGS)[number];
 export type ExerciseDifficulty = (typeof EXERCISE_DIFFICULTIES)[number];
 export type ExerciseGenerationErrorCode = (typeof EXERCISE_GENERATION_ERROR_CODES)[number];
 export type ExerciseVerificationOutcome = (typeof EXERCISE_VERIFICATION_OUTCOMES)[number];
@@ -64,11 +72,29 @@ export interface ExerciseGenerationRequest {
   difficulty: ExerciseDifficulty;
 }
 
+export type ArithmeticExpressionV1 =
+  | { kind: "number"; value: number }
+  | { kind: "add"; left: ArithmeticExpressionV1; right: ArithmeticExpressionV1 }
+  | { kind: "subtract"; left: ArithmeticExpressionV1; right: ArithmeticExpressionV1 }
+  | { kind: "multiply"; left: ArithmeticExpressionV1; right: ArithmeticExpressionV1 }
+  | { kind: "divide"; left: ArithmeticExpressionV1; right: ArithmeticExpressionV1 };
+
+export interface ArithmeticStructure {
+  version: 1;
+  expression: ArithmeticExpressionV1;
+}
+
 export interface ExerciseCandidate extends ExerciseGenerationRequest {
   id: string;
   text: string;
   proposedCanonicalAnswer: string;
   approvalStatus: "unverified";
+  arithmeticStructure?: ArithmeticStructure;
+}
+
+export interface GeneratedExerciseCandidate extends Omit<ExerciseCandidate, "topic" | "arithmeticStructure"> {
+  topic: SupportedArithmeticTopicSlug;
+  arithmeticStructure: ArithmeticStructure;
 }
 
 export interface ExerciseGenerationSuccessMetadata {

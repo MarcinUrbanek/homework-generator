@@ -12,6 +12,14 @@ const request: ExerciseGenerationRequest = {
 
 const config = { apiKey: "test-secret", model: "test/model" };
 
+function number(value: number) {
+  return { kind: "number" as const, value };
+}
+
+function addition(left: number, right: number) {
+  return { kind: "add" as const, left: number(left), right: number(right) };
+}
+
 function providerResponse(exercises: unknown[]): Response {
   return Response.json({
     choices: [{ message: { content: JSON.stringify({ exercises }) } }],
@@ -20,9 +28,16 @@ function providerResponse(exercises: unknown[]): Response {
 
 function validExercises(count = 5) {
   return Array.from({ length: count }, (_, index) => ({
-    text: `Oblicz ${index + 1} + 1.`,
-    proposedCanonicalAnswer: String(index + 2),
+    expression: addition(index + 1, 1),
   }));
+}
+
+function renderedAddition(left: number, right: number) {
+  return {
+    text: `Oblicz wartość wyrażenia: (${left} + ${right}). Podaj wynik jako jedną liczbę naturalną.`,
+    proposedCanonicalAnswer: String(left + right),
+    arithmeticStructure: { version: 1 as const, expression: addition(left, right) },
+  };
 }
 
 afterEach(() => {
@@ -42,8 +57,7 @@ describe("generateOpenRouterExercises", () => {
     expect(candidates).toHaveLength(5);
     expect(candidates[0]).toEqual({
       id: "candidate-1",
-      text: "Oblicz 1 + 1.",
-      proposedCanonicalAnswer: "2",
+      ...renderedAddition(1, 1),
       ...request,
       approvalStatus: "unverified",
     });
@@ -70,9 +84,8 @@ describe("generateOpenRouterExercises", () => {
         json_schema: {
           strict: boolean;
           schema: {
-            properties: {
-              exercises: { items: { properties: { proposedCanonicalAnswer: { pattern: string } } } };
-            };
+            $defs: { expression: { anyOf: unknown[] } };
+            properties: { exercises: { items: { properties: { expression: { $ref: string } } } } };
           };
         };
       };
@@ -87,11 +100,11 @@ describe("generateOpenRouterExercises", () => {
     });
     expect(body.messages[0].content).toContain("dokładnie 5");
     expect(body.messages[0].content).toContain("Dodawanie i odejmowanie liczb naturalnych");
-    expect(body.messages[0].content).toContain("jedną niepogrupowaną liczbą naturalną");
-    expect(body.messages[0].content).toContain("bez zdania, etykiety, jednostki, działania ani wyjaśnienia");
-    expect(
-      body.response_format.json_schema.schema.properties.exercises.items.properties.proposedCanonicalAnswer.pattern,
-    ).toBe("^(0|[1-9][0-9]*)$");
+    expect(body.messages[0].content).toContain("serwer je wyliczy i wyrenderuje");
+    expect(body.response_format.json_schema.schema.$defs.expression.anyOf).toHaveLength(5);
+    expect(body.response_format.json_schema.schema.properties.exercises.items.properties).toEqual({
+      expression: { $ref: "#/$defs/expression" },
+    });
   });
 
   it.each([1, 2, 3, 4])("returns a non-empty subset of %i without retrying", async (count) => {
@@ -104,30 +117,63 @@ describe("generateOpenRouterExercises", () => {
   });
 
   it("filters duplicate text using collapsed whitespace and Polish case-insensitive comparison", async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
-      providerResponse([
-        { text: "Oblicz 20 + 5.", proposedCanonicalAnswer: "25" },
-        { text: "  OBLICZ   20 + 5. ", proposedCanonicalAnswer: "25" },
-        { text: "Oblicz 30 + 6.", proposedCanonicalAnswer: "36" },
-      ]),
-    );
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        providerResponse([
+          { expression: addition(20, 5) },
+          { expression: addition(20, 5) },
+          { expression: addition(30, 6) },
+        ]),
+      );
 
     const candidates = await generateOpenRouterExercises(request, config, { fetch: fetchMock });
 
-    expect(candidates.map(({ text }) => text)).toEqual(["Oblicz 20 + 5.", "Oblicz 30 + 6."]);
+    expect(candidates.map(({ text }) => text)).toEqual([
+      "Oblicz wartość wyrażenia: (20 + 5). Podaj wynik jako jedną liczbę naturalną.",
+      "Oblicz wartość wyrażenia: (30 + 6). Podaj wynik jako jedną liczbę naturalną.",
+    ]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("retries once when zero candidates survive validation", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(providerResponse([{ text: " ", proposedCanonicalAnswer: "2" }]))
+      .mockResolvedValueOnce(providerResponse([{ expression: null }]))
       .mockResolvedValueOnce(providerResponse(validExercises(1)));
 
     const candidates = await generateOpenRouterExercises(request, config, { fetch: fetchMock });
 
     expect(candidates).toHaveLength(1);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores provider-authored text and answers instead of accepting them as authority", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      providerResponse([
+        {
+          expression: addition(1, 1),
+          text: "Zaufaj mi: 999",
+          proposedCanonicalAnswer: "999",
+        },
+        { expression: addition(2, 2) },
+      ]),
+    );
+
+    const candidates = await generateOpenRouterExercises(request, config, { fetch: fetchMock });
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]).toMatchObject(renderedAddition(2, 2));
+    expect(candidates[0].text).not.toContain("Zaufaj mi");
+  });
+
+  it("rejects unsupported topic requests without calling the provider", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+
+    await expect(
+      generateOpenRouterExercises({ ...request, topic: "word-problems" }, config, { fetch: fetchMock }),
+    ).rejects.toMatchObject({ code: "UNSUPPORTED_TOPIC" });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it.each([429, 500, 503])("retries HTTP %i once", async (status) => {
