@@ -8,9 +8,12 @@ import {
   EXERCISE_VERIFICATION_ERROR_CODES,
   EXERCISE_VERIFICATION_PROVIDER_ERROR_CODES,
   SAVED_EXERCISE_ERROR_CODES,
+  SUPPORTED_ARITHMETIC_TOPIC_SLUGS,
 } from "@/types";
+import { arithmeticStructureSchema } from "@/lib/exercises/arithmetic-authority";
 
 export const exerciseTopicSlugSchema = z.enum(EXERCISE_TOPIC_SLUGS);
+export const supportedArithmeticTopicSchema = z.enum(SUPPORTED_ARITHMETIC_TOPIC_SLUGS);
 export const exerciseDifficultySchema = z.enum(EXERCISE_DIFFICULTIES);
 const validExerciseCountSchema = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]);
 
@@ -27,7 +30,15 @@ export const exerciseCandidateSchema = exerciseGenerationRequestSchema.extend({
   text: z.string().trim().min(1),
   proposedCanonicalAnswer: z.string().trim().min(1),
   approvalStatus: z.literal("unverified"),
+  arithmeticStructure: arithmeticStructureSchema.optional(),
 });
+
+export const generatedExerciseCandidateSchema = exerciseCandidateSchema
+  .extend({
+    topic: supportedArithmeticTopicSchema,
+    arithmeticStructure: arithmeticStructureSchema,
+  })
+  .strict();
 
 export const exerciseGenerationSuccessMetadataSchema = z
   .object({
@@ -53,7 +64,7 @@ export const exerciseGenerationSuccessSchema = z
     requestedCount: z.literal(5),
     validCount: validExerciseCountSchema,
     partial_batch: z.literal(true).optional(),
-    candidates: z.array(exerciseCandidateSchema).min(1).max(5),
+    candidates: z.array(generatedExerciseCandidateSchema).min(1).max(5),
   })
   .strict()
   .superRefine((response, context) => {

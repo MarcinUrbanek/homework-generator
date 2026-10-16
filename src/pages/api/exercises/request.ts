@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { OPENROUTER_API_KEY, OPENROUTER_MODEL } from "astro:env/server";
 
+import { isSupportedArithmeticTopic } from "@/lib/exercises/catalog";
 import { exerciseGenerationRequestSchema } from "@/lib/exercises/schemas";
 import {
   generateOpenRouterExercises,
@@ -15,6 +16,7 @@ export const prerender = false;
 
 const ERROR_MESSAGES: Record<ExerciseGenerationErrorCode, string> = {
   INVALID_REQUEST: "Nieprawidłowe dane żądania.",
+  UNSUPPORTED_TOPIC: "W tej wersji można generować tylko zadania z działań arytmetycznych.",
   UNAUTHENTICATED: "Zaloguj się, aby wygenerować zadania.",
   FORBIDDEN: "Generowanie zadań jest dostępne tylko dla nauczycieli.",
   PROVIDER_NOT_CONFIGURED: "Generator zadań nie jest skonfigurowany.",
@@ -100,6 +102,10 @@ export function createExerciseRequestHandler(dependencies: ExerciseRequestHandle
       return errorResponse("FORBIDDEN", 403, "Nie można potwierdzić uprawnień nauczyciela.");
     }
 
+    if (!isSupportedArithmeticTopic(parsedRequest.data.topic)) {
+      return errorResponse("UNSUPPORTED_TOPIC", 422);
+    }
+
     if (!providerConfig.apiKey || !providerConfig.model) {
       return errorResponse("PROVIDER_NOT_CONFIGURED", 503);
     }
@@ -152,6 +158,9 @@ export function createExerciseRequestHandler(dependencies: ExerciseRequestHandle
       } catch (error) {
         if (error instanceof OpenRouterExerciseGeneratorError && error.code === "PROVIDER_TIMEOUT") {
           return errorResponse("PROVIDER_TIMEOUT", 504);
+        }
+        if (error instanceof OpenRouterExerciseGeneratorError && error.code === "UNSUPPORTED_TOPIC") {
+          return errorResponse("UNSUPPORTED_TOPIC", 422);
         }
         return errorResponse("PROVIDER_FAILURE", 502);
       }

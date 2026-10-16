@@ -34,6 +34,14 @@ const firstBatch: ExerciseGenerationSuccess = {
       topic: "addition-subtraction",
       difficulty: "easy",
       approvalStatus: "unverified",
+      arithmeticStructure: {
+        version: 1,
+        expression: {
+          kind: "add",
+          left: { kind: "number", value: 12 },
+          right: { kind: "number", value: 7 },
+        },
+      },
     },
     {
       id: "candidate-2",
@@ -43,6 +51,14 @@ const firstBatch: ExerciseGenerationSuccess = {
       topic: "addition-subtraction",
       difficulty: "easy",
       approvalStatus: "unverified",
+      arithmeticStructure: {
+        version: 1,
+        expression: {
+          kind: "subtract",
+          left: { kind: "number", value: 48 },
+          right: { kind: "number", value: 19 },
+        },
+      },
     },
   ],
 };
@@ -263,6 +279,14 @@ const generationBatch: ExerciseGenerationSuccess = {
       topic: "addition-subtraction",
       difficulty: "easy",
       approvalStatus: "unverified",
+      arithmeticStructure: {
+        version: 1,
+        expression: {
+          kind: "add",
+          left: { kind: "number", value: 12 },
+          right: { kind: "number", value: 7 },
+        },
+      },
     },
   ],
 };
@@ -276,6 +300,14 @@ const replacementBatch: ExerciseGenerationSuccess = {
       text: "Oblicz 48 - 19.",
       proposedCanonicalAnswer: "29",
       difficulty: "hard",
+      arithmeticStructure: {
+        version: 1,
+        expression: {
+          kind: "subtract",
+          left: { kind: "number", value: 48 },
+          right: { kind: "number", value: 19 },
+        },
+      },
     },
   ],
 };

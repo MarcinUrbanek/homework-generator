@@ -18,6 +18,14 @@ const candidate = {
   topic: "addition-subtraction",
   difficulty: "easy",
   approvalStatus: "unverified",
+  arithmeticStructure: {
+    version: 1,
+    expression: {
+      kind: "add",
+      left: { kind: "number", value: 24 },
+      right: { kind: "number", value: 18 },
+    },
+  },
 } as const;
 
 describe("exercise generation schemas", () => {
@@ -67,6 +75,19 @@ describe("exercise generation schemas", () => {
         candidates: [candidate],
       }).success,
     ).toBe(true);
+  });
+
+  it("requires a supported structured candidate in generated success envelopes", () => {
+    const { arithmeticStructure: _arithmeticStructure, ...legacyCandidate } = candidate;
+
+    expect(
+      exerciseGenerationSuccessSchema.safeParse({
+        requestedCount: 5,
+        validCount: 1,
+        partial_batch: true,
+        candidates: [legacyCandidate],
+      }).success,
+    ).toBe(false);
   });
 
   it.each([
