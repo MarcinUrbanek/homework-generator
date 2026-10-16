@@ -21,6 +21,7 @@ const request: StudentHomeworkSubmitRequest = {
   ],
 };
 const firstSubmission: StudentHomeworkSubmitSuccess = {
+  kind: "scored",
   submissionId: "00000000-0000-4000-8000-000000000002",
   submittedAt: "2026-10-09T11:00:00.000Z",
   correctCount: 1,
@@ -161,9 +162,27 @@ describe("POST /api/homework/:assignmentId/submit", () => {
     expect(submit).toHaveBeenCalledTimes(2);
   });
 
+  it("returns quarantined historical retries as prompt-free result-only data", async () => {
+    const historicalRetry: StudentHomeworkSubmitSuccess = {
+      ...firstSubmission,
+      kind: "result-only",
+      replayed: true,
+    };
+    const { handler } = handlerFor({ result: historicalRetry });
+
+    const response = await handler(context(JSON.stringify(request)));
+    const body = await responseBody<StudentHomeworkSubmitSuccess>(response);
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual(historicalRetry);
+    expect(body.kind).toBe("result-only");
+    expect(JSON.stringify(body)).not.toMatch(/prompt|canonical_answer|authority/i);
+  });
+
   it("composes the handler with the session-bound scoring RPC adapter", async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: {
+        kind: "scored",
         submission_id: firstSubmission.submissionId,
         submitted_at: firstSubmission.submittedAt,
         correct_count: 1,

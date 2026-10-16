@@ -9,16 +9,16 @@ import {
 } from "@/lib/homework/schemas";
 import type {
   StudentHomeworkApiErrorCode,
-  StudentHomeworkDetailAssignment,
+  StudentHomeworkDetailSuccess,
   StudentHomeworkExercise,
+  StudentHomeworkPromptDetailSuccess,
+  StudentHomeworkResultOnlyDetailSuccess,
   StudentHomeworkSubmissionResult,
   StudentHomeworkSubmitRequest,
 } from "@/types";
 
 interface StudentHomeworkFormProps {
-  assignment: StudentHomeworkDetailAssignment;
-  exercises: StudentHomeworkExercise[];
-  submission: StudentHomeworkSubmissionResult | null;
+  detail: StudentHomeworkDetailSuccess;
 }
 
 function emptyAnswers(exercises: StudentHomeworkExercise[]): Record<number, string> {
@@ -75,12 +75,22 @@ function messageForErrorCode(code: StudentHomeworkApiErrorCode | undefined): str
   }
 }
 
-export default function StudentHomeworkForm({ assignment, exercises, submission }: StudentHomeworkFormProps) {
+export default function StudentHomeworkForm({ detail }: StudentHomeworkFormProps) {
+  if (detail.kind === "result-only") {
+    return <StudentHomeworkView mode="result-only" assignment={detail.assignment} result={detail.result} />;
+  }
+
+  return <StudentHomeworkPromptForm detail={detail} />;
+}
+
+function StudentHomeworkPromptForm({ detail }: { detail: StudentHomeworkPromptDetailSuccess }) {
+  const { assignment, exercises, submission } = detail;
   const [answers, setAnswers] = useState(() => answersFromSubmission(exercises, submission));
   const [validationErrors, setValidationErrors] = useState<Record<number, string>>({});
   const [status, setStatus] = useState<StudentHomeworkViewStatus>(submission ? "result" : "editing");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [result, setResult] = useState(submission);
+  const [historicalResult, setHistoricalResult] = useState<StudentHomeworkResultOnlyDetailSuccess | null>(null);
   const pendingAnswers = useRef<StudentHomeworkSubmitRequest | null>(null);
   const recoveringConflict = useRef(false);
   const activeController = useRef<AbortController | null>(null);
@@ -93,6 +103,7 @@ export default function StudentHomeworkForm({ assignment, exercises, submission 
     setValidationErrors({});
     setErrorMessage(null);
     setResult(null);
+    setHistoricalResult(null);
     setStatus("unavailable");
   }, [exercises]);
 
@@ -114,14 +125,25 @@ export default function StudentHomeworkForm({ assignment, exercises, submission 
     }
 
     const detail = studentHomeworkDetailSuccessSchema.safeParse(value);
-    if (!detail.success || !detail.data.submission) {
+    if (!detail.success) {
       setErrorMessage("Nie udało się potwierdzić zapisanego wyniku. Spróbuj ponownie.");
       setStatus("recovery-failure");
       return;
     }
 
-    setResult(detail.data.submission);
-    setAnswers(answersFromSubmission(exercises, detail.data.submission));
+    if (detail.data.kind === "result-only") {
+      setHistoricalResult(detail.data);
+      setResult(detail.data.result);
+      setAnswers(answersFromSubmission(exercises, detail.data.result));
+    } else if (detail.data.submission) {
+      setHistoricalResult(null);
+      setResult(detail.data.submission);
+      setAnswers(answersFromSubmission(exercises, detail.data.submission));
+    } else {
+      setErrorMessage("Nie udało się potwierdzić zapisanego wyniku. Spróbuj ponownie.");
+      setStatus("recovery-failure");
+      return;
+    }
     setValidationErrors({});
     setErrorMessage(null);
     setStatus("result");
@@ -148,7 +170,12 @@ export default function StudentHomeworkForm({ assignment, exercises, submission 
         }
         if (response.ok) {
           const detail = studentHomeworkDetailSuccessSchema.safeParse(value);
-          if (detail.success && detail.data.submission) {
+          if (detail.success && detail.data.kind === "result-only") {
+            setHistoricalResult(detail.data);
+            setResult(detail.data.result);
+            setAnswers(answersFromSubmission(exercises, detail.data.result));
+          } else if (detail.success && detail.data.kind === "prompts" && detail.data.submission) {
+            setHistoricalResult(null);
             setResult(detail.data.submission);
             setAnswers(answersFromSubmission(exercises, detail.data.submission));
           }
@@ -222,7 +249,13 @@ export default function StudentHomeworkForm({ assignment, exercises, submission 
       if (response.ok) {
         const parsed = studentHomeworkSubmitSuccessSchema.safeParse(value);
         if (parsed.success) {
-          setResult(resultFromSubmit(parsed.data));
+          const submittedResult = resultFromSubmit(parsed.data);
+          setResult(submittedResult);
+          if (parsed.data.kind === "result-only") {
+            setHistoricalResult({ kind: "result-only", assignment, result: submittedResult });
+          } else {
+            setHistoricalResult(null);
+          }
           setStatus("result");
           setErrorMessage(null);
           pendingAnswers.current = null;
@@ -319,8 +352,19 @@ export default function StudentHomeworkForm({ assignment, exercises, submission 
     ({ position }) => normalizeStudentHomeworkAnswer(answers[position] ?? "") === null,
   ).length;
 
+  if (historicalResult) {
+    return (
+      <StudentHomeworkView
+        mode="result-only"
+        assignment={historicalResult.assignment}
+        result={historicalResult.result}
+      />
+    );
+  }
+
   return (
     <StudentHomeworkView
+      mode="prompts"
       assignment={assignment}
       exercises={exercises}
       answers={answers}

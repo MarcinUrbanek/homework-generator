@@ -64,45 +64,109 @@ values
   ('72000000-0000-0000-0000-000000000001', '71000000-0000-0000-0000-000000000006'),
   ('72000000-0000-0000-0000-000000000002', '71000000-0000-0000-0000-000000000004');
 
-set local role service_role;
-
-insert into public.exercises (
-  id,
-  exercise_text,
-  canonical_answer,
-  grade,
-  topic,
-  difficulty,
-  verification_verdict,
-  verifier_identity,
-  verifier_version,
-  verified_at,
-  verification_rationale,
-  creator_id,
-  approver_id
+create function pg_temp.insert_certified_submission_exercise(
+  exercise_id uuid,
+  teacher_id uuid,
+  answer_value integer,
+  verified_at timestamptz
 )
-select
-  ('30000000-0000-0000-0000-' || lpad(number::text, 12, '0'))::uuid,
-  'Prompt ' || number::text,
-  case
-    when number = 35 then '1234567890123456789012345678901234567890'
-    when number = 36 then 'three apples'
-    when number = 37 then '0'
-    else '1'
-  end,
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  structure jsonb := jsonb_build_object(
+    'version', 1,
+    'expression',
+    jsonb_build_object(
+      'kind', 'add',
+      'left', jsonb_build_object('kind', 'number', 'value', answer_value / 2),
+      'right', jsonb_build_object('kind', 'number', 'value', answer_value - answer_value / 2)
+    )
+  );
+  derived jsonb;
+begin
+  derived := public.derive_arithmetic_exercise_v1(
+    '4', 'addition-subtraction', 'easy', structure
+  );
+
+  insert into public.exercise_verifications (
+    id, teacher_id, candidate_id, candidate_text, proposed_canonical_answer,
+    grade, topic, difficulty, outcome, verified_answer, verifier_identity,
+    verifier_version, verified_at, rationale, arithmetic_structure, authority_version
+  )
+  values (
+    exercise_id, teacher_id, exercise_id::text, derived ->> 'exercise_text',
+    derived ->> 'canonical_answer', '4', 'addition-subtraction', 'easy',
+    'unique_answer', derived ->> 'canonical_answer', 'test-verifier',
+    'authority-v1', verified_at, 'Independently evaluated test fixture.',
+    structure, 1
+  );
+
+  insert into public.exercises (
+    id, exercise_text, canonical_answer, grade, topic, difficulty,
+    verification_verdict, verifier_identity, verifier_version, verified_at,
+    verification_rationale, creator_id, approver_id, approved_at,
+    verification_id, arithmetic_structure, authority_version
+  )
+  values (
+    exercise_id, derived ->> 'exercise_text', derived ->> 'canonical_answer',
+    '4', 'addition-subtraction', 'easy', 'unique_answer', 'test-verifier',
+    'authority-v1', verified_at, 'Independently evaluated test fixture.',
+    teacher_id, teacher_id, verified_at, exercise_id, structure, 1
+  );
+end;
+$$;
+
+do $$
+declare
+  exercise_number integer;
+  answer_value integer;
+  exercise_id uuid;
+begin
+  for exercise_number in 1..40 loop
+    if exercise_number = 36 then
+      continue;
+    end if;
+    exercise_id := ('30000000-0000-0000-0000-' || lpad(exercise_number::text, 12, '0'))::uuid;
+    answer_value := case exercise_number
+      when 35 then 2
+      when 37 then 0
+      else 1
+    end;
+    perform pg_temp.insert_certified_submission_exercise(
+      exercise_id,
+      '71000000-0000-0000-0000-000000000001',
+      answer_value,
+      '2026-10-01 08:00:00+00'::timestamptz + exercise_number * interval '1 second'
+    );
+  end loop;
+end;
+$$;
+
+alter table public.exercises disable trigger exercises_authority_insert;
+insert into public.exercises (
+  id, exercise_text, canonical_answer, grade, topic, difficulty,
+  verification_verdict, verifier_identity, verifier_version, verified_at,
+  verification_rationale, creator_id, approver_id
+)
+values (
+  '30000000-0000-0000-0000-000000000036',
+  'Legacy free-form prompt',
+  'three apples',
   '4',
   'addition-subtraction',
   'easy',
   'unique_answer',
-  'test-verifier',
-  'test-model',
-  '2026-10-01 08:00:00+00',
-  'One approved answer.',
+  'legacy-verifier',
+  'old-model',
+  '2026-10-01 08:00:36+00',
+  'Legacy model-only result.',
   '71000000-0000-0000-0000-000000000001',
   '71000000-0000-0000-0000-000000000001'
-from generate_series(1, 40) as numbers(number);
-
-reset role;
+);
+alter table public.exercises enable trigger exercises_authority_insert;
 
 insert into public.homework_assignments (
   id,
@@ -134,7 +198,9 @@ values
   ('90000000-0000-0000-0000-000000000014', '72000000-0000-0000-0000-000000000001', '71000000-0000-0000-0000-000000000001', 'Teacher-only homework', '4', 'addition-subtraction', 'easy', 1, '80000000-0000-0000-0000-000000000014', md5('90000000-0000-0000-0000-000000000014'), '2026-10-14 10:00:00+00'),
   ('90000000-0000-0000-0000-000000000015', '72000000-0000-0000-0000-000000000002', '71000000-0000-0000-0000-000000000001', 'Other-class homework', '4', 'addition-subtraction', 'easy', 1, '80000000-0000-0000-0000-000000000015', md5('90000000-0000-0000-0000-000000000015'), '2026-10-15 10:00:00+00'),
   ('90000000-0000-0000-0000-000000000016', '72000000-0000-0000-0000-000000000001', '71000000-0000-0000-0000-000000000001', 'Missing assigned row', '4', 'addition-subtraction', 'easy', 2, '80000000-0000-0000-0000-000000000016', md5('90000000-0000-0000-0000-000000000016'), '2026-10-16 10:00:00+00'),
-  ('90000000-0000-0000-0000-000000000017', '72000000-0000-0000-0000-000000000001', '71000000-0000-0000-0000-000000000001', 'Non-contiguous assigned row', '4', 'addition-subtraction', 'easy', 1, '80000000-0000-0000-0000-000000000017', md5('90000000-0000-0000-0000-000000000017'), '2026-10-17 10:00:00+00');
+  ('90000000-0000-0000-0000-000000000017', '72000000-0000-0000-0000-000000000001', '71000000-0000-0000-0000-000000000001', 'Non-contiguous assigned row', '4', 'addition-subtraction', 'easy', 1, '80000000-0000-0000-0000-000000000017', md5('90000000-0000-0000-0000-000000000017'), '2026-10-17 10:00:00+00'),
+  ('90000000-0000-0000-0000-000000000018', '72000000-0000-0000-0000-000000000001', '71000000-0000-0000-0000-000000000001', 'Mixed legacy allocation', '4', 'addition-subtraction', 'easy', 2, '80000000-0000-0000-0000-000000000018', md5('90000000-0000-0000-0000-000000000018'), '2026-09-30 09:00:00+00'),
+  ('90000000-0000-0000-0000-000000000019', '72000000-0000-0000-0000-000000000001', '71000000-0000-0000-0000-000000000001', 'Submitted legacy allocation', '4', 'addition-subtraction', 'easy', 1, '80000000-0000-0000-0000-000000000019', md5('90000000-0000-0000-0000-000000000019'), '2026-09-30 09:01:00+00');
 
 insert into public.homework_recipients (id, assignment_id, student_id, set_signature)
 values
@@ -153,7 +219,9 @@ values
   ('91000000-0000-0000-0000-000000000013', '90000000-0000-0000-0000-000000000013', '71000000-0000-0000-0000-000000000006', 'dual-role'),
   ('91000000-0000-0000-0000-000000000015', '90000000-0000-0000-0000-000000000015', '71000000-0000-0000-0000-000000000004', 'other-class'),
   ('91000000-0000-0000-0000-000000000016', '90000000-0000-0000-0000-000000000016', '71000000-0000-0000-0000-000000000002', 'missing-row'),
-  ('91000000-0000-0000-0000-000000000017', '90000000-0000-0000-0000-000000000017', '71000000-0000-0000-0000-000000000002', 'non-contiguous');
+  ('91000000-0000-0000-0000-000000000017', '90000000-0000-0000-0000-000000000017', '71000000-0000-0000-0000-000000000002', 'non-contiguous'),
+  ('91000000-0000-0000-0000-000000000018', '90000000-0000-0000-0000-000000000018', '71000000-0000-0000-0000-000000000002', 'mixed-legacy'),
+  ('91000000-0000-0000-0000-000000000019', '90000000-0000-0000-0000-000000000019', '71000000-0000-0000-0000-000000000002', 'submitted-legacy');
 
 with assigned(recipient_id, exercise_number, position) as (
   values
@@ -187,7 +255,10 @@ with assigned(recipient_id, exercise_number, position) as (
     ('91000000-0000-0000-0000-000000000013'::uuid, 25, 1),
     ('91000000-0000-0000-0000-000000000015'::uuid, 26, 1),
     ('91000000-0000-0000-0000-000000000016'::uuid, 39, 1),
-    ('91000000-0000-0000-0000-000000000017'::uuid, 40, 2)
+    ('91000000-0000-0000-0000-000000000017'::uuid, 40, 2),
+    ('91000000-0000-0000-0000-000000000018'::uuid, 1, 1),
+    ('91000000-0000-0000-0000-000000000018'::uuid, 36, 2),
+    ('91000000-0000-0000-0000-000000000019'::uuid, 36, 1)
 )
 insert into public.homework_recipient_exercises (recipient_id, exercise_id, position)
 select
@@ -237,8 +308,10 @@ select ok(
     and not has_table_privilege('authenticated', 'public.homework_submission_answers', 'SELECT')
     and not has_table_privilege('authenticated', 'public.homework_submission_answers', 'INSERT')
     and not has_table_privilege('authenticated', 'public.homework_submission_answers', 'UPDATE')
-    and not has_table_privilege('authenticated', 'public.homework_submission_answers', 'DELETE'),
-  'Anonymous and authenticated roles have no direct submission-table access'
+    and not has_table_privilege('authenticated', 'public.homework_submission_answers', 'DELETE')
+    and not has_table_privilege('anon', 'public.homework_recipient_exercises', 'SELECT')
+    and not has_table_privilege('authenticated', 'public.homework_recipient_exercises', 'SELECT'),
+  'Anonymous and authenticated roles have no direct submission or assigned-exercise access'
 );
 
 set local role authenticated;
@@ -246,8 +319,8 @@ select set_config('request.jwt.claim.sub', '71000000-0000-0000-0000-000000000002
 
 select is(
   (select count(*) from public.list_student_homework()),
-  12::bigint,
-  'The student list contains only this caller’s twelve allocated assignments'
+  14::bigint,
+  'The student list contains only this caller’s fourteen allocated assignments'
 );
 select ok(
   not exists (
@@ -272,17 +345,43 @@ select ok(
   'List results expose only allowlisted assignment and class metadata'
 );
 select ok(
-  (public.get_student_homework('90000000-0000-0000-0000-000000000001') -> 'exercises' -> 0 ->> 'prompt') = 'Prompt 1'
+  (public.get_student_homework('90000000-0000-0000-0000-000000000001') -> 'exercises' -> 0 ->> 'prompt')
+      = 'Oblicz wartość wyrażenia: (0 + 1). Podaj wynik jako jedną liczbę naturalną.'
     and not (
       public.get_student_homework('90000000-0000-0000-0000-000000000001')::text
       ~* 'canonical_answer|verified_answer|verification_rationale|student_email'
     ),
   'Detail returns the caller’s ordered prompt without canonical, verifier, or roster data'
 );
+select throws_ok(
+  $$select public.get_student_homework('90000000-0000-0000-0000-000000000018')$$,
+  'P0002',
+  'Homework is unavailable',
+  'A mixed legacy allocation returns no partial prompt detail'
+);
+select throws_ok(
+  $$select public.submit_student_homework(
+      '90000000-0000-0000-0000-000000000018',
+      '[{"position":1,"answer":"1"},{"position":2,"answer":"three apples"}]'::jsonb
+    )$$,
+  'P0002',
+  'Homework is unavailable',
+  'A mixed legacy allocation cannot be scored on first submission'
+);
 select is(
   (select count(*) from public.exercises where id = '30000000-0000-0000-0000-000000000001'),
   0::bigint,
   'A student cannot read the canonical answer from the approved exercise pool'
+);
+select is(
+  (select count(*) from public.exercises where id = '30000000-0000-0000-0000-000000000036'),
+  0::bigint,
+  'A student cannot read a quarantined exercise statement through direct table access'
+);
+select is(
+  (select count(*) from public.exercise_verifications),
+  0::bigint,
+  'A student cannot read candidate statements through direct verification-table access'
 );
 select throws_ok(
   $$select public.get_student_homework('90000000-0000-0000-0000-000000000099')$$,
@@ -429,7 +528,7 @@ select throws_ok(
 select throws_ok(
   format(
     'select public.submit_student_homework(%L, %L::jsonb)',
-    '90000000-0000-0000-0000-000000000010',
+    '90000000-0000-0000-0000-000000000001',
     jsonb_build_array(jsonb_build_object('position', 1, 'answer', answer))::text
   ),
   '22023',
@@ -449,6 +548,41 @@ select is(
   0::bigint,
   'Rejected answer shapes and formats leave no partial answer rows'
 );
+select is(
+  (select count(*) from public.homework_submissions where recipient_id = '91000000-0000-0000-0000-000000000018'),
+  0::bigint,
+  'Mixed legacy detail and first submit leave no submission row'
+);
+select is(
+  (select count(*) from public.homework_submission_answers where recipient_id = '91000000-0000-0000-0000-000000000018'),
+  0::bigint,
+  'Mixed legacy detail and first submit leave no answer rows'
+);
+
+set local role service_role;
+insert into public.homework_submissions (
+  id, recipient_id, submitted_at, correct_count, assigned_count, passed
+)
+values (
+  '92000000-0000-0000-0000-000000000019',
+  '91000000-0000-0000-0000-000000000019',
+  '2026-09-30 10:00:00+00',
+  0,
+  1,
+  false
+);
+insert into public.homework_submission_answers (
+  submission_id, recipient_id, position, submitted_text, normalized_answer, is_correct
+)
+values (
+  '92000000-0000-0000-0000-000000000019',
+  '91000000-0000-0000-0000-000000000019',
+  1,
+  '5',
+  '5',
+  false
+);
+reset role;
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '71000000-0000-0000-0000-000000000002', true);
@@ -645,7 +779,7 @@ select ok(
 );
 select ok(
   (
-    select (result ->> 'correct_count')::integer = 2
+    select (result ->> 'correct_count')::integer = 1
       and (result ->> 'assigned_count')::integer = 2
       and result ->> 'passed' = 'true'
       and result #>> '{answers,0,normalized_answer}' = '1234567890123456789012345678901234567890'
@@ -693,38 +827,13 @@ select throws_ok(
   'Non-contiguous assigned positions are rejected'
 );
 
-set local role service_role;
-insert into public.exercises (
-  id,
-  exercise_text,
-  canonical_answer,
-  grade,
-  topic,
-  difficulty,
-  verification_verdict,
-  verifier_identity,
-  verifier_version,
-  verified_at,
-  verification_rationale,
-  creator_id,
-  approver_id
-)
-values (
-  '30000000-0000-0000-0000-000000000099',
-  'A later pool addition',
-  '999',
-  '4',
-  'addition-subtraction',
-  'easy',
-  'unique_answer',
-  'test-verifier',
-  'test-model',
-  now(),
-  'One approved answer.',
-  '71000000-0000-0000-0000-000000000001',
-  '71000000-0000-0000-0000-000000000001'
-);
 reset role;
+select pg_temp.insert_certified_submission_exercise(
+  '30000000-0000-0000-0000-000000000099',
+  '71000000-0000-0000-0000-000000000001',
+  42,
+  now()
+);
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '71000000-0000-0000-0000-000000000002', true);
@@ -753,25 +862,67 @@ select ok(
     ),
   'Saved-result reads expose only this student’s answers and correctness'
 );
+select ok(
+  (
+    select detail ->> 'kind' = 'result-only'
+      and detail -> 'assignment' ->> 'assignment_id' = '90000000-0000-0000-0000-000000000019'
+      and detail -> 'result' ->> 'correct_count' = '0'
+      and detail -> 'result' ->> 'assigned_count' = '1'
+      and detail -> 'result' ->> 'passed' = 'false'
+      and detail #>> '{result,answers,0,position}' = '1'
+      and detail #>> '{result,answers,0,answer}' = '5'
+      and detail #>> '{result,answers,0,is_correct}' = 'false'
+      and not (detail ? 'exercises')
+      and not (detail::text ~* 'legacy free-form prompt|canonical_answer|normalized_answer|authority|verification')
+    from (
+      select public.get_student_homework('90000000-0000-0000-0000-000000000019') as detail
+    ) as saved
+  ),
+  'Submitted legacy homework returns only persisted result data without prompts or authority internals'
+);
+select ok(
+  (
+    select result ->> 'kind' = 'result-only'
+      and result ->> 'replayed' = 'true'
+      and result ->> 'submission_id' = '92000000-0000-0000-0000-000000000019'
+      and result #>> '{answers,0,answer}' = '5'
+      and result #>> '{answers,0,is_correct}' = 'false'
+      and not (result::text ~* 'legacy free-form prompt|canonical_answer|normalized_answer|authority|verification')
+    from public.submit_student_homework(
+      '90000000-0000-0000-0000-000000000019',
+      '[{"position":1,"answer":"5"}]'::jsonb
+    ) as result
+  ),
+  'An equivalent retry of submitted legacy homework returns its unchanged prompt-free result'
+);
 select throws_ok(
   $$select public.submit_student_homework(
-      '90000000-0000-0000-0000-000000000010',
-      '[{"position":1,"answer":"1"}]'::jsonb
+      '90000000-0000-0000-0000-000000000019',
+      '[{"position":1,"answer":"6"}]'::jsonb
     )$$,
-  'P0004',
-  'Homework scoring is unavailable',
-  'Unsupported assigned canonical data fails explicitly before finalization'
+  'P0003',
+  'Homework has already been submitted',
+  'A changed retry of submitted legacy homework conflicts'
+);
+select throws_ok(
+  $$select public.submit_student_homework(
+      '90000000-0000-0000-0000-000000000018',
+      '[{"position":1,"answer":"1"},{"position":2,"answer":"three apples"}]'::jsonb
+    )$$,
+  'P0002',
+  'Homework is unavailable',
+  'Pending mixed legacy homework remains unavailable before finalization'
 );
 reset role;
 select is(
-  (select count(*) from public.homework_submissions where recipient_id = '91000000-0000-0000-0000-000000000010'),
+  (select count(*) from public.homework_submissions where recipient_id = '91000000-0000-0000-0000-000000000018'),
   0::bigint,
-  'Unsupported canonical data leaves no submission row'
+  'Pending mixed legacy homework leaves no submission row'
 );
 select is(
-  (select count(*) from public.homework_submission_answers where recipient_id = '91000000-0000-0000-0000-000000000010'),
+  (select count(*) from public.homework_submission_answers where recipient_id = '91000000-0000-0000-0000-000000000018'),
   0::bigint,
-  'Unsupported canonical data leaves no answer rows'
+  'Pending mixed legacy homework leaves no answer rows'
 );
 
 set local role authenticated;
@@ -876,13 +1027,13 @@ select throws_ok(
 reset role;
 select is(
   (select count(*) from public.homework_submissions),
-  11::bigint,
-  'Only the nine scoring fixtures, departed member, and dual-role member finalized submissions'
+  12::bigint,
+  'Only the nine scoring fixtures, departed member, dual-role member, and retained legacy result exist'
 );
 select is(
   (select count(*) from public.homework_submission_answers),
-  26::bigint,
-  'Every successful submission persists exactly one answer per assigned position'
+  27::bigint,
+  'Every successful submission and retained legacy result has one answer per assigned position'
 );
 
 select * from finish();

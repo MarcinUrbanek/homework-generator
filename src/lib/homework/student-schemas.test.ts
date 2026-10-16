@@ -53,6 +53,7 @@ function validPublicSummary() {
 
 function validSubmission(replayed = false) {
   return {
+    kind: "scored",
     submission_id: "00000000-0000-4000-8000-000000000002",
     submitted_at: submittedAt,
     correct_count: 1,
@@ -68,6 +69,7 @@ function validSubmission(replayed = false) {
 
 function validDetail() {
   return {
+    kind: "prompts",
     assignment: {
       assignment_id: assignmentId,
       class_name: "Matematyka 4A",

@@ -57,7 +57,7 @@ const messages = {
   },
   unavailable: {
     heading: "Zadanie domowe jest niedostępne",
-    message: "Nie można otworzyć tego zadania. Może już nie być dostępne dla Twojego konta.",
+    message: "Nie można otworzyć tego zadania. Jeśli uważasz, że to pomyłka, skontaktuj się z nauczycielem.",
   },
   error: {
     heading: "Nie udało się wczytać zadania",
@@ -86,12 +86,7 @@ const errorMessages =
             </p>
           </header>
           <section class="bg-card mt-7 rounded-lg border p-4 shadow-sm sm:p-6">
-            <StudentHomeworkForm
-              assignment={detail.assignment}
-              exercises={detail.exercises}
-              submission={detail.submission}
-              client:load
-            />
+            <StudentHomeworkForm detail={detail} client:load />
           </section>
         </>
       ) : (

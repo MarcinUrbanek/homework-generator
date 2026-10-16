@@ -145,121 +145,108 @@ values
     '2026-10-01 09:03:00+00'
   );
 
-set local role service_role;
+create function pg_temp.insert_certified_assignment_exercise(
+  exercise_id uuid,
+  teacher_id uuid,
+  exercise_difficulty text,
+  structure jsonb,
+  approved_at timestamptz
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  derived jsonb := public.derive_arithmetic_exercise_v1(
+    '4', 'addition-subtraction', exercise_difficulty, structure
+  );
+begin
+  insert into public.exercise_verifications (
+    id, teacher_id, candidate_id, candidate_text, proposed_canonical_answer,
+    grade, topic, difficulty, outcome, verified_answer, verifier_identity,
+    verifier_version, verified_at, rationale, arithmetic_structure, authority_version
+  )
+  values (
+    exercise_id, teacher_id, exercise_id::text, derived ->> 'exercise_text',
+    derived ->> 'canonical_answer', '4', 'addition-subtraction', exercise_difficulty,
+    'unique_answer', derived ->> 'canonical_answer', 'test-verifier', 'authority-v1',
+    approved_at, 'Independently evaluated test fixture.', structure, 1
+  );
 
+  insert into public.exercises (
+    id, exercise_text, canonical_answer, grade, topic, difficulty,
+    verification_verdict, verifier_identity, verifier_version, verified_at,
+    verification_rationale, creator_id, approver_id, approved_at,
+    verification_id, arithmetic_structure, authority_version
+  )
+  values (
+    exercise_id, derived ->> 'exercise_text', derived ->> 'canonical_answer',
+    '4', 'addition-subtraction', exercise_difficulty, 'unique_answer',
+    'test-verifier', 'authority-v1', approved_at,
+    'Independently evaluated test fixture.', teacher_id, teacher_id, approved_at,
+    exercise_id, structure, 1
+  );
+end;
+$$;
+
+select pg_temp.insert_certified_assignment_exercise(
+  '30000000-0000-0000-0000-000000000001',
+  '10000000-0000-0000-0000-000000000001',
+  'easy',
+  '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":2}}}',
+  '2026-10-01 09:00:00+00'
+);
+select pg_temp.insert_certified_assignment_exercise(
+  '30000000-0000-0000-0000-000000000002',
+  '10000000-0000-0000-0000-000000000002',
+  'easy',
+  '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":1},"right":{"kind":"number","value":3}}}',
+  '2026-10-01 09:01:00+00'
+);
+select pg_temp.insert_certified_assignment_exercise(
+  '30000000-0000-0000-0000-000000000003',
+  '10000000-0000-0000-0000-000000000001',
+  'easy',
+  '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":3}}}',
+  '2026-10-01 09:02:00+00'
+);
+select pg_temp.insert_certified_assignment_exercise(
+  '30000000-0000-0000-0000-000000000004',
+  '10000000-0000-0000-0000-000000000002',
+  'easy',
+  '{"version":1,"expression":{"kind":"subtract","left":{"kind":"number","value":8},"right":{"kind":"number","value":3}}}',
+  '2026-10-01 09:03:00+00'
+);
+select pg_temp.insert_certified_assignment_exercise(
+  '30000000-0000-0000-0000-000000000005',
+  '10000000-0000-0000-0000-000000000001',
+  'easy',
+  '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":3},"right":{"kind":"number","value":4}}}',
+  '2026-10-01 09:04:00+00'
+);
+select pg_temp.insert_certified_assignment_exercise(
+  '30000000-0000-0000-0000-000000000006',
+  '10000000-0000-0000-0000-000000000001',
+  'easy',
+  '{"version":1,"expression":{"kind":"subtract","left":{"kind":"number","value":9},"right":{"kind":"number","value":3}}}',
+  '2026-10-01 09:05:00+00'
+);
+select pg_temp.insert_certified_assignment_exercise(
+  '30000000-0000-0000-0000-000000000008',
+  '10000000-0000-0000-0000-000000000001',
+  'medium',
+  '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":5},"right":{"kind":"number","value":8}}}',
+  '2026-10-01 09:07:00+00'
+);
+
+alter table public.exercises disable trigger exercises_authority_insert;
 insert into public.exercises (
-  id,
-  exercise_text,
-  canonical_answer,
-  grade,
-  topic,
-  difficulty,
-  verification_verdict,
-  verifier_identity,
-  verifier_version,
-  verified_at,
-  verification_rationale,
-  creator_id,
-  approver_id,
-  approved_at
+  id, exercise_text, canonical_answer, grade, topic, difficulty,
+  verification_verdict, verifier_identity, verifier_version, verified_at,
+  verification_rationale, creator_id, approver_id, approved_at
 )
 values
-  (
-    '30000000-0000-0000-0000-000000000001',
-    'Ile to jest 2 + 2?',
-    '4',
-    '4',
-    'addition-subtraction',
-    'easy',
-    'unique_answer',
-    'test-verifier',
-    'test-model',
-    '2026-10-01 08:00:00+00',
-    'Jedna poprawna odpowiedź.',
-    '10000000-0000-0000-0000-000000000001',
-    '10000000-0000-0000-0000-000000000001',
-    '2026-10-01 09:00:00+00'
-  ),
-  (
-    '30000000-0000-0000-0000-000000000002',
-    'Ile to jest 3 + 3?',
-    '6',
-    '4',
-    'addition-subtraction',
-    'easy',
-    'unique_answer',
-    'test-verifier',
-    'test-model',
-    '2026-10-01 08:01:00+00',
-    'Jedna poprawna odpowiedź.',
-    '10000000-0000-0000-0000-000000000002',
-    '10000000-0000-0000-0000-000000000002',
-    '2026-10-01 09:01:00+00'
-  ),
-  (
-    '30000000-0000-0000-0000-000000000003',
-    'Ile to jest 5 + 2?',
-    '7',
-    '4',
-    'addition-subtraction',
-    'easy',
-    'unique_answer',
-    'test-verifier',
-    'test-model',
-    '2026-10-01 08:02:00+00',
-    'Jedna poprawna odpowiedź.',
-    '10000000-0000-0000-0000-000000000001',
-    '10000000-0000-0000-0000-000000000001',
-    '2026-10-01 09:02:00+00'
-  ),
-  (
-    '30000000-0000-0000-0000-000000000004',
-    'Ile to jest 8 - 3?',
-    '5',
-    '4',
-    'addition-subtraction',
-    'easy',
-    'unique_answer',
-    'test-verifier',
-    'test-model',
-    '2026-10-01 08:03:00+00',
-    'Jedna poprawna odpowiedź.',
-    '10000000-0000-0000-0000-000000000002',
-    '10000000-0000-0000-0000-000000000002',
-    '2026-10-01 09:03:00+00'
-  ),
-  (
-    '30000000-0000-0000-0000-000000000005',
-    'Ile to jest 7 + 4?',
-    '11',
-    '4',
-    'addition-subtraction',
-    'easy',
-    'unique_answer',
-    'test-verifier',
-    'test-model',
-    '2026-10-01 08:04:00+00',
-    'Jedna poprawna odpowiedź.',
-    '10000000-0000-0000-0000-000000000001',
-    '10000000-0000-0000-0000-000000000001',
-    '2026-10-01 09:04:00+00'
-  ),
-  (
-    '30000000-0000-0000-0000-000000000006',
-    'Ile to jest 9 - 3?',
-    '6',
-    '4',
-    'addition-subtraction',
-    'easy',
-    'unique_answer',
-    'test-verifier',
-    'test-model',
-    '2026-10-01 08:05:00+00',
-    'Jedna poprawna odpowiedź.',
-    '10000000-0000-0000-0000-000000000001',
-    '10000000-0000-0000-0000-000000000001',
-    '2026-10-01 09:05:00+00'
-  ),
   (
     '30000000-0000-0000-0000-000000000007',
     'Ile boków ma trójkąt?',
@@ -268,32 +255,71 @@ values
     'word-problems',
     'easy',
     'unique_answer',
-    'test-verifier',
-    'test-model',
+    'legacy-verifier',
+    'old-model',
     '2026-10-01 08:06:00+00',
-    'Jedna poprawna odpowiedź.',
+    'Legacy model-only result.',
     '10000000-0000-0000-0000-000000000001',
     '10000000-0000-0000-0000-000000000001',
     '2026-10-01 09:06:00+00'
   ),
   (
-    '30000000-0000-0000-0000-000000000008',
-    'Ile to jest 5 + 5?',
-    '10',
+    '30000000-0000-0000-0000-000000000009',
+    'Legacy addition prompt',
+    '6',
     '4',
     'addition-subtraction',
-    'medium',
+    'easy',
     'unique_answer',
-    'test-verifier',
-    'test-model',
-    '2026-10-01 08:07:00+00',
-    'Jedna poprawna odpowiedź.',
+    'legacy-verifier',
+    'old-model',
+    '2026-10-01 08:08:00+00',
+    'Legacy model-only result.',
     '10000000-0000-0000-0000-000000000001',
     '10000000-0000-0000-0000-000000000001',
-    '2026-10-01 09:07:00+00'
+    '2026-10-01 09:08:00+00'
   );
+alter table public.exercises enable trigger exercises_authority_insert;
 
-reset role;
+insert into public.homework_assignments (
+  id, class_id, teacher_id, title, grade, topic, difficulty, exercise_count,
+  idempotency_key, request_fingerprint, created_at
+)
+values (
+  '90000000-0000-0000-0000-000000000019',
+  '20000000-0000-0000-0000-000000000001',
+  '10000000-0000-0000-0000-000000000001',
+  'Legacy replay',
+  '4',
+  'addition-subtraction',
+  'easy',
+  1,
+  '90000000-0000-0000-0000-000000000019',
+  md5(
+    jsonb_build_object(
+      'class_id', '20000000-0000-0000-0000-000000000001'::uuid,
+      'title', 'Legacy replay',
+      'topic', 'addition-subtraction',
+      'difficulty', 'easy',
+      'exercise_count', 1,
+      'student_ids', to_jsonb(array['10000000-0000-0000-0000-000000000003'::uuid])
+    )::text
+  ),
+  '2026-09-30 09:00:00+00'
+);
+insert into public.homework_recipients (id, assignment_id, student_id, set_signature)
+values (
+  '91000000-0000-0000-0000-000000000019',
+  '90000000-0000-0000-0000-000000000019',
+  '10000000-0000-0000-0000-000000000003',
+  'legacy-replay'
+);
+insert into public.homework_recipient_exercises (recipient_id, exercise_id, position)
+values (
+  '91000000-0000-0000-0000-000000000019',
+  '30000000-0000-0000-0000-000000000009',
+  1
+);
 
 select ok(
   to_regclass('public.homework_assignments') is not null,
@@ -415,6 +441,11 @@ select is(
   0::bigint,
   'A student cannot read canonical answers from the shared exercise pool'
 );
+select is(
+  (select count(*) from public.exercises where id = '30000000-0000-0000-0000-000000000009'),
+  0::bigint,
+  'A student cannot directly retrieve the statement of a quarantined exercise'
+);
 select throws_ok(
   $$select * from public.homework_assignments$$,
   '42501',
@@ -432,6 +463,21 @@ select throws_ok(
   '42501',
   null,
   'A student cannot read assigned exercise references'
+);
+select throws_ok(
+  $$select public.get_student_homework('90000000-0000-0000-0000-000000000019')$$,
+  'P0002',
+  'Homework is unavailable',
+  'A replayed legacy allocation remains unavailable to its pending student'
+);
+select throws_ok(
+  $$select public.submit_student_homework(
+      '90000000-0000-0000-0000-000000000019',
+      '[{"position":1,"answer":"6"}]'::jsonb
+    )$$,
+  'P0002',
+  'Homework is unavailable',
+  'A replayed legacy allocation cannot be scored for the first time'
 );
 select throws_ok(
   $$select * from public.create_homework_assignment(
@@ -524,6 +570,22 @@ select throws_ok(
   'The idempotency key was already used for a different assignment',
   'A retry cannot reuse an idempotency key with a changed payload'
 );
+select is(
+  (
+    select replayed
+    from public.create_homework_assignment(
+      '20000000-0000-0000-0000-000000000001',
+      'Legacy replay',
+      'addition-subtraction',
+      'easy',
+      1,
+      '90000000-0000-0000-0000-000000000019',
+      '[{"student_id":"10000000-0000-0000-0000-000000000003","exercise_ids":["30000000-0000-0000-0000-000000000009"]}]'::jsonb
+    )
+  ),
+  true,
+  'An existing assignment replay preserves its legacy allocation without validating it as new work'
+);
 
 reset role;
 
@@ -561,6 +623,15 @@ select is(
   ),
   1::bigint,
   'An idempotent retry creates no duplicate assignment'
+);
+select is(
+  (
+    select count(*)
+    from public.homework_recipients
+    where assignment_id = '90000000-0000-0000-0000-000000000019'
+  ),
+  1::bigint,
+  'Replaying quarantined historical work creates no new recipient allocations'
 );
 
 set local role authenticated;
@@ -657,6 +728,16 @@ select throws_ok(
   '22023',
   'Every assigned exercise must be approved for the selected bucket',
   'A missing or unapproved exercise ID is rejected'
+);
+select throws_ok(
+  $$select * from public.create_homework_assignment(
+      '20000000-0000-0000-0000-000000000001', null, 'addition-subtraction', 'easy', 1,
+      '90000000-0000-0000-0000-000000000020',
+      '[{"student_id":"10000000-0000-0000-0000-000000000003","exercise_ids":["30000000-0000-0000-0000-000000000009"]}]'::jsonb
+    )$$,
+  '22023',
+  'Every assigned exercise must be approved for the selected bucket',
+  'A same-bucket legacy exercise is rejected for a new assignment'
 );
 select throws_ok(
   $$select * from public.create_homework_assignment(

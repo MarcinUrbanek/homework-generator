@@ -17,7 +17,7 @@ const ERROR_MESSAGES: Record<StudentHomeworkApiErrorCode, string> = {
   INVALID_REQUEST: "Nieprawidłowe dane żądania.",
   UNAUTHENTICATED: "Zaloguj się, aby zobaczyć zadanie domowe.",
   FORBIDDEN: "Dostęp do zadań domowych jest dostępny tylko dla ucznia.",
-  HOMEWORK_UNAVAILABLE: "Zadanie domowe jest niedostępne.",
+  HOMEWORK_UNAVAILABLE: "Zadanie domowe jest niedostępne. W razie wątpliwości skontaktuj się z nauczycielem.",
   SUBMISSION_CONFLICT: "To zadanie zostało już wysłane z innymi odpowiedziami.",
   SCORING_UNAVAILABLE: "Sprawdzanie zadania jest chwilowo niedostępne.",
   DATABASE_UNAVAILABLE: "Baza danych jest chwilowo niedostępna.",
