@@ -15,10 +15,10 @@ import type {
 } from "@/types";
 
 const STORAGE_KEY = "latest-successful-exercise-batch";
-const STORAGE_VERSION = 2;
+const STORAGE_VERSION = 3;
 
 export type ExerciseReviewStatus =
-  "unverified" | "unique_answer" | "answer_mismatch" | "not_unique_answer" | "indeterminate";
+  "unverified" | "unique_answer" | "answer_mismatch" | "not_unique_answer" | "unsupported_evidence" | "indeterminate";
 
 export type ExerciseReviewCandidate =
   | { candidate: ExerciseCandidate; status: "unverified" }
@@ -39,10 +39,86 @@ interface StoredExerciseBatch {
 }
 
 const validExerciseCountSchema = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]);
-const exerciseReviewCandidateSchema = z
+const legacyPersistedEvidenceBaseSchema = z.object({
+  verificationId: z.uuid(),
+  candidateId: z.string().trim().min(1),
+  rationale: z.string().trim().min(1),
+  verifierIdentity: z.string().trim().min(1),
+  verifierVersion: z.string().trim().min(1),
+  verifiedAt: z.iso.datetime({ offset: true }),
+});
+const legacyExerciseVerificationEvidenceSchema = z.discriminatedUnion("outcome", [
+  legacyPersistedEvidenceBaseSchema
+    .extend({ outcome: z.literal("unique_answer"), verifiedAnswer: z.string().trim().min(1) })
+    .strict(),
+  legacyPersistedEvidenceBaseSchema
+    .extend({ outcome: z.literal("answer_mismatch"), verifiedAnswer: z.string().trim().min(1) })
+    .strict(),
+  legacyPersistedEvidenceBaseSchema
+    .extend({ outcome: z.literal("not_unique_answer"), verifiedAnswer: z.null() })
+    .strict(),
+  z
+    .object({
+      candidateId: z.string().trim().min(1),
+      outcome: z.literal("indeterminate"),
+      error: z.object({ code: z.string().trim().min(1), message: z.string().trim().min(1) }).strict(),
+    })
+    .strict(),
+]);
+const legacyExerciseReviewCandidateSchema = z
   .object({
     candidate: exerciseCandidateSchema,
     status: z.enum(["unverified", "unique_answer", "answer_mismatch", "not_unique_answer", "indeterminate"]),
+    evidence: legacyExerciseVerificationEvidenceSchema.optional(),
+  })
+  .strict()
+  .superRefine((reviewCandidate, context) => {
+    if (reviewCandidate.status === "unverified") {
+      if (reviewCandidate.evidence !== undefined) {
+        context.addIssue({ code: "custom", path: ["evidence"], message: "Unverified candidates cannot have evidence" });
+      }
+      return;
+    }
+
+    if (
+      reviewCandidate.evidence?.outcome !== reviewCandidate.status ||
+      reviewCandidate.evidence.candidateId !== reviewCandidate.candidate.id
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["evidence"],
+        message: "Legacy evidence must match the candidate and review status",
+      });
+    }
+  });
+const legacyExerciseReviewBatchSchema = z
+  .object({
+    requestedCount: z.literal(5),
+    validCount: validExerciseCountSchema,
+    partial_batch: z.literal(true).optional(),
+    candidates: z.array(legacyExerciseReviewCandidateSchema).min(1).max(5),
+    selectedVerificationIds: z.array(z.uuid()).max(5),
+  })
+  .strict()
+  .superRefine((batch, context) => {
+    if (batch.candidates.length !== batch.validCount) {
+      context.addIssue({ code: "custom", path: ["validCount"], message: "validCount must match candidates" });
+    }
+    if (batch.validCount < batch.requestedCount !== (batch.partial_batch === true)) {
+      context.addIssue({ code: "custom", path: ["partial_batch"], message: "partial_batch must match validCount" });
+    }
+  });
+const exerciseReviewCandidateSchema = z
+  .object({
+    candidate: exerciseCandidateSchema,
+    status: z.enum([
+      "unverified",
+      "unique_answer",
+      "answer_mismatch",
+      "not_unique_answer",
+      "unsupported_evidence",
+      "indeterminate",
+    ]),
     evidence: exerciseVerificationResultSchema.optional(),
   })
   .strict()
@@ -85,7 +161,10 @@ const exerciseReviewBatchSchema = z
 
     const successfulVerificationIds = new Set(
       batch.candidates.flatMap((reviewCandidate) =>
-        reviewCandidate.status === "unique_answer" && reviewCandidate.evidence?.outcome === "unique_answer"
+        reviewCandidate.status === "unique_answer" &&
+        reviewCandidate.evidence?.outcome === "unique_answer" &&
+        reviewCandidate.evidence.authorityVersion === 1 &&
+        reviewCandidate.evidence.arithmeticStructure !== null
           ? [reviewCandidate.evidence.verificationId]
           : [],
       ),
@@ -123,6 +202,16 @@ export function createExerciseReviewBatch(batch: ExerciseGenerationSuccess): Exe
   };
 }
 
+function migrateLegacyExerciseReviewBatch(batch: z.infer<typeof legacyExerciseReviewBatchSchema>): ExerciseReviewBatch {
+  return {
+    requestedCount: batch.requestedCount,
+    validCount: batch.validCount,
+    ...(batch.partial_batch ? { partial_batch: true } : {}),
+    candidates: batch.candidates.map(({ candidate }) => ({ candidate, status: "unverified" })),
+    selectedVerificationIds: [],
+  };
+}
+
 export function restoreSessionExerciseBatch(storage: Storage): ExerciseReviewBatch | null {
   try {
     const storedValue = storage.getItem(STORAGE_KEY);
@@ -148,6 +237,17 @@ export function restoreSessionExerciseBatch(storage: Storage): ExerciseReviewBat
         return null;
       }
       const migratedBatch = createExerciseReviewBatch(parsedGenerationBatch.data);
+      storeSessionExerciseBatch(storage, migratedBatch);
+      return migratedBatch;
+    }
+
+    if (parsedValue.version === 2) {
+      const parsedLegacyBatch = legacyExerciseReviewBatchSchema.safeParse(parsedValue.batch);
+      if (!parsedLegacyBatch.success) {
+        clearSessionExerciseBatch(storage);
+        return null;
+      }
+      const migratedBatch = migrateLegacyExerciseReviewBatch(parsedLegacyBatch.data);
       storeSessionExerciseBatch(storage, migratedBatch);
       return migratedBatch;
     }
@@ -203,7 +303,10 @@ export function applyExerciseVerificationResults(
   });
   const successfulVerificationIds = new Set(
     candidates.flatMap((reviewCandidate) =>
-      reviewCandidate.status === "unique_answer" && reviewCandidate.evidence.outcome === "unique_answer"
+      reviewCandidate.status === "unique_answer" &&
+      reviewCandidate.evidence.outcome === "unique_answer" &&
+      reviewCandidate.evidence.authorityVersion === 1 &&
+      reviewCandidate.evidence.arithmeticStructure !== null
         ? [reviewCandidate.evidence.verificationId]
         : [],
     ),
@@ -225,6 +328,8 @@ export function selectExerciseVerification(
     (reviewCandidate) =>
       reviewCandidate.status === "unique_answer" &&
       reviewCandidate.evidence.outcome === "unique_answer" &&
+      reviewCandidate.evidence.authorityVersion === 1 &&
+      reviewCandidate.evidence.arithmeticStructure !== null &&
       reviewCandidate.evidence.verificationId === verificationId,
   );
   if (!isSuccessful) {

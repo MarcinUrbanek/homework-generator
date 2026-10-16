@@ -83,137 +83,157 @@ insert into public.exercise_verifications (
   verifier_identity,
   verifier_version,
   verified_at,
-  rationale
+  rationale,
+  arithmetic_structure,
+  authority_version
 )
 values
   (
     '20000000-0000-0000-0000-000000000001',
     '10000000-0000-0000-0000-000000000001',
     'candidate-a',
-    'Ile to jest 2 + 2?',
+    'Oblicz wartość wyrażenia: (2 + 2). Podaj wynik jako jedną liczbę naturalną.',
     '4',
     '4',
     'addition-subtraction',
     'easy',
     'unique_answer',
     '4',
-    'OpenRouter/grade-4-independent-answer-set-v2',
-    'model-a',
+    'ArithmeticAuthority',
+    'arithmetic-authority-v1',
     '2026-09-29 10:00:00+00',
-    'Jedyną poprawną odpowiedzią jest 4.'
+    'Struktura oblicza wartość 4.',
+    '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":2}}}'::jsonb,
+    1
   ),
   (
     '20000000-0000-0000-0000-000000000002',
     '10000000-0000-0000-0000-000000000001',
     'candidate-b',
-    'Ile to jest 3 razy 3?',
+    'Oblicz wartość wyrażenia: (3 × 3). Podaj wynik jako jedną liczbę naturalną.',
     '9',
     '4',
     'multiplication-division',
     'medium',
     'unique_answer',
     '9',
-    'OpenRouter/grade-4-independent-answer-set-v2',
-    'model-a',
+    'ArithmeticAuthority',
+    'arithmetic-authority-v1',
     '2026-09-29 10:01:00+00',
-    'Jedyną poprawną odpowiedzią jest 9.'
+    'Struktura oblicza wartość 9.',
+    '{"version":1,"expression":{"kind":"multiply","left":{"kind":"number","value":3},"right":{"kind":"number","value":3}}}'::jsonb,
+    1
   ),
   (
     '20000000-0000-0000-0000-000000000003',
     '10000000-0000-0000-0000-000000000001',
     'candidate-c',
-    'Oblicz 12 - 5.',
-    '7',
+    'Oblicz wartość wyrażenia: ((10000 + 1) - 1). Podaj wynik jako jedną liczbę naturalną.',
+    '10000',
     '4',
     'addition-subtraction',
     'hard',
     'unique_answer',
-    '7',
-    'OpenRouter/grade-4-independent-answer-set-v2',
-    'model-a',
+    '10000',
+    'ArithmeticAuthority',
+    'arithmetic-authority-v1',
     '2026-09-29 10:02:00+00',
-    'Jedyną poprawną odpowiedzią jest 7.'
+    'Struktura oblicza wartość 10000.',
+    '{"version":1,"expression":{"kind":"subtract","left":{"kind":"add","left":{"kind":"number","value":10000},"right":{"kind":"number","value":1}},"right":{"kind":"number","value":1}}}'::jsonb,
+    1
   ),
   (
     '20000000-0000-0000-0000-000000000004',
     '10000000-0000-0000-0000-000000000001',
     'candidate-mismatch',
-    'Ile to jest 2 + 3?',
+    'Oblicz wartość wyrażenia: (2 + 3). Podaj wynik jako jedną liczbę naturalną.',
     '6',
     '4',
     'addition-subtraction',
     'easy',
     'answer_mismatch',
     '5',
-    'OpenRouter/grade-4-independent-answer-set-v2',
-    'model-a',
+    'ArithmeticAuthority',
+    'arithmetic-authority-v1',
     '2026-09-29 10:03:00+00',
-    'Poprawną odpowiedzią jest 5, a nie 6.'
+    'Obliczona odpowiedź to 5, a propozycja wynosi 6.',
+    '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":3}}}'::jsonb,
+    1
   ),
   (
     '20000000-0000-0000-0000-000000000005',
     '10000000-0000-0000-0000-000000000001',
-    'candidate-not-unique',
+    'candidate-unsupported',
     'Podaj liczbę większą od 2.',
     '3',
     '4',
     'word-problems',
     'easy',
-    'not_unique_answer',
+    'unsupported_evidence',
     null,
-    'OpenRouter/grade-4-independent-answer-set-v2',
-    'model-a',
+    'ArithmeticAuthority',
+    'arithmetic-authority-v1',
     '2026-09-29 10:04:00+00',
-    'Zadanie dopuszcza wiele poprawnych odpowiedzi.'
+    'Brak obsługiwanej struktury arytmetycznej.',
+    null,
+    null
   ),
   (
     '20000000-0000-0000-0000-000000000006',
     '10000000-0000-0000-0000-000000000002',
     'candidate-other-owner',
-    'Ile to jest 8 + 1?',
+    'Oblicz wartość wyrażenia: (8 + 1). Podaj wynik jako jedną liczbę naturalną.',
     '9',
     '4',
     'addition-subtraction',
     'easy',
     'unique_answer',
     '9',
-    'OpenRouter/grade-4-independent-answer-set-v2',
-    'model-a',
+    'ArithmeticAuthority',
+    'arithmetic-authority-v1',
     '2026-09-29 10:05:00+00',
-    'Jedyną poprawną odpowiedzią jest 9.'
+    'Struktura oblicza wartość 9.',
+    '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":8},"right":{"kind":"number","value":1}}}'::jsonb,
+    1
   ),
   (
     '20000000-0000-0000-0000-000000000007',
     '10000000-0000-0000-0000-000000000001',
     'candidate-concurrent-a',
-    'Ile to jest 10 + 1?',
+    'Oblicz wartość wyrażenia: (10 + 1). Podaj wynik jako jedną liczbę naturalną.',
     '11',
     '4',
     'addition-subtraction',
     'easy',
     'unique_answer',
     '11',
-    'OpenRouter/grade-4-independent-answer-set-v2',
-    'model-a',
+    'ArithmeticAuthority',
+    'arithmetic-authority-v1',
     '2026-09-29 10:06:00+00',
-    'Jedyną poprawną odpowiedzią jest 11.'
+    'Struktura oblicza wartość 11.',
+    '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":10},"right":{"kind":"number","value":1}}}'::jsonb,
+    1
   ),
   (
     '20000000-0000-0000-0000-000000000008',
     '10000000-0000-0000-0000-000000000001',
     'candidate-concurrent-b',
-    'Ile to jest 10 + 2?',
+    'Oblicz wartość wyrażenia: (10 + 2). Podaj wynik jako jedną liczbę naturalną.',
     '12',
     '4',
     'addition-subtraction',
     'easy',
     'unique_answer',
     '12',
-    'OpenRouter/grade-4-independent-answer-set-v2',
-    'model-a',
+    'ArithmeticAuthority',
+    'arithmetic-authority-v1',
     '2026-09-29 10:07:00+00',
-    'Jedyną poprawną odpowiedzią jest 12.'
+    'Struktura oblicza wartość 12.',
+    '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":10},"right":{"kind":"number","value":2}}}'::jsonb,
+    1
   );
+
+alter table public.exercises disable trigger exercises_authority_insert;
 
 insert into public.exercises (
   id,
@@ -246,11 +266,13 @@ values (
   '10000000-0000-0000-0000-000000000001'
 );
 
+alter table public.exercises enable trigger exercises_authority_insert;
+
 commit;
 
 begin;
 
-select plan(46);
+select plan(55);
 
 select is(
   (select exercise_count from answer_equivalence_v2_reset_state),
@@ -370,12 +392,30 @@ select throws_ok(
       verifier_version, verified_at, rationale
     ) values (
       '10000000-0000-0000-0000-000000000001', 'unexpected-answer', 'Text', '4',
-      '4', 'word-problems', 'easy', 'not_unique_answer', '4', 'verifier',
+      '4', 'word-problems', 'easy', 'not_unique_answer', null, 'verifier',
       'model', now(), 'Many answers.'
     )$$,
   '23514',
   null,
-  'A non-unique result cannot claim one verified answer'
+  'New ledger rows cannot claim model-only non-uniqueness'
+);
+
+select throws_ok(
+  $$insert into public.exercise_verifications (
+      teacher_id, candidate_id, candidate_text, proposed_canonical_answer,
+      grade, topic, difficulty, outcome, verified_answer, verifier_identity,
+      verifier_version, verified_at, rationale, arithmetic_structure, authority_version
+    ) values (
+      '10000000-0000-0000-0000-000000000001', 'candidate-a',
+      'Oblicz wartość wyrażenia: (2 + 2). Podaj wynik jako jedną liczbę naturalną.', '4',
+      '4', 'addition-subtraction', 'easy', 'unique_answer', '4', 'ArithmeticAuthority',
+      'arithmetic-authority-v1', '2026-09-29 10:00:00+00', 'Struktura oblicza wartość 4.',
+      '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":2}}}'::jsonb,
+      1
+    )$$,
+  '23505',
+  null,
+  'A teacher and candidate ID identify one immutable result'
 );
 
 select throws_ok(
@@ -384,13 +424,68 @@ select throws_ok(
       grade, topic, difficulty, outcome, verified_answer, verifier_identity,
       verifier_version, verified_at, rationale
     ) values (
-      '10000000-0000-0000-0000-000000000001', 'candidate-a', 'Different text', '5',
-      '4', 'addition-subtraction', 'easy', 'answer_mismatch', '4', 'verifier',
-      'model', now(), 'Different snapshot.'
+      '10000000-0000-0000-0000-000000000001', 'forged-without-structure',
+      'Oblicz wartość wyrażenia: (2 + 2). Podaj wynik jako jedną liczbę naturalną.',
+      '4', '4', 'addition-subtraction', 'easy', 'unique_answer', '4',
+      'ArithmeticAuthority', 'arithmetic-authority-v1', now(), 'Forged success.'
     )$$,
-  '23505',
+  '23514',
   null,
-  'A teacher and candidate ID identify one immutable result'
+  'New successful evidence cannot omit its arithmetic structure'
+);
+
+select throws_ok(
+  $$insert into public.exercise_verifications (
+      teacher_id, candidate_id, candidate_text, proposed_canonical_answer,
+      grade, topic, difficulty, outcome, verified_answer, verifier_identity,
+      verifier_version, verified_at, rationale, arithmetic_structure, authority_version
+    ) values (
+      '10000000-0000-0000-0000-000000000001', 'forged-wrong-answer',
+      'Oblicz wartość wyrażenia: (2 + 2). Podaj wynik jako jedną liczbę naturalną.',
+      '4', '4', 'addition-subtraction', 'easy', 'unique_answer', '5',
+      'ArithmeticAuthority', 'arithmetic-authority-v1', now(), 'Forged success.',
+      '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":2}}}'::jsonb,
+      1
+    )$$,
+  '23514',
+  null,
+  'New successful evidence must store the independently computed answer'
+);
+
+select throws_ok(
+  $$insert into public.exercise_verifications (
+      teacher_id, candidate_id, candidate_text, proposed_canonical_answer,
+      grade, topic, difficulty, outcome, verified_answer, verifier_identity,
+      verifier_version, verified_at, rationale, arithmetic_structure, authority_version
+    ) values (
+      '10000000-0000-0000-0000-000000000001', 'forged-edited-text',
+      'Edited arithmetic statement.', '4', '4', 'addition-subtraction', 'easy',
+      'unique_answer', '4', 'ArithmeticAuthority', 'arithmetic-authority-v1', now(),
+      'Forged success.',
+      '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":2}}}'::jsonb,
+      1
+    )$$,
+  '23514',
+  null,
+  'New successful evidence must match the exact rendered statement'
+);
+
+select throws_ok(
+  $$insert into public.exercise_verifications (
+      teacher_id, candidate_id, candidate_text, proposed_canonical_answer,
+      grade, topic, difficulty, outcome, verified_answer, verifier_identity,
+      verifier_version, verified_at, rationale, arithmetic_structure, authority_version
+    ) values (
+      '10000000-0000-0000-0000-000000000001', 'forged-unknown-version',
+      'Oblicz wartość wyrażenia: (2 + 2). Podaj wynik jako jedną liczbę naturalną.',
+      '4', '4', 'addition-subtraction', 'easy', 'unique_answer', '4',
+      'ArithmeticAuthority', 'arithmetic-authority-v2', now(), 'Unknown version.',
+      '{"version":2,"expression":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":2}}}'::jsonb,
+      2
+    )$$,
+  '23514',
+  null,
+  'Unknown authority versions fail closed'
 );
 
 select ok(
@@ -503,15 +598,17 @@ select lives_ok(
   $$insert into public.exercise_verifications (
       id, teacher_id, candidate_id, candidate_text, proposed_canonical_answer,
       grade, topic, difficulty, outcome, verified_answer, verifier_identity,
-      verifier_version, verified_at, rationale
+      verifier_version, verified_at, rationale, arithmetic_structure, authority_version
     ) values (
       '20000000-0000-0000-0000-000000000009',
       '10000000-0000-0000-0000-000000000001', 'service-authored',
-      'Ile to jest 6 + 6?', '12', '4', 'addition-subtraction', 'easy',
-      'unique_answer', '12', 'OpenRouter/grade-4-independent-answer-set-v2', 'model-a',
-      '2026-09-29 10:08:00+00', 'Jedyną poprawną odpowiedzią jest 12.'
+      'Oblicz wartość wyrażenia: (6 + 3). Podaj wynik jako jedną liczbę naturalną.', '9', '4', 'addition-subtraction', 'easy',
+      'unique_answer', '9', 'ArithmeticAuthority', 'arithmetic-authority-v1',
+      '2026-09-29 10:08:00+00', 'Struktura oblicza wartość 9.',
+      '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":6},"right":{"kind":"number","value":3}}}'::jsonb,
+      1
     )$$,
-  'The server service role can author a settled verification result'
+  'The service role can author a validated arithmetic verification result'
 );
 
 reset role;
@@ -557,6 +654,15 @@ select throws_ok(
   '22023',
   null,
   'Approval rejects a content-failure selection'
+);
+
+select throws_ok(
+  $$select public.approve_verified_exercises(array[
+      '20000000-0000-0000-0000-000000000005'
+    ]::uuid[])$$,
+  '22023',
+  null,
+  'Approval rejects unsupported and legacy model-only evidence'
 );
 
 select throws_ok(
@@ -628,7 +734,7 @@ select is(
     from public.exercises
     where verification_id = '20000000-0000-0000-0000-000000000001'
   ),
-  'Ile to jest 2 + 2?|4',
+  'Oblicz wartość wyrażenia: (2 + 2). Podaj wynik jako jedną liczbę naturalną.|4',
   'Promotion copies the candidate text and verified answer exactly'
 );
 
@@ -650,8 +756,8 @@ select is(
     from public.exercises
     where verification_id = '20000000-0000-0000-0000-000000000001'
   ),
-  'unique_answer|OpenRouter/grade-4-independent-answer-set-v2|model-a|2026-09-29 10:00:00+00|Jedyną poprawną odpowiedzią jest 4.',
-  'Promotion preserves verifier evidence exactly'
+  'unique_answer|ArithmeticAuthority|arithmetic-authority-v1|2026-09-29 10:00:00+00|Struktura oblicza wartość 4.',
+  'Promotion preserves authority evidence exactly'
 );
 
 select is(
@@ -662,6 +768,16 @@ select is(
   ),
   '10000000-0000-0000-0000-000000000001|10000000-0000-0000-0000-000000000001|20000000-0000-0000-0000-000000000001',
   'Promotion records teacher ownership and exact provenance'
+);
+
+select is(
+  (
+    select authority_version
+    from public.exercises
+    where verification_id = '20000000-0000-0000-0000-000000000001'
+  ),
+  1,
+  'Approval copies the current authority version into the pool'
 );
 
 create temporary table replay_approval as
@@ -725,9 +841,12 @@ select ok(
   'A legacy F-01 exercise remains valid without provenance'
 );
 
-update public.exercises
-set canonical_answer = 'changed'
-where verification_id = '20000000-0000-0000-0000-000000000001';
+select lives_ok(
+  $$update public.exercises
+    set canonical_answer = 'changed'
+    where verification_id = '20000000-0000-0000-0000-000000000001'$$,
+  'Authenticated update attempts are filtered by RLS'
+);
 
 select is(
   (
@@ -737,6 +856,27 @@ select is(
   ),
   '4',
   'Approved exercises retain the F-01 no-update behavior'
+);
+
+reset role;
+set local role service_role;
+
+select throws_ok(
+  $$update public.exercises
+    set arithmetic_structure = '{"version":1,"expression":{"kind":"number","value":4}}'::jsonb
+    where verification_id = '20000000-0000-0000-0000-000000000001'$$,
+  '42501',
+  null,
+  'Service-role writes cannot mutate a certified structure'
+);
+
+select throws_ok(
+  $$update public.exercise_verifications
+    set rationale = 'Tampered proof'
+    where id = '20000000-0000-0000-0000-000000000001'$$,
+  '42501',
+  null,
+  'Service-role writes cannot mutate immutable ledger evidence'
 );
 
 reset role;

@@ -1,5 +1,4 @@
 import type { APIRoute } from "astro";
-import { OPENROUTER_API_KEY, OPENROUTER_VERIFIER_MODEL } from "astro:env/server";
 
 import {
   exerciseVerificationLedgerRowSchema,
@@ -7,7 +6,8 @@ import {
   exerciseVerificationRequestSchema,
   exerciseVerificationSuccessSchema,
 } from "@/lib/exercises/schemas";
-import { OpenRouterExerciseVerifierError, verifyOpenRouterExercise } from "@/lib/services/openrouter-exercise-verifier";
+import { ArithmeticAuthorityError, renderArithmeticExercise } from "@/lib/exercises/arithmetic-authority";
+import { verifyArithmeticExercise } from "@/lib/services/arithmetic-exercise-verifier";
 import { authorizeTeacher } from "@/lib/services/teacher-authorization";
 import { createClient, createServiceClient } from "@/lib/supabase";
 import type {
@@ -36,6 +36,8 @@ const LEDGER_COLUMNS = [
   "verifier_version",
   "verified_at",
   "rationale",
+  "arithmetic_structure",
+  "authority_version",
 ].join(",");
 
 const ERROR_MESSAGES: Record<ExerciseVerificationErrorCode, string> = {
@@ -43,8 +45,10 @@ const ERROR_MESSAGES: Record<ExerciseVerificationErrorCode, string> = {
   UNAUTHENTICATED: "Zaloguj się, aby zweryfikować zadania.",
   FORBIDDEN: "Weryfikacja zadań jest dostępna tylko dla nauczycieli.",
   VERIFIER_NOT_CONFIGURED: "Weryfikacja zadań nie jest skonfigurowana.",
+  PERSISTENCE_UNAVAILABLE: "Nie można skonfigurować zapisu wyników weryfikacji.",
   CANDIDATE_CONFLICT: "Identyfikator kandydata został już użyty dla innej treści.",
   PERSISTENCE_FAILURE: "Nie udało się zapisać wyniku weryfikacji. Spróbuj ponownie później.",
+  VERIFICATION_FAILURE: "Nie udało się obliczyć wyniku weryfikacji. Spróbuj ponownie później.",
 };
 
 type RequestClient = ReturnType<typeof createClient>;
@@ -55,9 +59,13 @@ class VerificationPersistenceError extends Error {}
 
 class CandidateConflictError extends Error {}
 
+class VerificationExecutionError extends Error {}
+
 export interface ExerciseVerifyHandlerDependencies {
   authorize?: typeof authorizeTeacher;
-  verify?: typeof verifyOpenRouterExercise;
+  verify?: (
+    candidate: ExerciseCandidate,
+  ) => ReturnType<typeof verifyArithmeticExercise> | Promise<ReturnType<typeof verifyArithmeticExercise>>;
   createSupabaseClient?: (headers: Headers, cookies: Parameters<typeof createClient>[1]) => RequestClient;
   createWriterClient?: () => ServiceClient | null;
   loadExisting?: (client: ServiceClient, teacherId: string, candidateIds: string[]) => Promise<LedgerRow[]>;
@@ -67,7 +75,6 @@ export interface ExerciseVerifyHandlerDependencies {
     candidate: ExerciseCandidate,
     evidence: ExerciseVerificationEvidence,
   ) => Promise<LedgerRow>;
-  providerConfig?: { apiKey?: string; model?: string };
 }
 
 function jsonResponse(body: ExerciseVerificationError | ExerciseVerificationSuccess, status: number): Response {
@@ -125,6 +132,8 @@ async function recordVerification(
       verifier_version: evidence.verifierVersion,
       verified_at: evidence.verifiedAt,
       rationale: evidence.rationale,
+      arithmetic_structure: candidate.arithmeticStructure ?? null,
+      authority_version: evidence.authorityVersion,
     })
     .select(LEDGER_COLUMNS)
     .single();
@@ -147,17 +156,69 @@ async function recordVerification(
 }
 
 function snapshotMatches(row: LedgerRow, candidate: ExerciseCandidate): boolean {
+  const structure = candidate.arithmeticStructure ?? null;
+  const authorityVersion =
+    typeof structure === "object" && structure !== null && "version" in structure && structure.version === 1 ? 1 : null;
   return (
     row.candidate_id === candidate.id &&
     row.candidate_text === candidate.text &&
     row.proposed_canonical_answer === candidate.proposedCanonicalAnswer &&
     row.grade === String(candidate.grade) &&
     row.topic === candidate.topic &&
-    row.difficulty === candidate.difficulty
+    row.difficulty === candidate.difficulty &&
+    stableJson(row.arithmetic_structure) === stableJson(structure) &&
+    row.authority_version === authorityVersion
   );
 }
 
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableJson).join(",")}]`;
+  }
+  if (typeof value === "object" && value !== null) {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJson((value as Record<string, unknown>)[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function currentAuthoritySnapshot(row: LedgerRow) {
+  if (row.authority_version !== 1 || row.arithmetic_structure === null) {
+    return null;
+  }
+
+  try {
+    const rendered = renderArithmeticExercise(
+      {
+        grade: 4,
+        topic: row.topic,
+        difficulty: row.difficulty,
+      },
+      row.arithmetic_structure,
+    );
+    if (rendered.text !== row.candidate_text || rendered.proposedCanonicalAnswer !== row.verified_answer) {
+      return null;
+    }
+    if (
+      (row.outcome === "unique_answer" && rendered.proposedCanonicalAnswer !== row.proposed_canonical_answer) ||
+      (row.outcome === "answer_mismatch" && rendered.proposedCanonicalAnswer === row.proposed_canonical_answer) ||
+      (row.outcome !== "unique_answer" && row.outcome !== "answer_mismatch")
+    ) {
+      return null;
+    }
+    return rendered;
+  } catch (error) {
+    if (error instanceof ArithmeticAuthorityError) {
+      return null;
+    }
+    throw new VerificationPersistenceError();
+  }
+}
+
 function resultFromRow(row: LedgerRow): ExerciseVerificationResult {
+  const authoritySnapshot = currentAuthoritySnapshot(row);
   const base = {
     verificationId: row.id,
     candidateId: row.candidate_id,
@@ -165,10 +226,25 @@ function resultFromRow(row: LedgerRow): ExerciseVerificationResult {
     verifierIdentity: row.verifier_identity,
     verifierVersion: row.verifier_version,
     verifiedAt: row.verified_at,
+    arithmeticStructure: authoritySnapshot?.arithmeticStructure ?? null,
+    authorityVersion: authoritySnapshot ? 1 : null,
   };
 
-  if (row.outcome === "not_unique_answer") {
+  if (row.outcome === "unsupported_evidence") {
     return { ...base, outcome: row.outcome, verifiedAnswer: null };
+  }
+  if (!authoritySnapshot) {
+    return {
+      ...base,
+      outcome: "unsupported_evidence",
+      verifiedAnswer: null,
+      rationale: "Starszy wynik nie zawiera aktualnego, strukturalnego dowodu arytmetycznego.",
+      arithmeticStructure: null,
+      authorityVersion: null,
+    };
+  }
+  if (row.outcome !== "unique_answer" && row.outcome !== "answer_mismatch") {
+    throw new VerificationPersistenceError();
   }
   if (row.verified_answer === null) {
     throw new VerificationPersistenceError();
@@ -178,15 +254,11 @@ function resultFromRow(row: LedgerRow): ExerciseVerificationResult {
 
 export function createExerciseVerifyHandler(dependencies: ExerciseVerifyHandlerDependencies = {}): APIRoute {
   const authorize = dependencies.authorize ?? authorizeTeacher;
-  const verify = dependencies.verify ?? verifyOpenRouterExercise;
+  const verify = dependencies.verify ?? verifyArithmeticExercise;
   const createSupabaseClient = dependencies.createSupabaseClient ?? createClient;
   const createWriterClient = dependencies.createWriterClient ?? createServiceClient;
   const loadExisting = dependencies.loadExisting ?? loadExistingVerifications;
   const record = dependencies.record ?? recordVerification;
-  const providerConfig = dependencies.providerConfig ?? {
-    apiKey: OPENROUTER_API_KEY,
-    model: OPENROUTER_VERIFIER_MODEL,
-  };
 
   return async (context) => {
     let requestValue: unknown;
@@ -213,11 +285,14 @@ export function createExerciseVerifyHandler(dependencies: ExerciseVerifyHandlerD
       return errorResponse("FORBIDDEN", 403, "Nie można potwierdzić uprawnień nauczyciela.");
     }
 
-    const writer = createWriterClient();
-    const apiKey = providerConfig.apiKey;
-    const model = providerConfig.model;
-    if (!apiKey || !model || !writer) {
-      return errorResponse("VERIFIER_NOT_CONFIGURED", 503);
+    let writer: ServiceClient | null;
+    try {
+      writer = createWriterClient();
+    } catch {
+      return errorResponse("PERSISTENCE_UNAVAILABLE", 503);
+    }
+    if (!writer) {
+      return errorResponse("PERSISTENCE_UNAVAILABLE", 503);
     }
 
     const { candidates } = parsedRequest.data;
@@ -248,42 +323,23 @@ export function createExerciseVerifyHandler(dependencies: ExerciseVerifyHandlerD
             return resultFromRow(existing);
           }
 
+          let evidence: ExerciseVerificationEvidence;
           try {
-            const evidence = await verify(candidate, {
-              apiKey,
-              model,
-            });
-            const row = await record(writer, teacherId, candidate, evidence);
-            if (!snapshotMatches(row, candidate)) {
-              throw new CandidateConflictError();
-            }
-            return resultFromRow(row);
-          } catch (error) {
-            if (error instanceof OpenRouterExerciseVerifierError) {
-              return {
-                candidateId: candidate.id,
-                outcome: "indeterminate",
-                error: {
-                  code: error.code,
-                  message:
-                    error.code === "PROVIDER_TIMEOUT"
-                      ? "Weryfikator nie odpowiedział na czas. Spróbuj ponownie."
-                      : "Nie udało się zweryfikować zadania. Spróbuj ponownie później.",
-                },
-              };
-            }
-            if (error instanceof CandidateConflictError) {
-              throw error;
-            }
-            return {
-              candidateId: candidate.id,
-              outcome: "indeterminate",
-              error: {
-                code: "PROVIDER_FAILURE",
-                message: "Nie udało się zapisać wyniku weryfikacji. Spróbuj ponownie później.",
-              },
-            };
+            evidence = await verify(candidate);
+          } catch {
+            throw new VerificationExecutionError();
           }
+
+          let row: LedgerRow;
+          try {
+            row = await record(writer, teacherId, candidate, evidence);
+          } catch {
+            throw new VerificationPersistenceError();
+          }
+          if (!snapshotMatches(row, candidate)) {
+            throw new CandidateConflictError();
+          }
+          return resultFromRow(row);
         }),
       );
 
@@ -292,6 +348,9 @@ export function createExerciseVerifyHandler(dependencies: ExerciseVerifyHandlerD
     } catch (error) {
       if (error instanceof CandidateConflictError) {
         return errorResponse("CANDIDATE_CONFLICT", 409);
+      }
+      if (error instanceof VerificationExecutionError) {
+        return errorResponse("VERIFICATION_FAILURE", 500);
       }
       return errorResponse("PERSISTENCE_FAILURE", 500);
     }

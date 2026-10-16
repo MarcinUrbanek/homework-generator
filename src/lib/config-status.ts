@@ -1,7 +1,6 @@
 import {
   OPENROUTER_API_KEY,
   OPENROUTER_MODEL,
-  OPENROUTER_VERIFIER_MODEL,
   SUPABASE_SERVICE_ROLE_KEY,
   SUPABASE_URL,
   SUPABASE_KEY,
@@ -30,8 +29,8 @@ export const configStatuses: ConfigStatus[] = [
   },
   {
     name: "Weryfikacja zadań",
-    configured: Boolean(OPENROUTER_API_KEY && OPENROUTER_VERIFIER_MODEL && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
-    message: "Weryfikacja zadań nie jest skonfigurowana — zatwierdzanie zadań jest wyłączone.",
+    configured: Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
+    message: "Zapis wyników weryfikacji nie jest skonfigurowany — zatwierdzanie zadań jest wyłączone.",
   },
 ];
 

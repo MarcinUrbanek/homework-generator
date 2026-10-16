@@ -18,6 +18,7 @@ const statusPresentation = {
   unique_answer: { label: "Odpowiedź potwierdzona", variant: "default" as const, icon: CheckCircle2 },
   answer_mismatch: { label: "Odpowiedź niezgodna", variant: "destructive" as const, icon: XCircle },
   not_unique_answer: { label: "Brak jednej odpowiedzi", variant: "warning" as const, icon: AlertCircle },
+  unsupported_evidence: { label: "Brak obsługiwanego dowodu", variant: "warning" as const, icon: AlertCircle },
   indeterminate: { label: "Nie udało się rozstrzygnąć", variant: "outline" as const, icon: CircleHelp },
 };
 
@@ -29,6 +30,8 @@ function eligibilityMessage(reviewCandidate: ExerciseReviewCandidate): string {
       return "Zadanie nie może zostać zapisane, ponieważ zweryfikowana odpowiedź różni się od proponowanej.";
     case "not_unique_answer":
       return "Zadanie nie może zostać zapisane, ponieważ nie ma jednej jednoznacznej odpowiedzi.";
+    case "unsupported_evidence":
+      return "Zadanie nie może zostać zapisane, ponieważ jego struktura lub treść nie ma aktualnego dowodu.";
     case "indeterminate":
       return "Zadanie nie może zostać zapisane, dopóki błąd techniczny nie zostanie rozstrzygnięty.";
     case "unique_answer":
@@ -70,7 +73,10 @@ export function ExerciseCandidateList({ batch, disabled, onSelectionChange }: Ex
           const presentation = statusPresentation[status];
           const StatusIcon = presentation.icon;
           const verificationId =
-            status === "unique_answer" && reviewCandidate.evidence.outcome === "unique_answer"
+            status === "unique_answer" &&
+            reviewCandidate.evidence.outcome === "unique_answer" &&
+            reviewCandidate.evidence.authorityVersion === 1 &&
+            reviewCandidate.evidence.arithmeticStructure !== null
               ? reviewCandidate.evidence.verificationId
               : null;
           const isSelected = verificationId ? batch.selectedVerificationIds.includes(verificationId) : false;
@@ -95,16 +101,18 @@ export function ExerciseCandidateList({ batch, disabled, onSelectionChange }: Ex
                       </dt>
                       <dd className="mt-1 text-sm leading-6 break-words">{candidate.proposedCanonicalAnswer}</dd>
                     </div>
-                    {status !== "unverified" && reviewCandidate.evidence.outcome !== "indeterminate" && (
-                      <div>
-                        <dt className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                          Zweryfikowana odpowiedź
-                        </dt>
-                        <dd className="mt-1 text-sm leading-6 break-words">
-                          {reviewCandidate.evidence.verifiedAnswer ?? "Brak jednej poprawnej odpowiedzi"}
-                        </dd>
-                      </div>
-                    )}
+                    {status !== "unverified" &&
+                      reviewCandidate.evidence.outcome !== "indeterminate" &&
+                      reviewCandidate.evidence.outcome !== "unsupported_evidence" && (
+                        <div>
+                          <dt className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                            Zweryfikowana odpowiedź
+                          </dt>
+                          <dd className="mt-1 text-sm leading-6 break-words">
+                            {reviewCandidate.evidence.verifiedAnswer ?? "Brak jednej poprawnej odpowiedzi"}
+                          </dd>
+                        </div>
+                      )}
                   </dl>
 
                   {status !== "unverified" && (

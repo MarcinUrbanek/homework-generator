@@ -21,6 +21,22 @@ import type { ExerciseGenerationSuccess, ExerciseVerificationResult } from "@/ty
 
 const firstVerificationId = "11111111-1111-4111-8111-111111111111";
 const secondVerificationId = "22222222-2222-4222-8222-222222222222";
+const firstStructure = {
+  version: 1 as const,
+  expression: {
+    kind: "add" as const,
+    left: { kind: "number" as const, value: 12 },
+    right: { kind: "number" as const, value: 7 },
+  },
+};
+const secondStructure = {
+  version: 1 as const,
+  expression: {
+    kind: "subtract" as const,
+    left: { kind: "number" as const, value: 48 },
+    right: { kind: "number" as const, value: 18 },
+  },
+};
 const firstBatch: ExerciseGenerationSuccess = {
   requestedCount: 5,
   validCount: 2,
@@ -28,37 +44,23 @@ const firstBatch: ExerciseGenerationSuccess = {
   candidates: [
     {
       id: "candidate-1",
-      text: "Oblicz 12 + 7.",
+      text: "Oblicz wartość wyrażenia: (12 + 7). Podaj wynik jako jedną liczbę naturalną.",
       proposedCanonicalAnswer: "19",
       grade: 4,
       topic: "addition-subtraction",
       difficulty: "easy",
       approvalStatus: "unverified",
-      arithmeticStructure: {
-        version: 1,
-        expression: {
-          kind: "add",
-          left: { kind: "number", value: 12 },
-          right: { kind: "number", value: 7 },
-        },
-      },
+      arithmeticStructure: firstStructure,
     },
     {
       id: "candidate-2",
-      text: "Oblicz 48 - 19.",
-      proposedCanonicalAnswer: "29",
+      text: "Oblicz wartość wyrażenia: (48 - 18). Podaj wynik jako jedną liczbę naturalną.",
+      proposedCanonicalAnswer: "30",
       grade: 4,
       topic: "addition-subtraction",
       difficulty: "easy",
       approvalStatus: "unverified",
-      arithmeticStructure: {
-        version: 1,
-        expression: {
-          kind: "subtract",
-          left: { kind: "number", value: 48 },
-          right: { kind: "number", value: 19 },
-        },
-      },
+      arithmeticStructure: secondStructure,
     },
   ],
 };
@@ -69,9 +71,11 @@ const firstSuccess: ExerciseVerificationResult = {
   outcome: "unique_answer",
   verifiedAnswer: "19",
   rationale: "Jednoznaczny wynik.",
-  verifierIdentity: "openrouter",
-  verifierVersion: "model-v1",
+  verifierIdentity: "ArithmeticAuthority",
+  verifierVersion: "arithmetic-authority-v1",
   verifiedAt: "2026-09-29T12:00:00.000Z",
+  arithmeticStructure: firstStructure,
+  authorityVersion: 1,
 };
 const indeterminate: ExerciseVerificationResult = {
   candidateId: "candidate-2",
@@ -82,7 +86,8 @@ const secondSuccess: ExerciseVerificationResult = {
   ...firstSuccess,
   candidateId: "candidate-2",
   verificationId: secondVerificationId,
-  verifiedAnswer: "29",
+  verifiedAnswer: "30",
+  arithmeticStructure: secondStructure,
 };
 
 let container: HTMLDivElement;
@@ -228,8 +233,8 @@ describe("RequestExercisesForm review workflow", () => {
     });
 
     expect(container.textContent).toContain("Cały zestaw pozostał bez zmian.");
-    expect(container.textContent).toContain("Oblicz 12 + 7.");
-    expect(container.textContent).toContain("Oblicz 48 - 19.");
+    expect(container.textContent).toContain("Oblicz wartość wyrażenia: (12 + 7).");
+    expect(container.textContent).toContain("Oblicz wartość wyrażenia: (48 - 18).");
     expect(sessionStorage.getItem("latest-successful-exercise-batch")).toBe(before);
   });
 
@@ -258,8 +263,8 @@ describe("RequestExercisesForm review workflow", () => {
       verificationIds: [firstVerificationId],
     });
     expect(container.textContent).toContain("Zapisano 1 zadanie w zatwierdzonej puli.");
-    expect(container.textContent).not.toContain("Oblicz 12 + 7.");
-    expect(container.textContent).toContain("Oblicz 48 - 19.");
+    expect(container.textContent).not.toContain("Oblicz wartość wyrażenia: (12 + 7).");
+    expect(container.textContent).toContain("Oblicz wartość wyrażenia: (48 - 18).");
     expect(container.textContent).toContain("Jednoznaczny wynik.");
     const stored = restoreSessionExerciseBatch(sessionStorage);
     expect(stored?.candidates.map(({ candidate }) => candidate.id)).toEqual(["candidate-2"]);
@@ -273,7 +278,7 @@ const generationBatch: ExerciseGenerationSuccess = {
   candidates: [
     {
       id: "candidate-1",
-      text: "Oblicz 12 + 7.",
+      text: "Oblicz wartość wyrażenia: (12 + 7). Podaj wynik jako jedną liczbę naturalną.",
       proposedCanonicalAnswer: "19",
       grade: 4,
       topic: "addition-subtraction",
@@ -297,15 +302,19 @@ const replacementBatch: ExerciseGenerationSuccess = {
     {
       ...generationBatch.candidates[0],
       id: "candidate-2",
-      text: "Oblicz 48 - 19.",
-      proposedCanonicalAnswer: "29",
+      text: "Oblicz wartość wyrażenia: ((48 - 19) + 1). Podaj wynik jako jedną liczbę naturalną.",
+      proposedCanonicalAnswer: "30",
       difficulty: "hard",
       arithmeticStructure: {
         version: 1,
         expression: {
-          kind: "subtract",
-          left: { kind: "number", value: 48 },
-          right: { kind: "number", value: 19 },
+          kind: "add",
+          left: {
+            kind: "subtract",
+            left: { kind: "number", value: 48 },
+            right: { kind: "number", value: 19 },
+          },
+          right: { kind: "number", value: 1 },
         },
       },
     },
@@ -373,15 +382,15 @@ describe("RequestExercisesForm", () => {
     });
     expect(container.textContent).toContain("Generowanie zadań...");
     expect(container.querySelector("fieldset")?.disabled).toBe(true);
-    expect(container.textContent).toContain("Oblicz 12 + 7.");
+    expect(container.textContent).toContain("Oblicz wartość wyrażenia: (12 + 7).");
 
     await act(async () => {
       resolveResponse(jsonResponse(replacementBatch));
       await pendingResponse;
     });
 
-    expect(container.textContent).toContain("Oblicz 48 - 19.");
-    expect(container.textContent).not.toContain("Oblicz 12 + 7.");
+    expect(container.textContent).toContain("Oblicz wartość wyrażenia: ((48 - 19) + 1).");
+    expect(container.textContent).not.toContain("Oblicz wartość wyrażenia: (12 + 7).");
     expect(restoreSessionExerciseBatch(sessionStorage)).toEqual(createExerciseReviewBatch(replacementBatch));
   });
 
@@ -411,14 +420,18 @@ describe("RequestExercisesForm", () => {
 
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(message);
     expect(container.textContent).toContain("Poprzednie wyniki, jeśli były dostępne, pozostały bez zmian.");
-    expect(container.textContent).toContain("Oblicz 12 + 7.");
+    expect(container.textContent).toContain(
+      "Oblicz wartość wyrażenia: (12 + 7). Podaj wynik jako jedną liczbę naturalną.",
+    );
   });
 
   it("renders a restored batch and clears it through the view action", () => {
     storeBatch(generationBatch);
     renderForm();
 
-    expect(container.textContent).toContain("Oblicz 12 + 7.");
+    expect(container.textContent).toContain(
+      "Oblicz wartość wyrażenia: (12 + 7). Podaj wynik jako jedną liczbę naturalną.",
+    );
     const clearButton = Array.from(container.querySelectorAll("button")).find((button) =>
       button.textContent.includes("Wyczyść wyniki"),
     );

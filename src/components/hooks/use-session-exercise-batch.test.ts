@@ -15,6 +15,22 @@ import {
 } from "./use-session-exercise-batch";
 
 const verificationId = "11111111-1111-4111-8111-111111111111";
+const firstStructure = {
+  version: 1 as const,
+  expression: {
+    kind: "add" as const,
+    left: { kind: "number" as const, value: 12 },
+    right: { kind: "number" as const, value: 7 },
+  },
+};
+const secondStructure = {
+  version: 1 as const,
+  expression: {
+    kind: "multiply" as const,
+    left: { kind: "number" as const, value: 8 },
+    right: { kind: "number" as const, value: 4 },
+  },
+};
 const firstBatch: ExerciseGenerationSuccess = {
   requestedCount: 5,
   validCount: 2,
@@ -22,21 +38,23 @@ const firstBatch: ExerciseGenerationSuccess = {
   candidates: [
     {
       id: "candidate-1",
-      text: "Oblicz 12 + 7.",
+      text: "Oblicz wartość wyrażenia: (12 + 7). Podaj wynik jako jedną liczbę naturalną.",
       proposedCanonicalAnswer: "19",
       grade: 4,
       topic: "addition-subtraction",
       difficulty: "easy",
       approvalStatus: "unverified",
+      arithmeticStructure: firstStructure,
     },
     {
       id: "candidate-2",
-      text: "Oblicz 8 razy 4.",
+      text: "Oblicz wartość wyrażenia: (8 × 4). Podaj wynik jako jedną liczbę naturalną.",
       proposedCanonicalAnswer: "32",
       grade: 4,
       topic: "multiplication-division",
       difficulty: "medium",
       approvalStatus: "unverified",
+      arithmeticStructure: secondStructure,
     },
   ],
 };
@@ -47,9 +65,11 @@ const successfulResult: ExerciseVerificationResult = {
   outcome: "unique_answer",
   verifiedAnswer: "19",
   rationale: "Jednoznaczny wynik działania.",
-  verifierIdentity: "openrouter",
-  verifierVersion: "model-v1",
+  verifierIdentity: "ArithmeticAuthority",
+  verifierVersion: "arithmetic-authority-v1",
   verifiedAt: "2026-09-29T12:00:00.000Z",
+  arithmeticStructure: firstStructure,
+  authorityVersion: 1,
 };
 const indeterminateResult: ExerciseVerificationResult = {
   candidateId: "candidate-2",
@@ -67,10 +87,10 @@ describe("session exercise review batch storage", () => {
 
     expect(restoreSessionExerciseBatch(sessionStorage)).toEqual(createExerciseReviewBatch(firstBatch));
     const storedValue: unknown = JSON.parse(sessionStorage.getItem("latest-successful-exercise-batch") ?? "null");
-    expect(storedValue).toEqual(expect.objectContaining({ version: 2 }));
+    expect(storedValue).toEqual(expect.objectContaining({ version: 3 }));
   });
 
-  it("restores version-2 evidence and successful selection", () => {
+  it("restores version-3 evidence and successful selection", () => {
     let reviewBatch = applyExerciseVerificationResults(createExerciseReviewBatch(firstBatch), [
       successfulResult,
       indeterminateResult,
@@ -79,6 +99,45 @@ describe("session exercise review batch storage", () => {
     storeSessionExerciseBatch(sessionStorage, reviewBatch);
 
     expect(restoreSessionExerciseBatch(sessionStorage)).toEqual(reviewBatch);
+  });
+
+  it("migrates version-2 model evidence to unverified references and clears selection", () => {
+    const legacyCandidate = { ...firstBatch.candidates[0], arithmeticStructure: undefined };
+    const legacyEvidence = {
+      candidateId: legacyCandidate.id,
+      verificationId,
+      outcome: "unique_answer",
+      verifiedAnswer: "19",
+      rationale: "Jednoznaczny wynik działania.",
+      verifierIdentity: "OpenRouter",
+      verifierVersion: "legacy-model-v1",
+      verifiedAt: "2026-09-29T12:00:00.000Z",
+    };
+    sessionStorage.setItem(
+      "latest-successful-exercise-batch",
+      JSON.stringify({
+        version: 2,
+        batch: {
+          requestedCount: 5,
+          validCount: 1,
+          partial_batch: true,
+          candidates: [{ candidate: legacyCandidate, status: "unique_answer", evidence: legacyEvidence }],
+          selectedVerificationIds: [verificationId],
+        },
+      }),
+    );
+
+    const restored = restoreSessionExerciseBatch(sessionStorage);
+
+    expect(restored).toMatchObject({
+      validCount: 1,
+      candidates: [{ candidate: { text: legacyCandidate.text }, status: "unverified" }],
+      selectedVerificationIds: [],
+    });
+    expect(restored?.candidates[0]).not.toHaveProperty("evidence");
+    expect(JSON.parse(sessionStorage.getItem("latest-successful-exercise-batch") ?? "null")).toMatchObject({
+      version: 3,
+    });
   });
 
   it("retains settled results while replacing only a targeted indeterminate result", () => {
@@ -91,6 +150,7 @@ describe("session exercise review batch storage", () => {
       candidateId: "candidate-2",
       verificationId: "22222222-2222-4222-8222-222222222222",
       verifiedAnswer: "32",
+      arithmeticStructure: secondStructure,
     };
 
     const retried = applyExerciseVerificationResults(reviewed, [retryResult]);
@@ -118,11 +178,11 @@ describe("session exercise review batch storage", () => {
 
   it.each([
     ["malformed JSON", "{"],
-    ["an incompatible version", JSON.stringify({ version: 3, batch: firstBatch })],
+    ["an incompatible version", JSON.stringify({ version: 4, batch: firstBatch })],
     [
       "invalid evidence/status",
       JSON.stringify({
-        version: 2,
+        version: 3,
         batch: {
           ...createExerciseReviewBatch(firstBatch),
           validCount: 1,
@@ -133,7 +193,7 @@ describe("session exercise review batch storage", () => {
     [
       "ineligible selection",
       JSON.stringify({
-        version: 2,
+        version: 3,
         batch: { ...createExerciseReviewBatch(firstBatch), selectedVerificationIds: [verificationId] },
       }),
     ],

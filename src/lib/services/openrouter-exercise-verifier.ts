@@ -135,6 +135,8 @@ function classifyAnswers(
     verifierIdentity: EXERCISE_VERIFIER_LEDGER_IDENTITY,
     verifierVersion: model,
     verifiedAt,
+    arithmeticStructure: null,
+    authorityVersion: null,
   };
 
   if (canonicalAnswersByKey.size !== 1) {

@@ -148,6 +148,7 @@ describe("POST /api/exercises/approve", () => {
 
   it.each([
     { databaseCode: "22023", status: 422, responseCode: "INVALID_SELECTION" },
+    { databaseCode: "23514", status: 422, responseCode: "INVALID_SELECTION" },
     { databaseCode: "42501", status: 403, responseCode: "FORBIDDEN" },
     { databaseCode: "08006", status: 503, responseCode: "DATABASE_UNAVAILABLE" },
     { databaseCode: "PGRST001", status: 503, responseCode: "DATABASE_UNAVAILABLE" },
