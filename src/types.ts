@@ -26,7 +26,12 @@ export const EXERCISE_GENERATION_ERROR_CODES = [
   "PROVIDER_TIMEOUT",
 ] as const;
 
-export const EXERCISE_VERIFICATION_OUTCOMES = ["unique_answer", "answer_mismatch", "not_unique_answer"] as const;
+export const EXERCISE_VERIFICATION_OUTCOMES = [
+  "unique_answer",
+  "answer_mismatch",
+  "not_unique_answer",
+  "unsupported_evidence",
+] as const;
 
 export const EXERCISE_VERIFICATION_PROVIDER_ERROR_CODES = ["PROVIDER_FAILURE", "PROVIDER_TIMEOUT"] as const;
 
@@ -35,8 +40,10 @@ export const EXERCISE_VERIFICATION_ERROR_CODES = [
   "UNAUTHENTICATED",
   "FORBIDDEN",
   "VERIFIER_NOT_CONFIGURED",
+  "PERSISTENCE_UNAVAILABLE",
   "CANDIDATE_CONFLICT",
   "PERSISTENCE_FAILURE",
+  "VERIFICATION_FAILURE",
 ] as const;
 
 export const EXERCISE_APPROVAL_ERROR_CODES = [
@@ -89,7 +96,7 @@ export interface ExerciseCandidate extends ExerciseGenerationRequest {
   text: string;
   proposedCanonicalAnswer: string;
   approvalStatus: "unverified";
-  arithmeticStructure?: ArithmeticStructure;
+  arithmeticStructure?: unknown;
 }
 
 export interface GeneratedExerciseCandidate extends Omit<ExerciseCandidate, "topic" | "arithmeticStructure"> {
@@ -123,6 +130,8 @@ interface ExerciseVerificationEvidenceBase {
   verifierIdentity: string;
   verifierVersion: string;
   verifiedAt: string;
+  arithmeticStructure: unknown;
+  authorityVersion: number | null;
 }
 
 export type ExerciseVerificationEvidence =
@@ -131,7 +140,7 @@ export type ExerciseVerificationEvidence =
       verifiedAnswer: string;
     })
   | (ExerciseVerificationEvidenceBase & {
-      outcome: "not_unique_answer";
+      outcome: "not_unique_answer" | "unsupported_evidence";
       verifiedAnswer: null;
     });
 

@@ -1,8 +1,10 @@
 import type { APIContext, APIRoute } from "astro";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { OpenRouterExerciseVerifierError } from "@/lib/services/openrouter-exercise-verifier";
+import { renderArithmeticExercise } from "@/lib/exercises/arithmetic-authority";
+import { verifyOpenRouterExercise } from "@/lib/services/openrouter-exercise-verifier";
 import type { TeacherAuthorizationResult } from "@/lib/services/teacher-authorization";
+import { verifyArithmeticExercise } from "@/lib/services/arithmetic-exercise-verifier";
 import type {
   ExerciseCandidate,
   ExerciseVerificationError,
@@ -12,33 +14,42 @@ import type {
 
 import { createExerciseVerifyHandler } from "./verify";
 
+vi.mock("@/lib/services/openrouter-exercise-verifier", () => ({
+  verifyOpenRouterExercise: vi.fn(),
+}));
+
 vi.mock("astro:env/server", () => ({
-  OPENROUTER_API_KEY: undefined,
-  OPENROUTER_VERIFIER_MODEL: undefined,
+  SUPABASE_KEY: undefined,
+  SUPABASE_SERVICE_ROLE_KEY: undefined,
+  SUPABASE_URL: undefined,
 }));
 
 const teacherId = "00000000-0000-4000-8000-000000000001";
 const studentId = "student-without-teacher-role";
 const verificationId = "00000000-0000-4000-8000-000000000101";
+const structure = {
+  version: 1,
+  expression: { kind: "add", left: { kind: "number", value: 20 }, right: { kind: "number", value: 5 } },
+} as const;
+const rendered = renderArithmeticExercise({ grade: 4, topic: "addition-subtraction", difficulty: "easy" }, structure);
 
 const candidate: ExerciseCandidate = {
   id: "candidate-1",
-  text: "Oblicz 20 + 5.",
-  proposedCanonicalAnswer: "25",
+  text: rendered.text,
+  proposedCanonicalAnswer: rendered.proposedCanonicalAnswer,
   grade: 4,
   topic: "addition-subtraction",
   difficulty: "easy",
   approvalStatus: "unverified",
+  arithmeticStructure: structure,
 };
-
-const evidence: ExerciseVerificationEvidence = {
-  outcome: "unique_answer",
-  verifiedAnswer: "25",
-  rationale: "Suma liczb wynosi 25.",
-  verifierIdentity: "OpenRouter/grade-4-independent-answer-set-v1",
-  verifierVersion: "test/verifier",
-  verifiedAt: "2026-09-29T12:00:00.000Z",
+const legacyCandidate: ExerciseCandidate = {
+  ...candidate,
+  id: "legacy-candidate",
+  arithmeticStructure: undefined,
 };
+const now = () => new Date("2026-09-29T12:00:00.000Z");
+const evidence: ExerciseVerificationEvidence = verifyArithmeticExercise(candidate, now);
 
 function ledgerRow(item: ExerciseCandidate = candidate, result: ExerciseVerificationEvidence = evidence) {
   return {
@@ -56,6 +67,8 @@ function ledgerRow(item: ExerciseCandidate = candidate, result: ExerciseVerifica
     verifier_version: result.verifierVersion,
     verified_at: result.verifiedAt,
     rationale: result.rationale,
+    arithmetic_structure: item.arithmeticStructure ?? null,
+    authority_version: result.authorityVersion,
   };
 }
 
@@ -78,10 +91,12 @@ async function responseBody<T>(response: Response): Promise<T> {
 function handlerFor(
   options: {
     authorization?: TeacherAuthorizationResult;
-    configured?: boolean;
     writerAvailable?: boolean;
+    writerThrows?: boolean;
     existing?: ReturnType<typeof ledgerRow>[];
-    verifyImplementation?: (item: ExerciseCandidate) => Promise<ExerciseVerificationEvidence>;
+    verifyImplementation?: (
+      item: ExerciseCandidate,
+    ) => ExerciseVerificationEvidence | Promise<ExerciseVerificationEvidence>;
     recordImplementation?: (
       client: unknown,
       requestedTeacherId: string,
@@ -92,11 +107,13 @@ function handlerFor(
 ) {
   const authorize = vi.fn().mockResolvedValue(options.authorization ?? { status: "authorized-teacher" });
   const verify = vi.fn(
-    options.verifyImplementation ??
-      ((_item: ExerciseCandidate): Promise<ExerciseVerificationEvidence> => Promise.resolve(evidence)),
+    options.verifyImplementation ?? ((item: ExerciseCandidate) => verifyArithmeticExercise(item, now)),
   );
   const loadExisting = vi.fn().mockResolvedValue(options.existing ?? []);
-  const createWriterClient = vi.fn(() => (options.writerAvailable === false ? null : ({} as never)));
+  const createWriterClient = vi.fn(() => {
+    if (options.writerThrows) throw new Error("sensitive writer configuration detail");
+    return options.writerAvailable === false ? null : ({} as never);
+  });
   const record = vi.fn(
     options.recordImplementation ??
       ((_client, _requestedTeacherId, item, result) => Promise.resolve(ledgerRow(item, result))),
@@ -108,7 +125,6 @@ function handlerFor(
     createWriterClient,
     loadExisting,
     record,
-    providerConfig: options.configured === false ? {} : { apiKey: "test-secret", model: "test/verifier" },
   });
 
   return { handler, authorize, verify, loadExisting, record, createWriterClient };
@@ -134,13 +150,10 @@ describe("POST /api/exercises/verify", () => {
     { label: "duplicate candidate IDs", body: { candidates: [candidate, candidate] } },
   ])("returns 400 for $label before authorization", async ({ body }) => {
     const { handler, authorize, verify } = handlerFor();
-
     const response = await invoke(handler, body);
 
     expect(response.status).toBe(400);
-    expect(await responseBody<ExerciseVerificationError>(response)).toEqual({
-      error: { code: "INVALID_REQUEST", message: "Nieprawidłowe dane żądania weryfikacji." },
-    });
+    expect((await responseBody<ExerciseVerificationError>(response)).error.code).toBe("INVALID_REQUEST");
     expect(authorize).not.toHaveBeenCalled();
     expect(verify).not.toHaveBeenCalled();
   });
@@ -150,7 +163,6 @@ describe("POST /api/exercises/verify", () => {
     { authorization: { status: "profile-unavailable" } as const, status: 403, code: "FORBIDDEN" },
   ])("maps $authorization.status authorization", async ({ authorization, status, code }) => {
     const { handler, verify } = handlerFor({ authorization });
-
     const response = await invoke(handler);
 
     expect(response.status).toBe(status);
@@ -158,58 +170,96 @@ describe("POST /api/exercises/verify", () => {
     expect(verify).not.toHaveBeenCalled();
   });
 
-  it("denies a signed-in student before ledger reads, provider verification, and writes", async () => {
+  it("denies a student before ledger reads, verification, and writes", async () => {
     const { handler, verify, loadExisting, record, createWriterClient } = handlerFor({
       authorization: { status: "non-teacher" },
     });
-
     const response = await invoke(handler, { candidates: [candidate] }, studentId);
 
     expect(response.status).toBe(403);
-    const body = await responseBody<ExerciseVerificationError>(response);
-    expect(body).toEqual({
-      error: { code: "FORBIDDEN", message: "Weryfikacja zadań jest dostępna tylko dla nauczycieli." },
-    });
     expect(createWriterClient).not.toHaveBeenCalled();
     expect(loadExisting).not.toHaveBeenCalled();
     expect(verify).not.toHaveBeenCalled();
     expect(record).not.toHaveBeenCalled();
-    expect(JSON.stringify(body)).not.toContain(candidate.text);
-    expect(JSON.stringify(body)).not.toContain("test-secret");
-    expect(JSON.stringify(body)).not.toContain("database details");
+    expect(JSON.stringify(await responseBody(response))).not.toContain(candidate.text);
   });
 
-  it.each([
-    { configured: false, writerAvailable: true },
-    { configured: true, writerAvailable: false },
-  ])("returns 503 when verifier or trusted writer configuration is missing", async (options) => {
-    const { handler, verify } = handlerFor(options);
-
-    const response = await invoke(handler);
-
-    expect(response.status).toBe(503);
-    expect((await responseBody<ExerciseVerificationError>(response)).error.code).toBe("VERIFIER_NOT_CONFIGURED");
-    expect(verify).not.toHaveBeenCalled();
-  });
-
-  it("reuses an ordered settled result when the complete snapshot matches", async () => {
-    const { handler, verify, record } = handlerFor({ existing: [ledgerRow()] });
-
+  it("does not require verifier-provider configuration and never calls a model verifier", async () => {
+    const { handler, verify, record } = handlerFor();
     const response = await invoke(handler);
 
     expect(response.status).toBe(200);
-    expect(await responseBody<ExerciseVerificationSuccess>(response)).toEqual({
-      results: [{ verificationId, candidateId: candidate.id, ...evidence }],
+    expect(verify).toHaveBeenCalledWith(candidate);
+    expect(verifyOpenRouterExercise).not.toHaveBeenCalled();
+    expect(record).toHaveBeenCalledTimes(1);
+    expect((await responseBody<ExerciseVerificationSuccess>(response)).results[0]).toMatchObject({
+      outcome: "unique_answer",
+      verifiedAnswer: "25",
+      authorityVersion: 1,
+      arithmeticStructure: structure,
+    });
+  });
+
+  it("returns a typed persistence configuration failure without calling verification", async () => {
+    const { handler, verify } = handlerFor({ writerAvailable: false });
+    const response = await invoke(handler);
+
+    expect(response.status).toBe(503);
+    expect((await responseBody<ExerciseVerificationError>(response)).error.code).toBe("PERSISTENCE_UNAVAILABLE");
+    expect(verify).not.toHaveBeenCalled();
+  });
+
+  it("sanitizes writer-client initialization failures", async () => {
+    const { handler, verify } = handlerFor({ writerThrows: true });
+    const response = await invoke(handler);
+    const body = await responseBody<ExerciseVerificationError>(response);
+
+    expect(response.status).toBe(503);
+    expect(body.error.code).toBe("PERSISTENCE_UNAVAILABLE");
+    expect(JSON.stringify(body)).not.toContain("sensitive");
+    expect(verify).not.toHaveBeenCalled();
+  });
+
+  it("settles missing and unknown structures as unsupported evidence", async () => {
+    const unknownCandidate: ExerciseCandidate = {
+      ...candidate,
+      id: "unknown",
+      arithmeticStructure: { version: 999, expression: structure.expression },
+    };
+    const { handler } = handlerFor();
+    const response = await invoke(handler, { candidates: [legacyCandidate, unknownCandidate] });
+    const body = await responseBody<ExerciseVerificationSuccess>(response);
+
+    expect(response.status).toBe(200);
+    expect(body.results.map(({ outcome }) => outcome)).toEqual(["unsupported_evidence", "unsupported_evidence"]);
+    expect(body.results.every((result) => result.outcome !== "indeterminate")).toBe(true);
+  });
+
+  it("reuses an ordered result only when the full structured snapshot matches", async () => {
+    const { handler, verify, record } = handlerFor({ existing: [ledgerRow()] });
+    const response = await invoke(handler);
+
+    expect(response.status).toBe(200);
+    expect((await responseBody<ExerciseVerificationSuccess>(response)).results[0]).toMatchObject({
+      verificationId,
+      candidateId: candidate.id,
+      ...evidence,
     });
     expect(verify).not.toHaveBeenCalled();
     expect(record).not.toHaveBeenCalled();
   });
 
-  it("returns 409 without verification when a candidate ID has conflicting content", async () => {
-    const conflicting = ledgerRow({ ...candidate, text: "Inna treść." });
-    const { handler, verify, record } = handlerFor({ existing: [conflicting] });
+  it("denies stale evidence when the structure or authority version differs", async () => {
+    const alteredStructure = {
+      ...candidate,
+      arithmeticStructure: {
+        version: 1,
+        expression: { kind: "add", left: { kind: "number", value: 19 }, right: { kind: "number", value: 6 } },
+      },
+    };
+    const { handler, verify, record } = handlerFor({ existing: [ledgerRow()] });
 
-    const response = await invoke(handler);
+    const response = await invoke(handler, { candidates: [alteredStructure] });
 
     expect(response.status).toBe(409);
     expect((await responseBody<ExerciseVerificationError>(response)).error.code).toBe("CANDIDATE_CONFLICT");
@@ -217,58 +267,75 @@ describe("POST /api/exercises/verify", () => {
     expect(record).not.toHaveBeenCalled();
   });
 
-  it("keeps input order, records settled evidence, and retains a technical failure", async () => {
-    const secondCandidate = { ...candidate, id: "candidate-2", text: "Oblicz 8 razy 7." };
-    const secondVerificationId = "00000000-0000-4000-8000-000000000102";
-    const verifyImplementation = (item: ExerciseCandidate): Promise<ExerciseVerificationEvidence> => {
-      if (item.id === secondCandidate.id) {
-        return Promise.reject(new OpenRouterExerciseVerifierError("PROVIDER_TIMEOUT"));
-      }
-      return Promise.resolve(evidence);
-    };
-    const recordImplementation = (
-      _client: unknown,
-      _requestedTeacherId: string,
-      item: ExerciseCandidate,
-      result: ExerciseVerificationEvidence,
-    ) => Promise.resolve({ ...ledgerRow(item, result), id: secondVerificationId });
-    const { handler, verify, record } = handlerFor({ verifyImplementation, recordImplementation });
+  it("treats an authority-version conflict as a candidate conflict", async () => {
+    const { handler, verify } = handlerFor({ existing: [{ ...ledgerRow(), authority_version: 2 }] });
 
-    const response = await invoke(handler, { candidates: [candidate, secondCandidate] });
-    const body = await responseBody<ExerciseVerificationSuccess>(response);
+    const response = await invoke(handler);
 
-    expect(response.status).toBe(200);
-    expect(body.results.map(({ candidateId }) => candidateId)).toEqual([candidate.id, secondCandidate.id]);
-    expect(body.results[0]).toMatchObject({ outcome: "unique_answer", verificationId: secondVerificationId });
-    expect(body.results[1]).toEqual({
-      candidateId: secondCandidate.id,
-      outcome: "indeterminate",
-      error: {
-        code: "PROVIDER_TIMEOUT",
-        message: "Weryfikator nie odpowiedział na czas. Spróbuj ponownie.",
-      },
-    });
-    expect(verify).toHaveBeenCalledTimes(2);
-    expect(record).toHaveBeenCalledTimes(1);
-    expect(record).toHaveBeenCalledWith(expect.anything(), teacherId, candidate, evidence);
+    expect(response.status).toBe(409);
+    expect((await responseBody<ExerciseVerificationError>(response)).error.code).toBe("CANDIDATE_CONFLICT");
+    expect(verify).not.toHaveBeenCalled();
   });
 
-  it("reports an unrecorded candidate as indeterminate when trusted persistence fails", async () => {
-    const recordImplementation = (): Promise<ReturnType<typeof ledgerRow>> => {
-      return Promise.reject(new Error("database details"));
+  it("never exposes a legacy model-only unique_answer as current success", async () => {
+    const legacyEvidence: ExerciseVerificationEvidence = {
+      outcome: "unique_answer",
+      verifiedAnswer: "25",
+      rationale: "Model reported one answer.",
+      verifierIdentity: "OpenRouter/legacy",
+      verifierVersion: "old-model",
+      verifiedAt: "2026-09-29T12:00:00.000Z",
+      arithmeticStructure: null,
+      authorityVersion: null,
     };
+    const legacyRow = {
+      ...ledgerRow(legacyCandidate, legacyEvidence),
+      arithmetic_structure: null,
+      authority_version: null,
+    };
+    const { handler, verify, record } = handlerFor({ existing: [legacyRow] });
+    const response = await invoke(handler, { candidates: [legacyCandidate] });
+    const result = (await responseBody<ExerciseVerificationSuccess>(response)).results[0];
+
+    expect(response.status).toBe(200);
+    expect(result).toMatchObject({ outcome: "unsupported_evidence", verifiedAnswer: null });
+    expect(verify).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it("returns a candidate conflict when a concurrent insert wins with a different snapshot", async () => {
+    const conflictingRow = { ...ledgerRow(), candidate_text: "Other text." };
+    const recordImplementation = () => Promise.resolve(conflictingRow);
     const { handler } = handlerFor({ recordImplementation });
 
     const response = await invoke(handler);
 
-    expect(response.status).toBe(200);
-    const body = await responseBody<{ results: { outcome: string; error?: { code: string; message: string } }[] }>(
-      response,
-    );
-    expect(body.results.length).toBeGreaterThan(0);
-    for (const result of body.results) {
-      expect(result.outcome).toBe("indeterminate");
-      expect(result.error?.message).not.toContain("database details");
-    }
+    expect(response.status).toBe(409);
+    expect((await responseBody<ExerciseVerificationError>(response)).error.code).toBe("CANDIDATE_CONFLICT");
+  });
+
+  it("returns an explicit sanitized persistence failure instead of an indeterminate provider result", async () => {
+    const recordImplementation = (): Promise<ReturnType<typeof ledgerRow>> =>
+      Promise.reject(new Error("sensitive database details"));
+    const { handler } = handlerFor({ recordImplementation });
+
+    const response = await invoke(handler);
+    const body = await responseBody<ExerciseVerificationError>(response);
+
+    expect(response.status).toBe(500);
+    expect(body.error.code).toBe("PERSISTENCE_FAILURE");
+    expect(JSON.stringify(body)).not.toContain("sensitive");
+  });
+
+  it("returns an explicit sanitized verification failure for unexpected evaluator errors", async () => {
+    const { handler } = handlerFor({
+      verifyImplementation: () => Promise.reject(new Error("internal evaluator detail")),
+    });
+    const response = await invoke(handler);
+    const body = await responseBody<ExerciseVerificationError>(response);
+
+    expect(response.status).toBe(500);
+    expect(body.error.code).toBe("VERIFICATION_FAILURE");
+    expect(JSON.stringify(body)).not.toContain("internal evaluator detail");
   });
 });

@@ -27,10 +27,16 @@ export const exerciseGenerationRequestSchema = z
 
 export const exerciseCandidateSchema = exerciseGenerationRequestSchema.extend({
   id: z.string().trim().min(1),
-  text: z.string().trim().min(1),
-  proposedCanonicalAnswer: z.string().trim().min(1),
+  text: z
+    .string()
+    .min(1)
+    .refine((value) => value.trim().length > 0),
+  proposedCanonicalAnswer: z
+    .string()
+    .min(1)
+    .refine((value) => value.trim().length > 0),
   approvalStatus: z.literal("unverified"),
-  arithmeticStructure: arithmeticStructureSchema.optional(),
+  arithmeticStructure: z.unknown().optional(),
 });
 
 export const generatedExerciseCandidateSchema = exerciseCandidateSchema
@@ -147,6 +153,8 @@ const persistedExerciseVerificationBaseSchema = z.object({
   verifierIdentity: nonEmptyStringSchema,
   verifierVersion: nonEmptyStringSchema,
   verifiedAt: z.iso.datetime({ offset: true }),
+  arithmeticStructure: z.unknown().nullable(),
+  authorityVersion: z.number().int().positive().nullable(),
 });
 
 export const persistedExerciseVerificationSchema = z.discriminatedUnion("outcome", [
@@ -165,6 +173,12 @@ export const persistedExerciseVerificationSchema = z.discriminatedUnion("outcome
   persistedExerciseVerificationBaseSchema
     .extend({
       outcome: z.literal("not_unique_answer"),
+      verifiedAnswer: z.null(),
+    })
+    .strict(),
+  persistedExerciseVerificationBaseSchema
+    .extend({
+      outcome: z.literal("unsupported_evidence"),
       verifiedAnswer: z.null(),
     })
     .strict(),
@@ -202,6 +216,18 @@ export const exerciseVerificationSuccessSchema = z
         message: "Verification result candidate IDs must be distinct",
       });
     }
+    results.forEach((result, index) => {
+      if (
+        (result.outcome === "unique_answer" || result.outcome === "answer_mismatch") &&
+        (result.authorityVersion !== 1 || !arithmeticStructureSchema.safeParse(result.arithmeticStructure).success)
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["results", index],
+          message: "Settled arithmetic evidence must carry the current supported structure",
+        });
+      }
+    });
   });
 
 export const exerciseVerificationErrorSchema = z
@@ -265,8 +291,10 @@ export const exerciseVerificationLedgerRowSchema = z
     grade: z.literal("4"),
     topic: exerciseTopicSlugSchema,
     difficulty: exerciseDifficultySchema,
-    outcome: z.enum(["unique_answer", "answer_mismatch", "not_unique_answer"]),
+    outcome: z.enum(["unique_answer", "answer_mismatch", "not_unique_answer", "unsupported_evidence"]),
     verified_answer: nonEmptyStringSchema.nullable(),
+    arithmetic_structure: z.unknown().nullable(),
+    authority_version: z.number().int().positive().nullable(),
     verifier_identity: nonEmptyStringSchema,
     verifier_version: nonEmptyStringSchema,
     verified_at: z.iso.datetime({ offset: true }),

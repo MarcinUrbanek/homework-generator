@@ -116,7 +116,7 @@ export function createExerciseApproveHandler(dependencies: ExerciseApproveHandle
       return jsonResponse(response, 200);
     } catch (error) {
       const failure = typeof error === "object" && error !== null ? (error as ApprovalFailure) : {};
-      if (failure.code === "22023") {
+      if (failure.code === "22023" || failure.code === "23514") {
         return errorResponse("INVALID_SELECTION", 422);
       }
       if (failure.code === "42501") {

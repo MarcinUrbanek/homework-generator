@@ -46,6 +46,8 @@ describe("verifyOpenRouterExercise", () => {
       verifierIdentity: EXERCISE_VERIFIER_LEDGER_IDENTITY,
       verifierVersion: "test/verifier",
       verifiedAt: "2026-09-29T12:00:00.000Z",
+      arithmeticStructure: null,
+      authorityVersion: null,
     });
     expect(EXERCISE_VERIFICATION_STRATEGY_VERSION).toBe("grade-4-independent-answer-set-v2");
     expect(fetchMock).toHaveBeenCalledTimes(1);

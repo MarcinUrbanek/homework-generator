@@ -543,20 +543,20 @@ until explicitly supported; version strings alone cannot silently widen the doma
 
 #### Automated
 
-- [x] 1.1 Domain tests prove exact answers, unique rendering, all nine topic/difficulty buckets, and invalid/boundary rejection: `npm test -- src/lib/exercises/arithmetic-authority.test.ts`.
-- [x] 1.2 Generator/request tests preserve admission and batch contracts and reject unsupported requests without provider work: `npm test -- src/lib/services/openrouter-exercise-generator.test.ts src/pages/api/exercises/request.test.ts src/lib/services/exercise-generation-admission.test.ts`.
+- [x] 1.1 Domain tests prove exact answers, unique rendering, all nine topic/difficulty buckets, and invalid/boundary rejection: `npm test -- src/lib/exercises/arithmetic-authority.test.ts`. — 3a7d6bd
+- [x] 1.2 Generator/request tests preserve admission and batch contracts and reject unsupported requests without provider work: `npm test -- src/lib/services/openrouter-exercise-generator.test.ts src/pages/api/exercises/request.test.ts src/lib/services/exercise-generation-admission.test.ts`. — 3a7d6bd
 
 #### Manual
 
-- [x] 1.3 A reviewer independently checks version 1 Polish wording, precedence/grouping, topic limits, and literal expected answers for the supported template families.
+- [x] 1.3 A reviewer independently checks version 1 Polish wording, precedence/grouping, topic limits, and literal expected answers for the supported template families. — 3a7d6bd
 
 ### Phase 2: Verification and pool admission
 
 #### Automated
 
-- [ ] 2.1 Verification/approval tests prove exact structure binding, stale-evidence denial, conflict/reuse behavior, typed failures, and no model-verifier call: `npm test -- src/lib/services/arithmetic-exercise-verifier.test.ts src/pages/api/exercises/verify.test.ts src/pages/api/exercises/approve.test.ts`.
-- [ ] 2.2 Local migrations apply without deleting historical rows: `npx supabase migration up --local`.
-- [ ] 2.3 Database tests reject forged success, unlinked trusted writes, wrong-owner promotion, and certified snapshot mutation while preserving valid idempotent approval: `npx supabase test db --local supabase/tests/database/exercise_verification_approval.sql supabase/tests/database/verified_exercise_persistence.sql`.
+- [x] 2.1 Verification/approval tests prove exact structure binding, stale-evidence denial, conflict/reuse behavior, typed failures, and no model-verifier call: `npm test -- src/lib/services/arithmetic-exercise-verifier.test.ts src/pages/api/exercises/verify.test.ts src/pages/api/exercises/approve.test.ts`.
+- [x] 2.2 Local migrations apply without deleting historical rows: `npx supabase migration up --local`.
+- [x] 2.3 Database tests reject forged success, unlinked trusted writes, wrong-owner promotion, and certified snapshot mutation while preserving valid idempotent approval: `npx supabase test db --local supabase/tests/database/exercise_verification_approval.sql supabase/tests/database/verified_exercise_persistence.sql`.
 
 #### Manual
 

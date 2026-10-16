@@ -39,27 +39,77 @@ const stateLabels: Record<GalleryState, string> = {
   "all-saved": "All saved",
 };
 
-function candidate(id: string, text: string, answer: string): ExerciseCandidate {
+function candidate(
+  id: string,
+  text: string,
+  answer: string,
+  arithmeticStructure: unknown = null,
+  topic: ExerciseCandidate["topic"] = "multiplication-division",
+): ExerciseCandidate {
   return {
     id,
     grade: 4,
-    topic: "multiplication-division",
+    topic,
     difficulty: "medium",
     text,
     proposedCanonicalAnswer: answer,
     approvalStatus: "unverified",
+    arithmeticStructure,
   };
 }
+
+const firstStructure = {
+  version: 1,
+  expression: { kind: "multiply", left: { kind: "number", value: 36 }, right: { kind: "number", value: 7 } },
+};
+const secondStructure = {
+  version: 1,
+  expression: { kind: "divide", left: { kind: "number", value: 864 }, right: { kind: "number", value: 8 } },
+};
+const fourthStructure = {
+  version: 1,
+  expression: { kind: "multiply", left: { kind: "number", value: 125 }, right: { kind: "number", value: 6 } },
+};
+const fifthStructure = {
+  version: 1,
+  expression: { kind: "divide", left: { kind: "number", value: 945 }, right: { kind: "number", value: 9 } },
+};
 
 const generatedBatch: ExerciseGenerationSuccess = {
   requestedCount: 5,
   validCount: 5,
   candidates: [
-    candidate("gallery-1", "Oblicz 36 · 7.", "252"),
-    candidate("gallery-2", "Podziel 864 przez 8.", "108"),
-    candidate("gallery-3", "W bibliotece ustawiono 9 półek po 24 książki. Ile książek ustawiono?", "216"),
-    candidate("gallery-4", "Oblicz 125 · 6.", "700"),
-    candidate("gallery-5", "Podziel 945 przez 9 i podaj wszystkie możliwe wyniki.", "105"),
+    candidate(
+      "gallery-1",
+      "Oblicz wartość wyrażenia: (36 × 7). Podaj wynik jako jedną liczbę naturalną.",
+      "252",
+      firstStructure,
+    ),
+    candidate(
+      "gallery-2",
+      "Oblicz wartość wyrażenia: (864 : 8). Podaj wynik jako jedną liczbę naturalną.",
+      "108",
+      secondStructure,
+    ),
+    candidate(
+      "gallery-3",
+      "W bibliotece ustawiono 9 półek po 24 książki. Ile książek ustawiono?",
+      "216",
+      null,
+      "word-problems",
+    ),
+    candidate(
+      "gallery-4",
+      "Oblicz wartość wyrażenia: (125 × 6). Podaj wynik jako jedną liczbę naturalną.",
+      "700",
+      fourthStructure,
+    ),
+    candidate(
+      "gallery-5",
+      "Oblicz wartość wyrażenia: (945 : 9). Podaj wynik jako jedną liczbę naturalną.",
+      "105",
+      fifthStructure,
+    ),
   ],
 };
 
@@ -70,9 +120,11 @@ const mixedBatch = applyExerciseVerificationResults(createExerciseReviewBatch(ge
     outcome: "unique_answer",
     verifiedAnswer: "252",
     rationale: "Działanie ma jeden wynik zgodny z proponowaną odpowiedzią.",
-    verifierIdentity: "openrouter",
-    verifierVersion: "gallery-model",
+    verifierIdentity: "ArithmeticAuthority",
+    verifierVersion: "arithmetic-authority-v1",
     verifiedAt: "2026-09-29T12:00:00.000Z",
+    arithmeticStructure: firstStructure,
+    authorityVersion: 1,
   },
   {
     candidateId: "gallery-2",
@@ -82,12 +134,14 @@ const mixedBatch = applyExerciseVerificationResults(createExerciseReviewBatch(ge
   {
     candidateId: "gallery-3",
     verificationId: "33333333-3333-4333-8333-333333333333",
-    outcome: "unique_answer",
-    verifiedAnswer: "216",
-    rationale: "Treść prowadzi do jednego iloczynu: 9 · 24.",
-    verifierIdentity: "openrouter",
-    verifierVersion: "gallery-model",
+    outcome: "unsupported_evidence",
+    verifiedAnswer: null,
+    rationale: "Zadanie tekstowe nie należy do obsługiwanej struktury arytmetycznej.",
+    verifierIdentity: "ArithmeticAuthority",
+    verifierVersion: "arithmetic-authority-v1",
     verifiedAt: "2026-09-29T12:00:00.000Z",
+    arithmeticStructure: null,
+    authorityVersion: null,
   },
   {
     candidateId: "gallery-4",
@@ -95,25 +149,29 @@ const mixedBatch = applyExerciseVerificationResults(createExerciseReviewBatch(ge
     outcome: "answer_mismatch",
     verifiedAnswer: "750",
     rationale: "Poprawny iloczyn różni się od proponowanej odpowiedzi.",
-    verifierIdentity: "openrouter",
-    verifierVersion: "gallery-model",
+    verifierIdentity: "ArithmeticAuthority",
+    verifierVersion: "arithmetic-authority-v1",
     verifiedAt: "2026-09-29T12:00:00.000Z",
+    arithmeticStructure: fourthStructure,
+    authorityVersion: 1,
   },
   {
     candidateId: "gallery-5",
     verificationId: "55555555-5555-4555-8555-555555555555",
-    outcome: "not_unique_answer",
-    verifiedAnswer: null,
-    rationale: "Polecenie nie określa jednej oczekiwanej odpowiedzi.",
-    verifierIdentity: "openrouter",
-    verifierVersion: "gallery-model",
+    outcome: "unique_answer",
+    verifiedAnswer: "105",
+    rationale: "Struktura oblicza wartość 105.",
+    verifierIdentity: "ArithmeticAuthority",
+    verifierVersion: "arithmetic-authority-v1",
     verifiedAt: "2026-09-29T12:00:00.000Z",
+    arithmeticStructure: fifthStructure,
+    authorityVersion: 1,
   },
 ]);
 
 const selectedBatch = selectExerciseVerification(
   selectExerciseVerification(mixedBatch, "11111111-1111-4111-8111-111111111111", true),
-  "33333333-3333-4333-8333-333333333333",
+  "55555555-5555-4555-8555-555555555555",
   true,
 );
 
