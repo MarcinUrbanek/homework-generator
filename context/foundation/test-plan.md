@@ -6,7 +6,7 @@
 >
 > Refresh: re-run `/10x-test-plan --refresh` when stale (see §8).
 >
-> Last updated: 2026-10-14
+> Last updated: 2026-10-18
 
 ## 1. Strategy
 
@@ -120,7 +120,7 @@ that establishes its canonical pattern.
 
 ### 6.2 Adding an invitation lifecycle test
 
-- Test `resolveClassInvitationStatus` as a coarse public contract: unknown and rotated tokens are `invalid`, expired tokens are `expired`, pending or failed delivery is `unavailable`, and a different authenticated email is `email-mismatch`. Assert that results never contain the normalized recipient. Keep authentication-continuation tests focused on preserving the complete tokenized same-origin return path.
+- Test `resolveClassInvitationStatus` as a coarse public contract: unknown and rotated tokens are `invalid`, expired tokens are `expired`, pending or failed delivery is `delivery-failed`, and a different authenticated email is `email-mismatch`. Assert that results never contain the normalized recipient. Keep authentication-continuation tests focused on preserving the complete tokenized same-origin return path.
 - Use pgTAP for persisted lifecycle facts: seven-day expiry, digest replacement and pending state on refresh, current delivery-state recording, and rejection of stale delivery writes. These persistence checks and the status-service tests are separate boundaries, not a live HTTP-to-database integration.
 - Verify with `npm test -- src/lib/services/class-invitation-status.test.ts src/pages/api/auth/signin.test.ts src/pages/api/auth/signup.test.ts src/lib/auth/return-destination.test.ts` and `npm run db:test`.
 - Phase 1 tests only the pre-enrollment status contract and authentication continuation; they do not prove enrollment safety or replay protection. S-05 adds separate acceptance-boundary coverage: the database revalidates expiry, delivery, recipient, and redemption state while creating membership atomically; pgTAP verifies same-user retry and denial of wrong-recipient and replay attempts.
@@ -148,6 +148,7 @@ that establishes its canonical pattern.
 - S-05 separately shipped the atomic acceptance operation and pgTAP coverage for acceptance-time eligibility, membership creation, same-user retry, wrong-recipient denial, and replay denial. Keep these guarantees attributed to S-05 rather than retroactively expanding Phase 1's test scope.
 - The `exercise-trust-provider-resilience` change covers bounded generation admission for risk #2; reuse its tests without duplicating them here.
 - The `trustworthy-exercise-approval` change owns Risk #3 runtime authority and its direct tests. `testing-exercise-trust-and-provider-resilience` adds Risk #5 generation/API partial-batch coverage; existing verification-handler tests cover per-item success retention alongside a timeout. Phase 2 remains open until both changes complete.
+- Risk #3 authority coverage uses independent literal vectors in the TypeScript and database authority suites, then composes the production generator with deterministic verification while stubbing only provider fetch. Keep promotion and student-consumption proof in the real database suites. Focused commands: `npm test -- src/lib/exercises/arithmetic-authority.test.ts src/lib/services/arithmetic-exercise-verifier.test.ts src/lib/services/openrouter-exercise-generator.test.ts src/pages/api/exercises` and `npm run db:test`; do not infer release readiness until the maintenance-window, legacy-count, rollback, and manual student-flow evidence is recorded in the [change evidence record](../changes/trustworthy-exercise-approval/phase-5-evidence.md).
 
 ## 7. What We Deliberately Don't Test
 

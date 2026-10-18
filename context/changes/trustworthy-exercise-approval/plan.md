@@ -581,17 +581,17 @@ until explicitly supported; version strings alone cannot silently widen the doma
 
 #### Manual
 
-- [x] 4.2 Restore an old selected batch, read the ineligibility/regeneration notice, generate a supported replacement, verify, select, and approve using keyboard controls and a narrow viewport.
+- [x] 4.2 Restore an old selected batch, read the ineligibility/regeneration notice, generate a supported replacement, verify, select, and approve using keyboard controls and a narrow viewport. — e433e64
 
 ### Phase 5: Independent evidence and rollout
 
 #### Automated
 
-- [ ] 5.1 Independent authority vectors and composed generator/verifier/API tests reject adversarial false acceptance and pass certified cases: `npm test -- src/lib/exercises/arithmetic-authority.test.ts src/lib/services/arithmetic-exercise-verifier.test.ts src/lib/services/openrouter-exercise-generator.test.ts src/pages/api/exercises`.
-- [ ] 5.2 All database suites pass with certified current fixtures and explicit legacy fixtures: `npm run db:test`.
-- [ ] 5.3 Final regression, type, lint, and production checks pass: `npm test`, `npx astro check`, `npm run lint`, and `npm run build`.
+- [x] 5.1 Independent authority vectors and composed generator/verifier/API tests reject adversarial false acceptance and pass certified cases: `npm test -- src/lib/exercises/arithmetic-authority.test.ts src/lib/services/arithmetic-exercise-verifier.test.ts src/lib/services/openrouter-exercise-generator.test.ts src/pages/api/exercises`.
+- [x] 5.2 All database suites pass with certified current fixtures and explicit legacy fixtures: `npm run db:test`.
+- [x] 5.3 Final regression, type, lint, and production checks pass: `npm test`, `npx astro check`, `npm run lint`, and `npm run build`.
 
 #### Manual
 
-- [ ] 5.4 On disposable local Supabase, `npm run seed:homework-manual-test` creates only certified current fixtures, and the teacher-to-student flow plus retained legacy result checks pass.
-- [ ] 5.5 A release reviewer confirms legacy-row counts, no destructive migration, maintenance-window ordering, and a rollback procedure that never re-enables uncertified student prompts.
+- [x] 5.4 On disposable local Supabase, `npm run seed:homework-manual-test` creates only certified current fixtures, and the teacher-to-student flow plus retained legacy result checks pass.
+- [x] 5.5 A release reviewer confirms legacy-row counts, no destructive migration, maintenance-window ordering, and a rollback procedure that never re-enables uncertified student prompts.

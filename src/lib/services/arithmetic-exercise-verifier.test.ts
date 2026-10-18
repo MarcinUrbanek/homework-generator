@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import authorityFixtures from "@/lib/exercises/__fixtures__/arithmetic-authority-v1.json";
 import { renderArithmeticExercise } from "@/lib/exercises/arithmetic-authority";
 import type { ExerciseCandidate } from "@/types";
 
@@ -25,6 +26,44 @@ function candidate(overrides: Partial<ExerciseCandidate> = {}): ExerciseCandidat
 }
 
 describe("verifyArithmeticExercise", () => {
+  it.each(authorityFixtures.rejectedCases.filter(({ id }) => id !== "mismatched-proof-metadata"))(
+    "does not accept fixture evidence $id",
+    ({ metadata, structure, statement, literalAnswer, expectedOutcome }) => {
+      const fixtureCandidate = candidate({
+        grade: metadata.grade as 4,
+        topic: metadata.topic as ExerciseCandidate["topic"],
+        difficulty: metadata.difficulty as ExerciseCandidate["difficulty"],
+        arithmeticStructure: structure,
+        text: statement,
+        proposedCanonicalAnswer: literalAnswer,
+      });
+
+      expect(verifyArithmeticExercise(fixtureCandidate, now).outcome).toBe(expectedOutcome);
+    },
+  );
+
+  it("recomputes the answer when the generator and a model verifier agree on a wrong proposal", () => {
+    const falseAgreement = authorityFixtures.rejectedCases.find(
+      ({ id }) => id === "incorrect-answer-with-model-agreement",
+    );
+    if (!falseAgreement) throw new Error("The independent false-agreement fixture is required.");
+
+    const result = verifyArithmeticExercise(
+      candidate({
+        arithmeticStructure: falseAgreement.structure,
+        text: falseAgreement.statement,
+        proposedCanonicalAnswer: falseAgreement.literalAnswer,
+      }),
+      now,
+    );
+
+    expect(result).toMatchObject({
+      outcome: "answer_mismatch",
+      verifiedAnswer: falseAgreement.expectedAnswer,
+      authorityVersion: 1,
+    });
+  });
+
   it("certifies only the exact rendered statement and computed proposal", () => {
     expect(verifyArithmeticExercise(candidate(), now)).toEqual({
       outcome: "unique_answer",

@@ -7,6 +7,7 @@ import {
   ArithmeticAuthorityError,
   renderArithmeticExercise,
 } from "./arithmetic-authority";
+import authorityFixtures from "./__fixtures__/arithmetic-authority-v1.json";
 
 function number(value: number): ArithmeticExpressionV1 {
   return { kind: "number", value };
@@ -33,6 +34,17 @@ function render(
 }
 
 describe("arithmetic authority v1", () => {
+  it.each(authorityFixtures.certifiedCases)(
+    "matches independently established fixture $id",
+    ({ metadata, structure, statement, literalAnswer }) => {
+      expect(renderArithmeticExercise(metadata as ExerciseGenerationRequest, structure)).toEqual({
+        arithmeticStructure: structure,
+        text: statement,
+        proposedCanonicalAnswer: literalAnswer,
+      });
+    },
+  );
+
   it.each([
     ["addition-subtraction", "easy", operation("add", number(21), number(32)), "53"],
     ["addition-subtraction", "medium", operation("add", number(999), number(1)), "1000"],

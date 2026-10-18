@@ -92,18 +92,18 @@ values
     '20000000-0000-0000-0000-000000000001',
     '10000000-0000-0000-0000-000000000001',
     'candidate-a',
-    'Oblicz wartość wyrażenia: (2 + 2). Podaj wynik jako jedną liczbę naturalną.',
-    '4',
+    'Oblicz wartość wyrażenia: (21 + 32). Podaj wynik jako jedną liczbę naturalną.',
+    '53',
     '4',
     'addition-subtraction',
     'easy',
     'unique_answer',
-    '4',
+    '53',
     'ArithmeticAuthority',
     'arithmetic-authority-v1',
     '2026-09-29 10:00:00+00',
-    'Struktura oblicza wartość 4.',
-    '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":2}}}'::jsonb,
+    'Ręcznie wyprowadzony wynik niezależnego fixture to 53.',
+    '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":21},"right":{"kind":"number","value":32}}}'::jsonb,
     1
   ),
   (
@@ -407,10 +407,10 @@ select throws_ok(
       verifier_version, verified_at, rationale, arithmetic_structure, authority_version
     ) values (
       '10000000-0000-0000-0000-000000000001', 'candidate-a',
-      'Oblicz wartość wyrażenia: (2 + 2). Podaj wynik jako jedną liczbę naturalną.', '4',
-      '4', 'addition-subtraction', 'easy', 'unique_answer', '4', 'ArithmeticAuthority',
-      'arithmetic-authority-v1', '2026-09-29 10:00:00+00', 'Struktura oblicza wartość 4.',
-      '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":2}}}'::jsonb,
+      'Oblicz wartość wyrażenia: (21 + 32). Podaj wynik jako jedną liczbę naturalną.', '53',
+      '4', 'addition-subtraction', 'easy', 'unique_answer', '53', 'ArithmeticAuthority',
+      'arithmetic-authority-v1', '2026-09-29 10:00:00+00', 'Ręcznie wyprowadzony wynik niezależnego fixture to 53.',
+      '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":21},"right":{"kind":"number","value":32}}}'::jsonb,
       1
     )$$,
   '23505',
@@ -734,7 +734,7 @@ select is(
     from public.exercises
     where verification_id = '20000000-0000-0000-0000-000000000001'
   ),
-  'Oblicz wartość wyrażenia: (2 + 2). Podaj wynik jako jedną liczbę naturalną.|4',
+  'Oblicz wartość wyrażenia: (21 + 32). Podaj wynik jako jedną liczbę naturalną.|53',
   'Promotion copies the candidate text and verified answer exactly'
 );
 
@@ -756,7 +756,7 @@ select is(
     from public.exercises
     where verification_id = '20000000-0000-0000-0000-000000000001'
   ),
-  'unique_answer|ArithmeticAuthority|arithmetic-authority-v1|2026-09-29 10:00:00+00|Struktura oblicza wartość 4.',
+  'unique_answer|ArithmeticAuthority|arithmetic-authority-v1|2026-09-29 10:00:00+00|Ręcznie wyprowadzony wynik niezależnego fixture to 53.',
   'Promotion preserves authority evidence exactly'
 );
 
@@ -854,7 +854,7 @@ select is(
     from public.exercises
     where verification_id = '20000000-0000-0000-0000-000000000001'
   ),
-  '4',
+  '53',
   'Approved exercises retain the F-01 no-update behavior'
 );
 

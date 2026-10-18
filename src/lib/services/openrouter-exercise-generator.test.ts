@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import authorityFixtures from "@/lib/exercises/__fixtures__/arithmetic-authority-v1.json";
 import type { ExerciseGenerationRequest } from "@/types";
 
 import { generateOpenRouterExercises, OpenRouterExerciseGeneratorError } from "./openrouter-exercise-generator";
+import { verifyArithmeticExercise } from "./arithmetic-exercise-verifier";
 
 const request: ExerciseGenerationRequest = {
   grade: 4,
@@ -45,6 +47,76 @@ afterEach(() => {
 });
 
 describe("generateOpenRouterExercises", () => {
+  it("composes provider generation with deterministic verification for independent fixtures", async () => {
+    const fixtureCases = authorityFixtures.certifiedCases.filter(({ manualSeed }) => manualSeed).slice(0, 5);
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      providerResponse(
+        fixtureCases.map(({ structure }) => ({
+          expression: structure.expression,
+        })),
+      ),
+    );
+    let nextId = 0;
+
+    const candidates = await generateOpenRouterExercises(request, config, {
+      fetch: fetchMock,
+      createId: () => `fixture-${(nextId += 1)}`,
+    });
+
+    expect(candidates).toHaveLength(fixtureCases.length);
+    expect(candidates.map((candidate) => verifyArithmeticExercise(candidate).outcome)).toEqual(
+      fixtureCases.map(() => "unique_answer"),
+    );
+    expect(candidates.map(({ text, proposedCanonicalAnswer }) => ({ text, proposedCanonicalAnswer }))).toEqual(
+      fixtureCases.map(({ statement, literalAnswer }) => ({
+        text: statement,
+        proposedCanonicalAnswer: literalAnswer,
+      })),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects generator/model agreement on an incorrect answer at the deterministic boundary", async () => {
+    const fixtureCase = authorityFixtures.rejectedCases.find(
+      ({ id }) => id === "incorrect-answer-with-model-agreement",
+    ) as
+      | {
+          structure: { expression: unknown };
+          literalAnswer: string;
+          expectedAnswer: string;
+          modelVerifierClaim: { verifiedAnswer: string };
+        }
+      | undefined;
+    if (!fixtureCase) throw new Error("The independent false-agreement fixture is required.");
+
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      providerResponse([
+        {
+          expression: fixtureCase.structure.expression,
+        },
+      ]),
+    );
+    const [generated] = await generateOpenRouterExercises(request, config, {
+      fetch: fetchMock,
+      createId: () => "false-agreement",
+    });
+    expect(fixtureCase.modelVerifierClaim.verifiedAnswer).toBe(fixtureCase.literalAnswer);
+    const incorrectAgreementCandidate = {
+      ...generated,
+      proposedCanonicalAnswer: fixtureCase.modelVerifierClaim.verifiedAnswer,
+    };
+    const verification = verifyArithmeticExercise(incorrectAgreementCandidate);
+
+    expect(generated.proposedCanonicalAnswer).toBe(fixtureCase.expectedAnswer);
+    expect(verification).toMatchObject({
+      outcome: "answer_mismatch",
+      verifiedAnswer: fixtureCase.expectedAnswer,
+      authorityVersion: 1,
+    });
+    expect(verification.verifiedAnswer).not.toBe(incorrectAgreementCandidate.proposedCanonicalAnswer);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("requests strict non-streaming output and returns five normalized candidates", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(providerResponse(validExercises()));
     let nextId = 0;

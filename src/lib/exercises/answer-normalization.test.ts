@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import authorityFixtures from "./__fixtures__/arithmetic-authority-v1.json";
+
 import { canonicalizeExerciseAnswerForVerification, normalizeExerciseAnswer } from "./answer-normalization";
 
 describe("normalizeExerciseAnswer", () => {
@@ -23,6 +25,20 @@ describe("normalizeExerciseAnswer", () => {
 });
 
 describe("canonicalizeExerciseAnswerForVerification", () => {
+  it.each(["grouped-answer-1204", "grouped-answer-2468"])(
+    "accepts the grouped manual-seed answer from independent fixture %s",
+    (fixtureId) => {
+      const fixture = authorityFixtures.certifiedCases.find(({ id }) => id === fixtureId);
+      if (!fixture) throw new Error(`The independent answer fixture ${fixtureId} is required.`);
+
+      const groupedAnswer = fixture.literalAnswer.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+      expect(canonicalizeExerciseAnswerForVerification(groupedAnswer)).toEqual({
+        comparisonKey: `natural-number:${fixture.literalAnswer}`,
+        canonicalAnswer: fixture.literalAnswer,
+      });
+    },
+  );
+
   it.each([
     ["1234", "1 234", "1234"],
     ["1234567", "1 234 567", "1234567"],
