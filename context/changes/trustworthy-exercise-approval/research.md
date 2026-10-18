@@ -7,11 +7,16 @@ repository: homework-generator
 topic: "Authoritative, independent evidence at the exercise approval boundary"
 tags: [research, codebase, exercise-verification, approval, answer-oracle]
 status: complete
-last_updated: 2026-10-14
+last_updated: 2026-10-16
 last_updated_by: AI assistant using Copilot SDK in VS Code
+last_updated_note: "Phase 3 database failure diagnosis, fixture correction, and passing consumer gate."
 ---
 
 # Research: Trustworthy exercise approval
+
+> The original sections below record the 2026-10-14 investigation, not the
+> current implementation. The dated follow-up at the end supersedes its
+> model-only admission findings and unresolved policy questions for Phase 3.
 
 ## Research Question
 
@@ -125,7 +130,7 @@ The supplied [authorization plan brief](../testing-authorization-and-invitation-
 ## Open Questions and Limitations
 
 - Which source is authoritative for correctness and uniqueness, and what problem subset can it actually certify?
-- Is this change intended to introduce runtime authoritative evidence, or to establish an independently solved test corpus while explicitly retaining a probabilistic runtime? The latter cannot honestly claim production approval *requires* an authoritative source.
+- Is this change intended to introduce runtime authoritative evidence, or to establish an independently solved test corpus while explicitly retaining a probabilistic runtime? The latter cannot honestly claim production approval _requires_ an authoritative source.
 - How should insufficiently evidenced content be represented without weakening the existing ineligibility rule or misclassifying content uncertainty as provider failure?
 - If evidence semantics change, what is the policy for existing settled evidence, approved rows, trusted direct writes, and previously assigned snapshots? No deletion/re-verification policy is chosen here.
 - This is complete source-backed research of the agreed approval-trust question, not a correctness certification. No live model calls, database inspection, test run, or runtime reproduction was performed. Deployed model configuration and current persisted data are unverified.
@@ -135,3 +140,67 @@ The supplied [authorization plan brief](../testing-authorization-and-invitation-
 Inspected source at the recorded local commit: verifier/generator adapters, answer helper, exercise schemas/types, verification/approval handlers and tests, review form/hook/list, exercise persistence/approval/reset/discovery migrations and database suites. Documentation inspected: active change, PRD, test plan, prior approval/equivalence briefs and equivalence frame, supplied authorization brief, and related admission research introduction. No lessons file was found at `context/foundation/lessons.md`.
 
 Two read-only research workers covered independent verifier and approval/database dimensions; the main context covered requirements, historical decisions, and browser contracts. Findings are local file anchors, not invented remote commit permalinks. Application source was clean at the metadata snapshot; the active change folder was untracked.
+
+## Follow-up: Phase 3 database assertions (2026-10-16)
+
+### Question and evidence scope
+
+Review/fix the five failing `homework_submissions.sql` assertions and rerun the
+database gate for Phase 3. This follow-up includes the explicitly requested test
+fix; it does not reopen the authority policy or implement later phases.
+
+Evidence snapshot: 2026-10-16T15:03:32.0225004+02:00; researcher: AI assistant using
+Copilot SDK in VS Code; repository: `MarcinUrbanek/homework-generator`; branch:
+`master`; HEAD: `a74f038b5d437a5fce8d17eb42268952382a5d09`, with uncommitted Phase 3
+changes. Source references below describe that worktree, not a remote commit.
+The original research metadata remains the historical snapshot.
+
+### Diagnosis and correction
+
+- The focused local run reproduced failures 33 through 37 out of 81 assertions.
+  For the five rejected CSV cases (prose, trailing punctuation, signed number,
+  decimal, incorrect grouping), the RPC returned `P0002: Homework is unavailable`
+  instead of the expected `22023: Invalid homework answers`.
+  Sources: [CSV cases](../../../supabase/tests/database/homework-answer-format-cases.csv:4),
+  [parameterized assertions](../../../supabase/tests/database/homework_submissions.sql:528).
+- Before correction, those assertions submitted to assignment suffix `010`,
+  whose allocated exercise suffix `036` is explicitly legacy free-form content.
+  In the inspected first-submission path, the certification check precedes answer
+  parsing, so quarantine correctly masked the malformed-answer branch.
+  Sources: [legacy fixture](../../../supabase/tests/database/homework_submissions.sql:148),
+  [allocation](../../../supabase/tests/database/homework_submissions.sql:252),
+  [guard and parsing order](../../../supabase/migrations/20261016140000_protect_uncertified_homework_consumers.sql:827).
+- Changed the parameterized assertion target to assignment suffix `001`: it has a
+  certified exercise, belongs to the same current student, and has no submission
+  at this point in the test. The expected SQLSTATE/message and rejected CSV inputs
+  remain unchanged. This restores format-validation coverage without changing the
+  production RPC or weakening the quarantine contract.
+  Sources: [certified fixture](../../../supabase/tests/database/homework_submissions.sql:123),
+  [allocation](../../../supabase/tests/database/homework_submissions.sql:228),
+  [corrected target](../../../supabase/tests/database/homework_submissions.sql:531).
+- Existing assertions still check mixed-legacy detail/first-submit denial and no
+  persisted rows, plus prompt-free legacy result reads and retry behavior.
+  Sources: [mixed denial](../../../supabase/tests/database/homework_submissions.sql:359),
+  [no writes](../../../supabase/tests/database/homework_submissions.sql:541),
+  [retained result](../../../supabase/tests/database/homework_submissions.sql:869).
+
+### Verification and handoff
+
+Executed against the running local database:
+
+```powershell
+npx.cmd --no-install supabase test db --local supabase\tests\database\saved_exercise_discovery.sql supabase\tests\database\homework_assignments.sql supabase\tests\database\homework_submissions.sql
+```
+
+Observed result: `Files=3, Tests=158`, `Result: PASS`, exit code 0. This is the
+consumer gate specified by [Phase 3 step 3.1](./plan.md#phase-3-discovery-and-homework-protection).
+The SQL test wraps fixtures in a transaction and rolls them back
+([transaction end](../../../supabase/tests/database/homework_submissions.sql:1040)).
+No database reset, migration edit, or production behavior change was needed.
+
+For this follow-up, the existing Phase 3 requirements settle quarantine precedence
+and retained-result behavior ([contract](./plan.md#historical-results)); the
+original research's open policy questions are historical, not current blockers.
+No unresolved cause remains for the five reproduced failures. This run does not
+establish the separate service/API/UI gate, manual acceptance, later phases, or
+deployed-data state. Those were outside this focused correction.

@@ -1,5 +1,7 @@
 # Authorization and Invitation Boundaries Implementation Plan
 
+> Historical scope note (2026-10-14): This completed plan describes the pre-S-05 system. [S-05: Join Teacher-Managed Class](../../archive/2026-10-05-join-teacher-managed-class/plan.md) subsequently shipped membership creation, atomic invitation acceptance, and separate acceptance/replay tests. Statements below that these capabilities do not exist refer to this plan's original baseline; its completed phases and test scope remain unchanged. The Phase 3 label `unavailable` for pending or failed delivery is also historical; the current status is `delivery-failed` ([test-plan §6.2](../../foundation/test-plan.md#62-adding-an-invitation-lifecycle-test)).
+
 ## Overview
 
 Strengthen Phase 1 risk coverage with focused request-handler tests and real PostgreSQL authorization tests. Cover invitation state only before enrollment: invalidated, expired, undeliverable, and wrong-account links must resolve to coarse statuses without exposing recipient data; membership and replay safety remain deferred until acceptance exists.

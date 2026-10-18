@@ -3,6 +3,8 @@
 > Full plan: `context/changes/testing-authorization-and-invitation-boundaries/plan.md`
 > Research: `context/changes/testing-authorization-and-invitation-boundaries/research.md`
 
+> Historical scope note (2026-10-14): This brief describes the completed pre-S-05 rollout. [S-05: Join Teacher-Managed Class](../../archive/2026-10-05-join-teacher-managed-class/plan.md) subsequently shipped membership creation, atomic invitation acceptance, and separate acceptance/replay tests. The original scope and completed phases below remain unchanged.
+
 ## What & Why
 
 This rollout strengthens tests for teacher authorization and invitation links at the boundaries where access is decided. It distinguishes HTTP handler behavior from database enforcement and proves invitation links' pre-enrollment status without pretending that the current system can create membership or prevent replay.
