@@ -145,22 +145,50 @@ values
     '2026-10-01 09:03:00+00'
   );
 
+create temporary table assignment_exercise_fixtures (
+  verification_id uuid primary key,
+  approved_exercise_id uuid not null unique
+);
+do $$
+declare
+  temp_schema_name text := (
+    select ns.nspname
+    from pg_catalog.pg_namespace as ns
+    where ns.oid = pg_catalog.pg_my_temp_schema()
+  );
+begin
+  execute pg_catalog.format('grant usage on schema %I to authenticated', temp_schema_name);
+end;
+$$;
+grant select on pg_temp.assignment_exercise_fixtures to authenticated;
+
+create function pg_temp.assignment_exercise_id(p_verification_id uuid)
+returns uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select fixture.approved_exercise_id
+  from pg_temp.assignment_exercise_fixtures as fixture
+  where fixture.verification_id = p_verification_id
+$$;
+grant execute on function pg_temp.assignment_exercise_id(uuid) to authenticated;
+
 create function pg_temp.insert_certified_assignment_exercise(
   exercise_id uuid,
   teacher_id uuid,
   exercise_difficulty text,
   structure jsonb,
-  approved_at timestamptz
+  expected_text text,
+  expected_answer text,
+  fixture_approved_at timestamptz
 )
 returns void
 language plpgsql
 security definer
 set search_path = ''
 as $$
-declare
-  derived jsonb := public.derive_arithmetic_exercise_v1(
-    '4', 'addition-subtraction', exercise_difficulty, structure
-  );
 begin
   insert into public.exercise_verifications (
     id, teacher_id, candidate_id, candidate_text, proposed_canonical_answer,
@@ -168,33 +196,107 @@ begin
     verifier_version, verified_at, rationale, arithmetic_structure, authority_version
   )
   values (
-    exercise_id, teacher_id, exercise_id::text, derived ->> 'exercise_text',
-    derived ->> 'canonical_answer', '4', 'addition-subtraction', exercise_difficulty,
-    'unique_answer', derived ->> 'canonical_answer', 'test-verifier', 'authority-v1',
-    approved_at, 'Independently evaluated test fixture.', structure, 1
+    exercise_id, teacher_id, exercise_id::text, expected_text,
+    expected_answer, '4', 'addition-subtraction', exercise_difficulty,
+    'unique_answer', expected_answer, 'test-verifier', 'authority-v1',
+    fixture_approved_at, 'Hand-calculated literal fixture; database authority checks the snapshot.', structure, 1
   );
 
-  insert into public.exercises (
-    id, exercise_text, canonical_answer, grade, topic, difficulty,
-    verification_verdict, verifier_identity, verifier_version, verified_at,
-    verification_rationale, creator_id, approver_id, approved_at,
-    verification_id, arithmetic_structure, authority_version
-  )
-  values (
-    exercise_id, derived ->> 'exercise_text', derived ->> 'canonical_answer',
-    '4', 'addition-subtraction', exercise_difficulty, 'unique_answer',
-    'test-verifier', 'authority-v1', approved_at,
-    'Independently evaluated test fixture.', teacher_id, teacher_id, approved_at,
-    exercise_id, structure, 1
-  );
+  perform pg_catalog.set_config('request.jwt.claim.sub', teacher_id::text, true);
+  insert into pg_temp.assignment_exercise_fixtures (verification_id, approved_exercise_id)
+  select approval.verification_id, approval.exercise_id
+  from public.approve_verified_exercises(array[exercise_id]) as approval;
+  update public.exercises as exercise
+  set approved_at = fixture_approved_at
+  where exercise.verification_id = exercise_id;
 end;
 $$;
+
+create function pg_temp.resolve_assignment_allocations(p_allocations jsonb)
+returns jsonb
+language sql
+stable
+set search_path = ''
+as $$
+  select case
+    when jsonb_typeof(p_allocations) = 'array' then coalesce(
+      (
+        select jsonb_agg(
+          case
+            when jsonb_typeof(allocation.value) = 'object'
+              and jsonb_typeof(allocation.value -> 'exercise_ids') = 'array'
+            then jsonb_set(
+              allocation.value,
+              '{exercise_ids}',
+              coalesce(
+                (
+                  select jsonb_agg(
+                    coalesce(fixture.approved_exercise_id::text, requested.value)
+                    order by requested.ordinality
+                  )
+                  from jsonb_array_elements_text(allocation.value -> 'exercise_ids')
+                    with ordinality as requested(value, ordinality)
+                  left join pg_temp.assignment_exercise_fixtures as fixture
+                    on fixture.verification_id::text = requested.value
+                ),
+                '[]'::jsonb
+              )
+            )
+            else allocation.value
+          end
+          order by allocation.ordinality
+        )
+        from jsonb_array_elements(p_allocations) with ordinality as allocation(value, ordinality)
+      ),
+      '[]'::jsonb
+    )
+    else p_allocations
+  end
+$$;
+grant execute on function pg_temp.resolve_assignment_allocations(jsonb) to authenticated;
+
+-- Translate ledger fixture IDs to the pool IDs created by real approval, then call the real assignment function.
+create function pg_temp.create_homework_assignment(
+  p_class_id uuid,
+  p_title text,
+  p_topic text,
+  p_difficulty text,
+  p_exercise_count integer,
+  p_idempotency_key uuid,
+  p_allocations jsonb
+)
+returns table (
+  assignment_id uuid,
+  assignment_title text,
+  assigned_student_ids uuid[],
+  excluded_student_ids uuid[],
+  created_at timestamptz,
+  replayed boolean
+)
+language sql
+set search_path = ''
+as $$
+  select *
+  from public.create_homework_assignment(
+    p_class_id,
+    p_title,
+    p_topic,
+    p_difficulty,
+    p_exercise_count,
+    p_idempotency_key,
+    pg_temp.resolve_assignment_allocations(p_allocations)
+  )
+$$;
+grant execute on function pg_temp.create_homework_assignment(uuid, text, text, text, integer, uuid, jsonb)
+  to authenticated;
 
 select pg_temp.insert_certified_assignment_exercise(
   '30000000-0000-0000-0000-000000000001',
   '10000000-0000-0000-0000-000000000001',
   'easy',
   '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":2}}}',
+  'Oblicz wartość wyrażenia: (2 + 2). Podaj wynik jako jedną liczbę naturalną.',
+  '4',
   '2026-10-01 09:00:00+00'
 );
 select pg_temp.insert_certified_assignment_exercise(
@@ -202,6 +304,8 @@ select pg_temp.insert_certified_assignment_exercise(
   '10000000-0000-0000-0000-000000000002',
   'easy',
   '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":1},"right":{"kind":"number","value":3}}}',
+  'Oblicz wartość wyrażenia: (1 + 3). Podaj wynik jako jedną liczbę naturalną.',
+  '4',
   '2026-10-01 09:01:00+00'
 );
 select pg_temp.insert_certified_assignment_exercise(
@@ -209,6 +313,8 @@ select pg_temp.insert_certified_assignment_exercise(
   '10000000-0000-0000-0000-000000000001',
   'easy',
   '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":3}}}',
+  'Oblicz wartość wyrażenia: (2 + 3). Podaj wynik jako jedną liczbę naturalną.',
+  '5',
   '2026-10-01 09:02:00+00'
 );
 select pg_temp.insert_certified_assignment_exercise(
@@ -216,6 +322,8 @@ select pg_temp.insert_certified_assignment_exercise(
   '10000000-0000-0000-0000-000000000002',
   'easy',
   '{"version":1,"expression":{"kind":"subtract","left":{"kind":"number","value":8},"right":{"kind":"number","value":3}}}',
+  'Oblicz wartość wyrażenia: (8 - 3). Podaj wynik jako jedną liczbę naturalną.',
+  '5',
   '2026-10-01 09:03:00+00'
 );
 select pg_temp.insert_certified_assignment_exercise(
@@ -223,6 +331,8 @@ select pg_temp.insert_certified_assignment_exercise(
   '10000000-0000-0000-0000-000000000001',
   'easy',
   '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":3},"right":{"kind":"number","value":4}}}',
+  'Oblicz wartość wyrażenia: (3 + 4). Podaj wynik jako jedną liczbę naturalną.',
+  '7',
   '2026-10-01 09:04:00+00'
 );
 select pg_temp.insert_certified_assignment_exercise(
@@ -230,6 +340,8 @@ select pg_temp.insert_certified_assignment_exercise(
   '10000000-0000-0000-0000-000000000001',
   'easy',
   '{"version":1,"expression":{"kind":"subtract","left":{"kind":"number","value":9},"right":{"kind":"number","value":3}}}',
+  'Oblicz wartość wyrażenia: (9 - 3). Podaj wynik jako jedną liczbę naturalną.',
+  '6',
   '2026-10-01 09:05:00+00'
 );
 select pg_temp.insert_certified_assignment_exercise(
@@ -237,6 +349,8 @@ select pg_temp.insert_certified_assignment_exercise(
   '10000000-0000-0000-0000-000000000001',
   'medium',
   '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":5},"right":{"kind":"number","value":8}}}',
+  'Oblicz wartość wyrażenia: (5 + 8). Podaj wynik jako jedną liczbę naturalną.',
+  '13',
   '2026-10-01 09:07:00+00'
 );
 
@@ -480,7 +594,7 @@ select throws_ok(
   'A replayed legacy allocation cannot be scored for the first time'
 );
 select throws_ok(
-  $$select * from public.create_homework_assignment(
+  $$select * from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001', null, 'addition-subtraction', 'easy', 1,
       '90000000-0000-0000-0000-000000000001',
       '[{"student_id":"10000000-0000-0000-0000-000000000003","exercise_ids":["30000000-0000-0000-0000-000000000001"]}]'::jsonb
@@ -495,7 +609,7 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
 
 select throws_ok(
-  $$select * from public.create_homework_assignment(
+  $$select * from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000002', null, 'addition-subtraction', 'easy', 1,
       '90000000-0000-0000-0000-000000000002',
       '[{"student_id":"10000000-0000-0000-0000-000000000003","exercise_ids":["30000000-0000-0000-0000-000000000001"]}]'::jsonb
@@ -508,7 +622,7 @@ select throws_ok(
 select is(
   (
     select assignment_title
-    from public.create_homework_assignment(
+    from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001',
       '  Fractions review  ',
       'addition-subtraction',
@@ -524,7 +638,7 @@ select is(
 select is(
   (
     select assigned_student_ids
-    from public.create_homework_assignment(
+    from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001',
       'Fractions review',
       'addition-subtraction',
@@ -543,7 +657,7 @@ select is(
 select is(
   (
     select replayed
-    from public.create_homework_assignment(
+    from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001',
       'Fractions review',
       'addition-subtraction',
@@ -557,7 +671,7 @@ select is(
   'A matching request retry returns the original assignment'
 );
 select throws_ok(
-  $$select * from public.create_homework_assignment(
+  $$select * from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001',
       'Changed title',
       'addition-subtraction',
@@ -573,7 +687,7 @@ select throws_ok(
 select is(
   (
     select replayed
-    from public.create_homework_assignment(
+    from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001',
       'Legacy replay',
       'addition-subtraction',
@@ -612,7 +726,8 @@ select is(
       on assignment.id = recipient.assignment_id
     where assignment.idempotency_key = '90000000-0000-0000-0000-000000000003'
   ),
-  '10000000-0000-0000-0000-000000000003:1:30000000-0000-0000-0000-000000000001,10000000-0000-0000-0000-000000000004:1:30000000-0000-0000-0000-000000000002',
+  '10000000-0000-0000-0000-000000000003:1:' || pg_temp.assignment_exercise_id('30000000-0000-0000-0000-000000000001')::text
+    || ',10000000-0000-0000-0000-000000000004:1:' || pg_temp.assignment_exercise_id('30000000-0000-0000-0000-000000000002')::text,
   'Each recipient stores the exact ordered approved exercise reference'
 );
 select is(
@@ -640,7 +755,7 @@ select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001
 select is(
   (
     select assignment_title
-    from public.create_homework_assignment(
+    from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001',
       '   ',
       'addition-subtraction',
@@ -655,7 +770,7 @@ select is(
 );
 select throws_ok(
   format(
-    'select * from public.create_homework_assignment(%L, %L, %L, %L, 1, %L, %L::jsonb)',
+    'select * from pg_temp.create_homework_assignment(%L, %L, %L, %L, 1, %L, %L::jsonb)',
     '20000000-0000-0000-0000-000000000001',
     repeat('x', 121),
     'addition-subtraction',
@@ -668,7 +783,7 @@ select throws_ok(
   'Titles above 120 characters are rejected'
 );
 select throws_ok(
-  $$select * from public.create_homework_assignment(
+  $$select * from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001', null, 'addition-subtraction', 'easy', 0,
       '90000000-0000-0000-0000-000000000006',
       '[{"student_id":"10000000-0000-0000-0000-000000000003","exercise_ids":[]}]'::jsonb
@@ -678,7 +793,7 @@ select throws_ok(
   'Zero exercises per recipient are rejected'
 );
 select throws_ok(
-  $$select * from public.create_homework_assignment(
+  $$select * from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001', null, 'addition-subtraction', 'easy', 6,
       '90000000-0000-0000-0000-000000000007',
       '[{"student_id":"10000000-0000-0000-0000-000000000003","exercise_ids":[]}]'::jsonb
@@ -690,7 +805,7 @@ select throws_ok(
 select is(
   (
     select replayed
-    from public.create_homework_assignment(
+    from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001', null, 'addition-subtraction', 'easy', 5,
       '90000000-0000-0000-0000-000000000008',
       '[{"student_id":"10000000-0000-0000-0000-000000000003","exercise_ids":["30000000-0000-0000-0000-000000000001","30000000-0000-0000-0000-000000000002","30000000-0000-0000-0000-000000000003","30000000-0000-0000-0000-000000000004","30000000-0000-0000-0000-000000000005"]}]'::jsonb
@@ -700,7 +815,7 @@ select is(
   'A five-exercise set can be assigned to one recipient'
 );
 select throws_ok(
-  $$select * from public.create_homework_assignment(
+  $$select * from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001', null, 'addition-subtraction', 'easy', 1,
       '90000000-0000-0000-0000-000000000009',
       '[{"student_id":"10000000-0000-0000-0000-000000000003","exercise_ids":["30000000-0000-0000-0000-000000000007"]}]'::jsonb
@@ -710,7 +825,7 @@ select throws_ok(
   'An approved exercise from a different topic is rejected'
 );
 select throws_ok(
-  $$select * from public.create_homework_assignment(
+  $$select * from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001', null, 'addition-subtraction', 'easy', 1,
       '90000000-0000-0000-0000-000000000010',
       '[{"student_id":"10000000-0000-0000-0000-000000000003","exercise_ids":["30000000-0000-0000-0000-000000000008"]}]'::jsonb
@@ -720,7 +835,7 @@ select throws_ok(
   'An approved exercise from a different difficulty is rejected'
 );
 select throws_ok(
-  $$select * from public.create_homework_assignment(
+  $$select * from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001', null, 'addition-subtraction', 'easy', 1,
       '90000000-0000-0000-0000-000000000011',
       '[{"student_id":"10000000-0000-0000-0000-000000000003","exercise_ids":["39999999-0000-0000-0000-000000000999"]}]'::jsonb
@@ -730,7 +845,7 @@ select throws_ok(
   'A missing or unapproved exercise ID is rejected'
 );
 select throws_ok(
-  $$select * from public.create_homework_assignment(
+  $$select * from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001', null, 'addition-subtraction', 'easy', 1,
       '90000000-0000-0000-0000-000000000020',
       '[{"student_id":"10000000-0000-0000-0000-000000000003","exercise_ids":["30000000-0000-0000-0000-000000000009"]}]'::jsonb
@@ -740,7 +855,7 @@ select throws_ok(
   'A same-bucket legacy exercise is rejected for a new assignment'
 );
 select throws_ok(
-  $$select * from public.create_homework_assignment(
+  $$select * from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001', null, 'addition-subtraction', 'easy', 2,
       '90000000-0000-0000-0000-000000000012',
       '[{"student_id":"10000000-0000-0000-0000-000000000003","exercise_ids":["30000000-0000-0000-0000-000000000001","30000000-0000-0000-0000-000000000001"]}]'::jsonb
@@ -750,7 +865,7 @@ select throws_ok(
   'Repeated exercise IDs within one set are rejected'
 );
 select throws_ok(
-  $$select * from public.create_homework_assignment(
+  $$select * from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001', null, 'addition-subtraction', 'easy', 1,
       '90000000-0000-0000-0000-000000000013',
       '[{"student_id":"10000000-0000-0000-0000-000000000003","exercise_ids":["30000000-0000-0000-0000-000000000001"]},{"student_id":"10000000-0000-0000-0000-000000000004","exercise_ids":["30000000-0000-0000-0000-000000000001"]}]'::jsonb
@@ -760,7 +875,7 @@ select throws_ok(
   'Two recipients cannot receive an identical set signature'
 );
 select throws_ok(
-  $$select * from public.create_homework_assignment(
+  $$select * from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001', null, 'addition-subtraction', 'easy', 1,
       '90000000-0000-0000-0000-000000000014',
       '[{"student_id":"10000000-0000-0000-0000-000000000003","exercise_ids":["30000000-0000-0000-0000-000000000001"]},{"student_id":"10000000-0000-0000-0000-000000000003","exercise_ids":["30000000-0000-0000-0000-000000000002"]}]'::jsonb
@@ -770,7 +885,7 @@ select throws_ok(
   'An allocation cannot repeat a recipient'
 );
 select throws_ok(
-  $$select * from public.create_homework_assignment(
+  $$select * from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001', null, 'addition-subtraction', 'easy', 1,
       '90000000-0000-0000-0000-000000000015',
       '[]'::jsonb
@@ -781,7 +896,7 @@ select throws_ok(
 );
 
 select throws_ok(
-  $$select * from public.create_homework_assignment(
+  $$select * from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001', null, 'addition-subtraction', 'easy', 1,
       '90000000-0000-0000-0000-000000000016',
       '[{"student_id":"10000000-0000-0000-0000-000000000003","exercise_ids":["30000000-0000-0000-0000-000000000001"]},{"student_id":"10000000-0000-0000-0000-000000000004","exercise_ids":["39999999-0000-0000-0000-000000000999"]}]'::jsonb
@@ -824,7 +939,7 @@ select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001
 select is(
   (
     select assigned_student_ids::text || '|' || excluded_student_ids::text
-    from public.create_homework_assignment(
+    from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001', null, 'addition-subtraction', 'easy', 1,
       '90000000-0000-0000-0000-000000000017',
       '[{"student_id":"10000000-0000-0000-0000-000000000003","exercise_ids":["30000000-0000-0000-0000-000000000001"]},{"student_id":"10000000-0000-0000-0000-000000000004","exercise_ids":["30000000-0000-0000-0000-000000000002"]},{"student_id":"10000000-0000-0000-0000-000000000005","exercise_ids":["30000000-0000-0000-0000-000000000003"]}]'::jsonb
@@ -854,7 +969,7 @@ select is(
   'A departed selected student does not break assignment replay'
 );
 select throws_ok(
-  $$select * from public.create_homework_assignment(
+  $$select * from pg_temp.create_homework_assignment(
       '20000000-0000-0000-0000-000000000001', null, 'addition-subtraction', 'easy', 1,
       '90000000-0000-0000-0000-000000000018',
       '[{"student_id":"10000000-0000-0000-0000-000000000005","exercise_ids":["30000000-0000-0000-0000-000000000003"]}]'::jsonb
@@ -910,8 +1025,10 @@ select throws_ok(
   'Teachers cannot delete immutable recipient snapshots directly'
 );
 select throws_ok(
-  $$delete from public.exercises
-    where id = '30000000-0000-0000-0000-000000000001'$$,
+  format(
+    'delete from public.exercises where id = %L',
+    pg_temp.assignment_exercise_id('30000000-0000-0000-0000-000000000001')
+  ),
   '23503',
   null,
   'An assigned approved exercise cannot be deleted'
@@ -923,7 +1040,7 @@ select is(
   (
     select canonical_answer
     from public.exercises
-    where id = '30000000-0000-0000-0000-000000000001'
+    where id = pg_temp.assignment_exercise_id('30000000-0000-0000-0000-000000000001')
   ),
   '4',
   'The assigned exercise grading source remains unchanged'

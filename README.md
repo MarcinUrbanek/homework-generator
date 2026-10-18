@@ -4,6 +4,10 @@
 
 A modern, opinionated starter template for building fast, accessible web applications.
 
+## AI Skills Workflow
+
+See the [project skills workflow](context/foundation/skills-workflow.md) for diagrams of all 28 project-local skills, when to use each one, and copy/paste command sequences. For an existing work session, start with `/project-status` in Copilot Chat.
+
 ## Tech Stack
 
 - [Astro](https://astro.build/) v7 - Modern web framework with server-first rendering
@@ -169,7 +173,7 @@ Leaving a class removes access to that class's homework: its list entries are hi
 
 For a live check, start the local Supabase stack with the repository migrations applied and run the app with `SUPABASE_URL` and `SUPABASE_KEY` configured. Use one teacher and two independently enrolled student accounts:
 
-To generate disposable local test accounts and the class, approved exercises, and assignments used by the manual checks, configure `SUPABASE_SERVICE_ROLE_KEY` in `.dev.vars` or `.env` and run `npm run seed:homework-manual-test`. The command refuses non-local Supabase URLs. Sign-in details and scenario-specific URLs and answers are printed by the command and recorded in [the manual verification guide](./context/changes/submit-and-score-homework/manual-verification.md).
+To generate disposable local test accounts and the class, certified exercises, and assignments used by the manual checks, configure `SUPABASE_KEY` and `SUPABASE_SERVICE_ROLE_KEY` in `.dev.vars` or `.env` and run `npm run seed:homework-manual-test`. The command refuses non-local Supabase URLs, inserts fixture-backed immutable evidence, and promotes exercises through the authenticated approval function; it never inserts an exercise directly into the pool. Sign-in details and scenario-specific URLs and answers are printed by the command and recorded in [the manual verification guide](./context/changes/submit-and-score-homework/manual-verification.md).
 
 1. Assign separate two- and five-exercise homework to the students. Confirm each list/detail shows only that student's allocation and that no canonical answer, verifier data, or classmate data appears in rendered HTML or network responses.
 2. On separate assignments, test one of two correct, two of five correct, three of five correct, and all blank. Confirm pass, fail, pass, and fail. Try a grouped number, a large integer string, prose, a decimal, a negative number, and malformed grouping.
@@ -242,14 +246,38 @@ npx supabase test db --local supabase/tests/database/exercise_generation_admissi
 
 ## Exercise verification and approval
 
-Verification runs server-side with a dedicated model and writes the immutable ledger through a service-role client. Add these to `.dev.vars` (never commit real values):
+Verification uses the server-side deterministic **ArithmeticAuthority v1**, not a model verifier. For supported Grade 4 arithmetic it validates the structured expression and difficulty bucket, recomputes a natural-number answer, and binds the exact Polish prompt and answer to immutable evidence. Free-form text, edited prompts, unsupported structures/topics/versions, incorrect proposals, and legacy model-only successes cannot become current approval evidence. OpenRouter settings remain necessary for candidate generation only.
+
+For the teacher verification and approval flow, add these values to `.dev.vars` (never commit real values):
 
 ```dotenv
 SUPABASE_SERVICE_ROLE_KEY=<service_role key from `npx supabase status`>
-OPENROUTER_VERIFIER_MODEL=<structured-output-capable model identifier>
 ```
 
-Verification reports `VERIFIER_NOT_CONFIGURED` unless `OPENROUTER_API_KEY`, `OPENROUTER_VERIFIER_MODEL`, `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are all set. Both new values are server-only and optional at build time; provision them as Cloudflare secrets for deployment.
+Generation additionally needs `OPENROUTER_API_KEY` and `OPENROUTER_MODEL`; verification does not. Keep all keys server-side, and provision the service-role key only as a Cloudflare secret.
+
+### Authority rollout and rollback
+
+Before release, review counts of legacy ledger and pool rows plus pending/submitted homework references, without exporting student data. Counts are release evidence; this repository does not claim any deployed legacy count.
+
+Use a maintenance window: stop application traffic, back up the database, apply outstanding migrations in repository order—including `20261016120000_enforce_arithmetic_exercise_authority.sql`, `20261016123000_fix_arithmetic_authority_json_validation.sql`, and `20261016140000_protect_uncertified_homework_consumers.sql`—deploy the compatible application, verify current approval and student-read behavior while traffic remains paused, then reopen. Do not run old student/scoring paths against quarantined data. If verification fails, remain in maintenance or disable affected routes. Roll back only to a compatible version that retains legacy quarantine and student-read protections; never restore the former model-only approval path or re-enable uncertified student prompts. Resume traffic only after the complete guard set is verified.
+
+Local migration and fixture commands:
+
+```bash
+npx supabase migration up --local
+npm run seed:homework-manual-test
+```
+
+Release verification commands (run before reopening traffic):
+
+```bash
+npm test
+npx astro check
+npm run lint
+npm run build
+npm run db:test
+```
 
 Database reset and tests (requires Docker):
 
@@ -258,7 +286,7 @@ npx supabase db reset
 npm run db:test
 ```
 
-Live-check prerequisites: local Supabase running, a teacher profile, and the four values above. Generate a batch, run `Zweryfikuj zestaw`, select successful candidates, and `Zatwierdź i zapisz`. Record results in `context/changes/approve-first-exercise-pool/manual-verification.md`.
+Live-check prerequisites: local Supabase running, a teacher profile, and the service-role configuration above. Generate a batch, run `Zweryfikuj zestaw`, select independently recomputed successful candidates, and `Zatwierdź i zapisz`. Record observed outcomes and retained historical-result checks in the change's manual evidence record; do not treat model agreement or legacy results as current proof.
 
 ## Smoke test
 

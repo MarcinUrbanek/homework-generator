@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { URL, fileURLToPath } from "node:url";
 
@@ -7,6 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const projectRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const fixtureId = "submit-and-score-homework-manual-v1";
+const fixtureRationale = "Local S-07 manual fixtures certified from arithmetic-authority-v1.";
 const fixturePassword = "LocalHomeworkTest!2026";
 const fixtureClassName = "S-07 manual test fixtures";
 const appOrigin = process.env.PUBLIC_APP_ORIGIN ?? process.env.BASE_URL ?? "http://localhost:4321";
@@ -24,10 +25,11 @@ for (const fileName of [".env", ".dev.vars"]) {
 }
 
 const supabaseUrl = process.env.SUPABASE_URL;
+const anonKey = process.env.SUPABASE_KEY;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !serviceRoleKey) {
-  throw new Error("Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env or .dev.vars.");
+if (!supabaseUrl || !anonKey || !serviceRoleKey) {
+  throw new Error("Set SUPABASE_URL, SUPABASE_KEY, and SUPABASE_SERVICE_ROLE_KEY in .env or .dev.vars.");
 }
 
 const parsedSupabaseUrl = new URL(supabaseUrl);
@@ -42,6 +44,9 @@ if (
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
+const arithmeticFixtures = JSON.parse(
+  readFileSync(resolve(projectRoot, "src/lib/exercises/__fixtures__/arithmetic-authority-v1.json"), "utf8"),
+);
 
 const accountDefinitions = [
   { key: "teacher", email: "s07.teacher@example.test", roles: ["teacher"] },
@@ -52,18 +57,15 @@ const accountDefinitions = [
   { key: "notEnrolled", email: "s07.not-enrolled@example.test", roles: ["student"] },
 ];
 
-const exerciseDefinitions = [
-  { prompt: "Basia miała 11 naklejek i dostała 9. Ile ma teraz naklejek?", answer: "20" },
-  { prompt: "Na półce było 18 książek. Dołożono 16. Ile książek jest teraz?", answer: "34" },
-  { prompt: "Autobus przejechał 28 km rano i 28 km po południu. Ile kilometrów przejechał?", answer: "56" },
-  { prompt: "Ogrodnik posadził 40 tulipanów i 41 róż. Ile kwiatów posadził?", answer: "81" },
-  { prompt: "Biblioteka miała 200 zakładek i rozdała 75. Ile zakładek zostało?", answer: "125" },
-  { prompt: "Do 300 dodaj liczbę potrzebną do otrzymania 547. Jaka to liczba?", answer: "247" },
-  { prompt: "Magazyn spakował 600 paczek, potem wysłał 120. Ile paczek zostało?", answer: "480" },
-  { prompt: "Sklep miał 1 000 jabłek i sprzedał 64. Ile jabłek zostało?", answer: "936" },
-  { prompt: "Oblicz sumę 1 000 i 204.", answer: "1204" },
-  { prompt: "Jaka liczba jest o 1 większa od 2 467?", answer: "2468" },
-];
+const exerciseDefinitions = arithmeticFixtures.certifiedCases
+  .filter(({ manualSeed }) => manualSeed)
+  .map(({ id, metadata, structure, statement, literalAnswer }) => ({
+    id,
+    metadata,
+    arithmeticStructure: structure,
+    prompt: statement,
+    answer: literalAnswer,
+  }));
 
 const accounts = new Map();
 const seededAssignments = [];
@@ -155,8 +157,21 @@ async function clearPreviousFixture() {
     assertNoError(classError, "Replacing the previous fixture class");
   }
 
-  const { error: exercisesError } = await supabase.from("exercises").delete().eq("verifier_identity", fixtureId);
+  const { error: exercisesError } = await supabase
+    .from("exercises")
+    .delete()
+    .eq("verification_rationale", fixtureRationale)
+    .eq("creator_id", teacher.id)
+    .eq("approver_id", teacher.id);
   assertNoError(exercisesError, "Replacing previous fixture exercises");
+
+  const { error: legacyFixtureError } = await supabase
+    .from("exercises")
+    .delete()
+    .eq("verifier_identity", fixtureId)
+    .eq("creator_id", teacher.id)
+    .eq("approver_id", teacher.id);
+  assertNoError(legacyFixtureError, "Replacing legacy exercises owned by this fixture");
 }
 
 async function createFixtureClass() {
@@ -183,29 +198,68 @@ async function createFixtureClass() {
 
 async function createFixtureExercises() {
   const now = new Date().toISOString();
-  const exercises = exerciseDefinitions.map((definition) => ({
+  const teacher = accounts.get("teacher");
+  const verifications = exerciseDefinitions.map((definition) => ({
     id: randomUUID(),
-    exercise_text: definition.prompt,
-    canonical_answer: definition.answer,
-    grade: "4",
-    topic: "addition-subtraction",
-    difficulty: "easy",
-    verification_verdict: "unique_answer",
-    verifier_identity: fixtureId,
-    verifier_version: "1",
+    teacher_id: teacher.id,
+    candidate_id: `${fixtureId}:${definition.id}:${randomUUID()}`,
+    candidate_text: definition.prompt,
+    proposed_canonical_answer: definition.answer,
+    grade: String(definition.metadata.grade),
+    topic: definition.metadata.topic,
+    difficulty: definition.metadata.difficulty,
+    outcome: "unique_answer",
+    verified_answer: definition.answer,
+    verifier_identity: "ArithmeticAuthority",
+    verifier_version: "arithmetic-authority-v1",
     verified_at: now,
-    verification_rationale: "Deterministic local-only fixture for S-07 manual acceptance checks.",
-    creator_id: accounts.get("teacher").id,
-    approver_id: accounts.get("teacher").id,
-    approved_at: now,
+    rationale: fixtureRationale,
+    arithmetic_structure: definition.arithmeticStructure,
+    authority_version: 1,
   }));
-  const { error } = await supabase.from("exercises").insert(exercises);
-  assertNoError(error, "Creating approved local exercise fixtures");
+  const { error: verificationError } = await supabase.from("exercise_verifications").insert(verifications);
+  assertNoError(verificationError, "Creating certified local arithmetic evidence");
 
-  return exercises;
+  const authenticatedTeacher = createClient(supabaseUrl, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { error: signInError } = await authenticatedTeacher.auth.signInWithPassword({
+    email: accountDefinitions.find(({ key }) => key === "teacher").email,
+    password: fixturePassword,
+  });
+  assertNoError(signInError, "Signing in as the local fixture teacher");
+
+  const approved = [];
+  for (let offset = 0; offset < verifications.length; offset += 5) {
+    const batch = verifications.slice(offset, offset + 5);
+    const { data, error: approvalError } = await authenticatedTeacher.rpc("approve_verified_exercises", {
+      verification_ids: batch.map(({ id }) => id),
+    });
+    assertNoError(approvalError, "Promoting certified local arithmetic evidence");
+    if (
+      !Array.isArray(data) ||
+      data.length !== batch.length ||
+      data.some((row, index) => row.verification_id !== batch[index].id || typeof row.exercise_id !== "string")
+    ) {
+      throw new Error("The approval function did not return every certified local fixture.");
+    }
+    approved.push(
+      ...data.map((row, index) => ({
+        id: row.exercise_id,
+        exercise_text: batch[index].candidate_text,
+        canonical_answer: batch[index].verified_answer,
+        grade: batch[index].grade,
+        topic: batch[index].topic,
+        difficulty: batch[index].difficulty,
+      })),
+    );
+  }
+  await authenticatedTeacher.auth.signOut();
+
+  return approved;
 }
 
-async function createAssignment(classId, exercises, title, allocations) {
+async function createAssignment(classId, exercises, title, allocations, difficulty = "easy") {
   const exerciseCount = allocations[0].exerciseIndexes.length;
   if (allocations.some(({ exerciseIndexes }) => exerciseIndexes.length !== exerciseCount)) {
     throw new Error(`Fixture assignment "${title}" has inconsistent recipient exercise counts.`);
@@ -218,7 +272,7 @@ async function createAssignment(classId, exercises, title, allocations) {
     title,
     grade: "4",
     topic: "addition-subtraction",
-    difficulty: "easy",
+    difficulty,
     exercise_count: exerciseCount,
     idempotency_key: randomUUID(),
     request_fingerprint: createHash("md5").update(`${fixtureId}:${title}:${randomUUID()}`).digest("hex"),
@@ -309,9 +363,13 @@ async function seed() {
   await createAssignment(fixtureClass.id, exercises, "Revoke membership after submission", [
     { accountKey: "studentA", exerciseIndexes: [0, 1] },
   ]);
-  await createAssignment(fixtureClass.id, exercises, "Grouped numeric answers - 1 204 and 2 468", [
-    { accountKey: "studentA", exerciseIndexes: [8, 9] },
-  ]);
+  await createAssignment(
+    fixtureClass.id,
+    exercises,
+    "Grouped numeric answers - 1 204 and 2 468",
+    [{ accountKey: "studentA", exerciseIndexes: [6, 7] }],
+    "medium",
+  );
 
   console.log("Local S-07 manual test fixtures are ready.");
   console.log(`Class: ${fixtureClassName} (join code ${fixtureClass.class_code})`);

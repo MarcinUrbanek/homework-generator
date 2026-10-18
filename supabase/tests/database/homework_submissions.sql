@@ -64,11 +64,40 @@ values
   ('72000000-0000-0000-0000-000000000001', '71000000-0000-0000-0000-000000000006'),
   ('72000000-0000-0000-0000-000000000002', '71000000-0000-0000-0000-000000000004');
 
+create temporary table submission_exercise_fixtures (
+  verification_id uuid primary key,
+  approved_exercise_id uuid not null unique
+);
+do $$
+declare
+  temp_schema_name text := (
+    select ns.nspname
+    from pg_catalog.pg_namespace as ns
+    where ns.oid = pg_catalog.pg_my_temp_schema()
+  );
+begin
+  execute pg_catalog.format('grant usage on schema %I to authenticated', temp_schema_name);
+end;
+$$;
+
+create function pg_temp.submission_exercise_id(p_verification_id uuid)
+returns uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select fixture.approved_exercise_id
+  from pg_temp.submission_exercise_fixtures as fixture
+  where fixture.verification_id = p_verification_id
+$$;
+grant execute on function pg_temp.submission_exercise_id(uuid) to authenticated;
+
 create function pg_temp.insert_certified_submission_exercise(
   exercise_id uuid,
   teacher_id uuid,
   answer_value integer,
-  verified_at timestamptz
+  fixture_verified_at timestamptz
 )
 returns void
 language plpgsql
@@ -76,20 +105,31 @@ security definer
 set search_path = ''
 as $$
 declare
-  structure jsonb := jsonb_build_object(
-    'version', 1,
-    'expression',
-    jsonb_build_object(
-      'kind', 'add',
-      'left', jsonb_build_object('kind', 'number', 'value', answer_value / 2),
-      'right', jsonb_build_object('kind', 'number', 'value', answer_value - answer_value / 2)
-    )
-  );
-  derived jsonb;
+  structure jsonb;
+  fixture_text text;
+  fixture_answer text;
 begin
-  derived := public.derive_arithmetic_exercise_v1(
-    '4', 'addition-subtraction', 'easy', structure
-  );
+  case answer_value
+    when 0 then
+      structure := '{"version":1,"expression":{"kind":"subtract","left":{"kind":"number","value":0},"right":{"kind":"number","value":0}}}'::jsonb;
+      fixture_text := 'Oblicz wartość wyrażenia: (0 - 0). Podaj wynik jako jedną liczbę naturalną.';
+      fixture_answer := '0';
+    when 1 then
+      structure := '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":0},"right":{"kind":"number","value":1}}}'::jsonb;
+      fixture_text := 'Oblicz wartość wyrażenia: (0 + 1). Podaj wynik jako jedną liczbę naturalną.';
+      fixture_answer := '1';
+    when 2 then
+      structure := '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":1},"right":{"kind":"number","value":1}}}'::jsonb;
+      fixture_text := 'Oblicz wartość wyrażenia: (1 + 1). Podaj wynik jako jedną liczbę naturalną.';
+      fixture_answer := '2';
+    when 42 then
+      -- Independent subtraction-easy-no-borrow vector: 85 - 43 = 42.
+      structure := '{"version":1,"expression":{"kind":"subtract","left":{"kind":"number","value":85},"right":{"kind":"number","value":43}}}'::jsonb;
+      fixture_text := 'Oblicz wartość wyrażenia: (85 - 43). Podaj wynik jako jedną liczbę naturalną.';
+      fixture_answer := '42';
+    else
+      raise exception 'No independently reviewed submission fixture exists for answer %', answer_value;
+  end case;
 
   insert into public.exercise_verifications (
     id, teacher_id, candidate_id, candidate_text, proposed_canonical_answer,
@@ -97,25 +137,20 @@ begin
     verifier_version, verified_at, rationale, arithmetic_structure, authority_version
   )
   values (
-    exercise_id, teacher_id, exercise_id::text, derived ->> 'exercise_text',
-    derived ->> 'canonical_answer', '4', 'addition-subtraction', 'easy',
-    'unique_answer', derived ->> 'canonical_answer', 'test-verifier',
-    'authority-v1', verified_at, 'Independently evaluated test fixture.',
+    exercise_id, teacher_id, exercise_id::text, fixture_text,
+    fixture_answer, '4', 'addition-subtraction', 'easy',
+    'unique_answer', fixture_answer, 'test-verifier',
+    'authority-v1', fixture_verified_at, 'Hand-calculated literal fixture; database authority checks the snapshot.',
     structure, 1
   );
 
-  insert into public.exercises (
-    id, exercise_text, canonical_answer, grade, topic, difficulty,
-    verification_verdict, verifier_identity, verifier_version, verified_at,
-    verification_rationale, creator_id, approver_id, approved_at,
-    verification_id, arithmetic_structure, authority_version
-  )
-  values (
-    exercise_id, derived ->> 'exercise_text', derived ->> 'canonical_answer',
-    '4', 'addition-subtraction', 'easy', 'unique_answer', 'test-verifier',
-    'authority-v1', verified_at, 'Independently evaluated test fixture.',
-    teacher_id, teacher_id, verified_at, exercise_id, structure, 1
-  );
+  perform pg_catalog.set_config('request.jwt.claim.sub', teacher_id::text, true);
+  insert into pg_temp.submission_exercise_fixtures (verification_id, approved_exercise_id)
+  select approval.verification_id, approval.exercise_id
+  from public.approve_verified_exercises(array[exercise_id]) as approval;
+  update public.exercises as exercise
+  set approved_at = fixture_verified_at
+  where exercise.verification_id = exercise_id;
 end;
 $$;
 
@@ -263,9 +298,15 @@ with assigned(recipient_id, exercise_number, position) as (
 insert into public.homework_recipient_exercises (recipient_id, exercise_id, position)
 select
   assigned.recipient_id,
-  ('30000000-0000-0000-0000-' || lpad(assigned.exercise_number::text, 12, '0'))::uuid,
+  coalesce(
+    fixture.approved_exercise_id,
+    ('30000000-0000-0000-0000-' || lpad(assigned.exercise_number::text, 12, '0'))::uuid
+  ),
   assigned.position::smallint
-from assigned;
+from assigned
+left join pg_temp.submission_exercise_fixtures as fixture
+  on fixture.verification_id =
+    ('30000000-0000-0000-0000-' || lpad(assigned.exercise_number::text, 12, '0'))::uuid;
 
 select ok(
   to_regclass('public.homework_submissions') is not null
@@ -369,7 +410,11 @@ select throws_ok(
   'A mixed legacy allocation cannot be scored on first submission'
 );
 select is(
-  (select count(*) from public.exercises where id = '30000000-0000-0000-0000-000000000001'),
+  (
+    select count(*)
+    from public.exercises
+    where id = pg_temp.submission_exercise_id('30000000-0000-0000-0000-000000000001')
+  ),
   0::bigint,
   'A student cannot read the canonical answer from the approved exercise pool'
 );

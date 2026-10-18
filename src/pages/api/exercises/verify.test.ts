@@ -11,6 +11,7 @@ import type {
   ExerciseVerificationEvidence,
   ExerciseVerificationSuccess,
 } from "@/types";
+import authorityFixtures from "@/lib/exercises/__fixtures__/arithmetic-authority-v1.json";
 
 import { createExerciseVerifyHandler } from "./verify";
 
@@ -200,6 +201,40 @@ describe("POST /api/exercises/verify", () => {
     });
   });
 
+  it("persists a mismatch when generator and model verifier agree on an incorrect answer", async () => {
+    const fixture = authorityFixtures.rejectedCases.find(({ id }) => id === "incorrect-answer-with-model-agreement");
+    if (!fixture) throw new Error("The independent false-agreement fixture is required.");
+
+    const falseCandidate: ExerciseCandidate = {
+      id: "false-model-agreement",
+      grade: 4,
+      topic: fixture.metadata.topic as ExerciseCandidate["topic"],
+      difficulty: fixture.metadata.difficulty as ExerciseCandidate["difficulty"],
+      approvalStatus: "unverified",
+      text: fixture.statement,
+      proposedCanonicalAnswer: fixture.literalAnswer,
+      arithmeticStructure: fixture.structure,
+    };
+    const { handler, record } = handlerFor();
+    const response = await invoke(handler, { candidates: [falseCandidate] });
+    const result = (await responseBody<ExerciseVerificationSuccess>(response)).results[0];
+
+    expect(response.status).toBe(200);
+    expect(result).toMatchObject({
+      outcome: "answer_mismatch",
+      verifiedAnswer: fixture.expectedAnswer,
+      authorityVersion: 1,
+      arithmeticStructure: fixture.structure,
+    });
+    expect(record).toHaveBeenCalledWith(
+      expect.anything(),
+      teacherId,
+      falseCandidate,
+      expect.objectContaining({ outcome: "answer_mismatch", verifiedAnswer: fixture.expectedAnswer }),
+    );
+    expect(verifyOpenRouterExercise).not.toHaveBeenCalled();
+  });
+
   it("returns a typed persistence configuration failure without calling verification", async () => {
     const { handler, verify } = handlerFor({ writerAvailable: false });
     const response = await invoke(handler);
@@ -268,7 +303,12 @@ describe("POST /api/exercises/verify", () => {
   });
 
   it("treats an authority-version conflict as a candidate conflict", async () => {
-    const { handler, verify } = handlerFor({ existing: [{ ...ledgerRow(), authority_version: 2 }] });
+    const fixture = authorityFixtures.rejectedCases.find(({ id }) => id === "mismatched-proof-metadata") as
+      { proofMetadata?: { authorityVersion: number } } | undefined;
+    if (!fixture?.proofMetadata) throw new Error("The independent mismatched-proof fixture is required.");
+    const { handler, verify } = handlerFor({
+      existing: [{ ...ledgerRow(), authority_version: fixture.proofMetadata.authorityVersion }],
+    });
 
     const response = await invoke(handler);
 
@@ -278,23 +318,39 @@ describe("POST /api/exercises/verify", () => {
   });
 
   it("never exposes a legacy model-only unique_answer as current success", async () => {
+    const fixture = authorityFixtures.rejectedCases.find(({ id }) => id === "old-model-only-success") as
+      | {
+          statement: string;
+          literalAnswer: string;
+          legacyEvidence?: {
+            outcome: "unique_answer";
+            verifiedAnswer: string;
+            verifierIdentity: string;
+            verifierVersion: string;
+            verifiedAt: string;
+            rationale: string;
+          };
+        }
+      | undefined;
+    if (!fixture?.legacyEvidence) throw new Error("The independent legacy model-only fixture is required.");
+
+    const legacyFixtureCandidate: ExerciseCandidate = {
+      ...legacyCandidate,
+      text: fixture.statement,
+      proposedCanonicalAnswer: fixture.literalAnswer,
+    };
     const legacyEvidence: ExerciseVerificationEvidence = {
-      outcome: "unique_answer",
-      verifiedAnswer: "25",
-      rationale: "Model reported one answer.",
-      verifierIdentity: "OpenRouter/legacy",
-      verifierVersion: "old-model",
-      verifiedAt: "2026-09-29T12:00:00.000Z",
+      ...fixture.legacyEvidence,
       arithmeticStructure: null,
       authorityVersion: null,
     };
     const legacyRow = {
-      ...ledgerRow(legacyCandidate, legacyEvidence),
+      ...ledgerRow(legacyFixtureCandidate, legacyEvidence),
       arithmetic_structure: null,
       authority_version: null,
     };
     const { handler, verify, record } = handlerFor({ existing: [legacyRow] });
-    const response = await invoke(handler, { candidates: [legacyCandidate] });
+    const response = await invoke(handler, { candidates: [legacyFixtureCandidate] });
     const result = (await responseBody<ExerciseVerificationSuccess>(response)).results[0];
 
     expect(response.status).toBe(200);

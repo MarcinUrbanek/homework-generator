@@ -1,6 +1,6 @@
 begin;
 
-select plan(20);
+select plan(42);
 
 insert into auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -43,6 +43,167 @@ select ok(
       and is_nullable = 'YES'
   ),
   'Authority columns are nullable so retained historical rows stay uncertified'
+);
+
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'addition-subtraction', 'easy',
+    '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":21},"right":{"kind":"number","value":32}}}'::jsonb
+  ) ->> 'exercise_text',
+  'Oblicz wartość wyrażenia: (21 + 32). Podaj wynik jako jedną liczbę naturalną.',
+  'Independent easy addition fixture preserves exact Polish statement bytes'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'addition-subtraction', 'easy',
+    '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":21},"right":{"kind":"number","value":32}}}'::jsonb
+  ) ->> 'canonical_answer',
+  '53',
+  'Independent easy addition fixture has hand-derived answer 53'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'addition-subtraction', 'medium',
+    '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":999},"right":{"kind":"number","value":1}}}'::jsonb
+  ) ->> 'exercise_text',
+  'Oblicz wartość wyrażenia: (999 + 1). Podaj wynik jako jedną liczbę naturalną.',
+  'Independent medium addition fixture preserves exact Polish statement bytes'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'addition-subtraction', 'medium',
+    '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":999},"right":{"kind":"number","value":1}}}'::jsonb
+  ) ->> 'canonical_answer',
+  '1000',
+  'Independent medium addition fixture has hand-derived answer 1000'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'addition-subtraction', 'hard',
+    '{"version":1,"expression":{"kind":"subtract","left":{"kind":"add","left":{"kind":"number","value":10000},"right":{"kind":"number","value":1}},"right":{"kind":"number","value":1}}}'::jsonb
+  ) ->> 'exercise_text',
+  'Oblicz wartość wyrażenia: ((10000 + 1) - 1). Podaj wynik jako jedną liczbę naturalną.',
+  'Independent hard addition/subtraction fixture preserves exact Polish statement bytes'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'addition-subtraction', 'hard',
+    '{"version":1,"expression":{"kind":"subtract","left":{"kind":"add","left":{"kind":"number","value":10000},"right":{"kind":"number","value":1}},"right":{"kind":"number","value":1}}}'::jsonb
+  ) ->> 'canonical_answer',
+  '10000',
+  'Independent hard addition/subtraction fixture has hand-derived answer 10000'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'multiplication-division', 'easy',
+    '{"version":1,"expression":{"kind":"multiply","left":{"kind":"number","value":10},"right":{"kind":"number","value":10}}}'::jsonb
+  ) ->> 'exercise_text',
+  'Oblicz wartość wyrażenia: (10 × 10). Podaj wynik jako jedną liczbę naturalną.',
+  'Independent easy multiplication fixture preserves exact Polish statement bytes'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'multiplication-division', 'easy',
+    '{"version":1,"expression":{"kind":"multiply","left":{"kind":"number","value":10},"right":{"kind":"number","value":10}}}'::jsonb
+  ) ->> 'canonical_answer',
+  '100',
+  'Independent easy multiplication fixture has hand-derived answer 100'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'multiplication-division', 'medium',
+    '{"version":1,"expression":{"kind":"multiply","left":{"kind":"number","value":999},"right":{"kind":"number","value":9}}}'::jsonb
+  ) ->> 'exercise_text',
+  'Oblicz wartość wyrażenia: (999 × 9). Podaj wynik jako jedną liczbę naturalną.',
+  'Independent medium multiplication fixture preserves exact Polish statement bytes'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'multiplication-division', 'medium',
+    '{"version":1,"expression":{"kind":"multiply","left":{"kind":"number","value":999},"right":{"kind":"number","value":9}}}'::jsonb
+  ) ->> 'canonical_answer',
+  '8991',
+  'Independent medium multiplication fixture has hand-derived answer 8991'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'multiplication-division', 'hard',
+    '{"version":1,"expression":{"kind":"multiply","left":{"kind":"number","value":1000},"right":{"kind":"number","value":1000}}}'::jsonb
+  ) ->> 'exercise_text',
+  'Oblicz wartość wyrażenia: (1000 × 1000). Podaj wynik jako jedną liczbę naturalną.',
+  'Independent hard multiplication fixture preserves exact Polish statement bytes'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'multiplication-division', 'hard',
+    '{"version":1,"expression":{"kind":"multiply","left":{"kind":"number","value":1000},"right":{"kind":"number","value":1000}}}'::jsonb
+  ) ->> 'canonical_answer',
+  '1000000',
+  'Independent hard multiplication fixture has hand-derived answer 1000000'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'order-of-operations', 'easy',
+    '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"multiply","left":{"kind":"number","value":3},"right":{"kind":"number","value":4}}}}'::jsonb
+  ) ->> 'exercise_text',
+  'Oblicz wartość wyrażenia: (2 + (3 × 4)). Podaj wynik jako jedną liczbę naturalną.',
+  'Independent easy precedence fixture preserves exact Polish statement bytes'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'order-of-operations', 'easy',
+    '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"multiply","left":{"kind":"number","value":3},"right":{"kind":"number","value":4}}}}'::jsonb
+  ) ->> 'canonical_answer',
+  '14',
+  'Independent easy precedence fixture has hand-derived answer 14'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'order-of-operations', 'medium',
+    '{"version":1,"expression":{"kind":"divide","left":{"kind":"multiply","left":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":3}},"right":{"kind":"number","value":4}},"right":{"kind":"number","value":2}}}'::jsonb
+  ) ->> 'exercise_text',
+  'Oblicz wartość wyrażenia: (((2 + 3) × 4) : 2). Podaj wynik jako jedną liczbę naturalną.',
+  'Independent medium precedence fixture preserves exact Polish statement bytes'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'order-of-operations', 'medium',
+    '{"version":1,"expression":{"kind":"divide","left":{"kind":"multiply","left":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":3}},"right":{"kind":"number","value":4}},"right":{"kind":"number","value":2}}}'::jsonb
+  ) ->> 'canonical_answer',
+  '10',
+  'Independent medium precedence fixture has hand-derived answer 10'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'order-of-operations', 'hard',
+    '{"version":1,"expression":{"kind":"subtract","left":{"kind":"multiply","left":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":3}},"right":{"kind":"add","left":{"kind":"number","value":4},"right":{"kind":"number","value":1}}},"right":{"kind":"number","value":5}}}'::jsonb
+  ) ->> 'exercise_text',
+  'Oblicz wartość wyrażenia: (((2 + 3) × (4 + 1)) - 5). Podaj wynik jako jedną liczbę naturalną.',
+  'Independent hard precedence fixture preserves exact Polish statement bytes'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'order-of-operations', 'hard',
+    '{"version":1,"expression":{"kind":"subtract","left":{"kind":"multiply","left":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":3}},"right":{"kind":"add","left":{"kind":"number","value":4},"right":{"kind":"number","value":1}}},"right":{"kind":"number","value":5}}}'::jsonb
+  ) ->> 'canonical_answer',
+  '20',
+  'Independent hard precedence fixture has hand-derived answer 20'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'addition-subtraction', 'easy',
+    '{"version":1,"expression":{"kind":"subtract","left":{"kind":"number","value":0},"right":{"kind":"number","value":0}}}'::jsonb
+  ) ->> 'exercise_text',
+  'Oblicz wartość wyrażenia: (0 - 0). Podaj wynik jako jedną liczbę naturalną.',
+  'Independent zero fixture preserves exact Polish statement bytes'
+);
+select is(
+  public.derive_arithmetic_exercise_v1(
+    '4', 'addition-subtraction', 'easy',
+    '{"version":1,"expression":{"kind":"subtract","left":{"kind":"number","value":0},"right":{"kind":"number","value":0}}}'::jsonb
+  ) ->> 'canonical_answer',
+  '0',
+  'Independent zero fixture has hand-derived answer 0'
 );
 
 select throws_ok(
@@ -130,6 +291,42 @@ values (
   'Struktura oblicza wartość 4.',
   '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":2}}}'::jsonb,
   1
+);
+
+select throws_ok(
+  $$insert into public.exercise_verifications (
+      teacher_id, candidate_id, candidate_text, proposed_canonical_answer,
+      grade, topic, difficulty, outcome, verified_answer, verifier_identity,
+      verifier_version, verified_at, rationale, arithmetic_structure, authority_version
+    ) values (
+      '00000000-0000-0000-0000-000000000001', 'false-model-agreement',
+      'Oblicz wartość wyrażenia: (2 + 3). Podaj wynik jako jedną liczbę naturalną.',
+      '6', '4', 'addition-subtraction', 'easy', 'unique_answer', '6',
+      'ArithmeticAuthority', 'arithmetic-authority-v1', now(), 'Both models reported six.',
+      '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":3}}}'::jsonb,
+      1
+    )$$,
+  '23514',
+  null,
+  'Even agreeing generator and model-verifier claims cannot store a false answer'
+);
+
+select throws_ok(
+  $$insert into public.exercise_verifications (
+      teacher_id, candidate_id, candidate_text, proposed_canonical_answer,
+      grade, topic, difficulty, outcome, verified_answer, verifier_identity,
+      verifier_version, verified_at, rationale, arithmetic_structure, authority_version
+    ) values (
+      '00000000-0000-0000-0000-000000000001', 'mismatched-proof-version',
+      'Oblicz wartość wyrażenia: (2 + 3). Podaj wynik jako jedną liczbę naturalną.',
+      '5', '4', 'addition-subtraction', 'easy', 'unique_answer', '5',
+      'ArithmeticAuthority', 'arithmetic-authority-v1', now(), 'Version metadata is inconsistent.',
+      '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":3}}}'::jsonb,
+      2
+    )$$,
+  '23514',
+  null,
+  'Mismatched authority metadata cannot be stored as current proof'
 );
 
 select throws_ok(

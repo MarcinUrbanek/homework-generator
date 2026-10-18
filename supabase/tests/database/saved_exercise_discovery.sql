@@ -56,6 +56,35 @@ update public.profile_roles
 set role = 'student'
 where user_id = '40000000-0000-0000-0000-000000000003';
 
+create temporary table discovery_exercise_fixtures (
+  verification_id uuid primary key,
+  approved_exercise_id uuid not null unique
+);
+do $$
+declare
+  temp_schema_name text := (
+    select ns.nspname
+    from pg_catalog.pg_namespace as ns
+    where ns.oid = pg_catalog.pg_my_temp_schema()
+  );
+begin
+  execute pg_catalog.format('grant usage on schema %I to authenticated', temp_schema_name);
+end;
+$$;
+
+create function pg_temp.discovery_exercise_id(p_verification_id uuid)
+returns uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select fixture.approved_exercise_id
+  from pg_temp.discovery_exercise_fixtures as fixture
+  where fixture.verification_id = p_verification_id
+$$;
+grant execute on function pg_temp.discovery_exercise_id(uuid) to authenticated;
+
 create function pg_temp.insert_certified_discovery_exercise(
   exercise_id uuid,
   teacher_id uuid,
@@ -63,20 +92,15 @@ create function pg_temp.insert_certified_discovery_exercise(
   exercise_topic text,
   exercise_difficulty text,
   structure jsonb,
-  approved_at timestamptz
+  expected_text text,
+  expected_answer text,
+  fixture_approved_at timestamptz
 )
 returns void
 language plpgsql
 security definer
 set search_path = ''
 as $$
-declare
-  derived jsonb := public.derive_arithmetic_exercise_v1(
-    exercise_grade,
-    exercise_topic,
-    exercise_difficulty,
-    structure
-  );
 begin
   insert into public.exercise_verifications (
     id, teacher_id, candidate_id, candidate_text, proposed_canonical_answer,
@@ -84,25 +108,19 @@ begin
     verifier_version, verified_at, rationale, arithmetic_structure, authority_version
   )
   values (
-    exercise_id, teacher_id, exercise_id::text, derived ->> 'exercise_text',
-    derived ->> 'canonical_answer', exercise_grade, exercise_topic, exercise_difficulty,
-    'unique_answer', derived ->> 'canonical_answer', 'test-verifier', 'authority-v1',
-    approved_at, 'Independently evaluated test fixture.', structure, 1
+    exercise_id, teacher_id, exercise_id::text, expected_text,
+    expected_answer, exercise_grade, exercise_topic, exercise_difficulty,
+    'unique_answer', expected_answer, 'test-verifier', 'authority-v1',
+    fixture_approved_at, 'Hand-calculated literal fixture; database authority checks the snapshot.', structure, 1
   );
 
-  insert into public.exercises (
-    id, exercise_text, canonical_answer, grade, topic, difficulty,
-    verification_verdict, verifier_identity, verifier_version, verified_at,
-    verification_rationale, creator_id, approver_id, approved_at,
-    verification_id, arithmetic_structure, authority_version
-  )
-  values (
-    exercise_id, derived ->> 'exercise_text', derived ->> 'canonical_answer',
-    exercise_grade, exercise_topic, exercise_difficulty, 'unique_answer',
-    'test-verifier', 'authority-v1', approved_at,
-    'Independently evaluated test fixture.', teacher_id, teacher_id, approved_at,
-    exercise_id, structure, 1
-  );
+  perform pg_catalog.set_config('request.jwt.claim.sub', teacher_id::text, true);
+  insert into pg_temp.discovery_exercise_fixtures (verification_id, approved_exercise_id)
+  select approval.verification_id, approval.exercise_id
+  from public.approve_verified_exercises(array[exercise_id]) as approval;
+  update public.exercises as exercise
+  set approved_at = fixture_approved_at
+  where exercise.verification_id = exercise_id;
 end;
 $$;
 
@@ -111,6 +129,8 @@ select pg_temp.insert_certified_discovery_exercise(
   '40000000-0000-0000-0000-000000000001',
   '4', 'addition-subtraction', 'easy',
   '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":2},"right":{"kind":"number","value":2}}}',
+  'Oblicz wartość wyrażenia: (2 + 2). Podaj wynik jako jedną liczbę naturalną.',
+  '4',
   '2026-10-01 10:00:00+00'
 );
 select pg_temp.insert_certified_discovery_exercise(
@@ -118,6 +138,8 @@ select pg_temp.insert_certified_discovery_exercise(
   '40000000-0000-0000-0000-000000000001',
   '4', 'addition-subtraction', 'medium',
   '{"version":1,"expression":{"kind":"add","left":{"kind":"number","value":5},"right":{"kind":"number","value":8}}}',
+  'Oblicz wartość wyrażenia: (5 + 8). Podaj wynik jako jedną liczbę naturalną.',
+  '13',
   '2026-10-01 10:00:00+00'
 );
 select pg_temp.insert_certified_discovery_exercise(
@@ -125,6 +147,8 @@ select pg_temp.insert_certified_discovery_exercise(
   '40000000-0000-0000-0000-000000000001',
   '4', 'addition-subtraction', 'hard',
   '{"version":1,"expression":{"kind":"add","left":{"kind":"subtract","left":{"kind":"number","value":12},"right":{"kind":"number","value":5}},"right":{"kind":"number","value":2}}}',
+  'Oblicz wartość wyrażenia: ((12 - 5) + 2). Podaj wynik jako jedną liczbę naturalną.',
+  '9',
   '2026-10-01 11:00:00+00'
 );
 
@@ -207,9 +231,15 @@ select is(
     from public.get_saved_exercises('4', 'addition-subtraction')
   ),
   array[
-    '50000000-0000-0000-0000-000000000003'::uuid,
-    '50000000-0000-0000-0000-000000000002'::uuid,
-    '50000000-0000-0000-0000-000000000001'::uuid
+    pg_temp.discovery_exercise_id('50000000-0000-0000-0000-000000000003'),
+    greatest(
+      pg_temp.discovery_exercise_id('50000000-0000-0000-0000-000000000002'),
+      pg_temp.discovery_exercise_id('50000000-0000-0000-0000-000000000001')
+    ),
+    least(
+      pg_temp.discovery_exercise_id('50000000-0000-0000-0000-000000000002'),
+      pg_temp.discovery_exercise_id('50000000-0000-0000-0000-000000000001')
+    )
   ],
   'Grade and topic filtering returns newest-first results with ID tie-breaking'
 );
@@ -225,7 +255,7 @@ select is(
     select array_agg(id order by approved_at desc, id desc)
     from public.get_saved_exercises('4', 'addition-subtraction', 'medium')
   ),
-  array['50000000-0000-0000-0000-000000000002'::uuid],
+  array[pg_temp.discovery_exercise_id('50000000-0000-0000-0000-000000000002')],
   'An optional difficulty filter refines the topic pool'
 );
 
@@ -239,7 +269,7 @@ select is(
     select array_agg(id order by approved_at desc, id desc)
     from public.get_saved_exercises('4', 'addition-subtraction', 'easy')
   ),
-  array['50000000-0000-0000-0000-000000000001'::uuid],
+  array[pg_temp.discovery_exercise_id('50000000-0000-0000-0000-000000000001')],
   'The saved exercise browser keeps the certified easy row and excludes the same-bucket legacy row'
 );
 select is(
@@ -256,13 +286,19 @@ select is(
       'addition-subtraction',
       null,
       '2026-10-01 11:00:00+00',
-      '50000000-0000-0000-0000-000000000003',
+      pg_temp.discovery_exercise_id('50000000-0000-0000-0000-000000000003'),
       21
     )
   ),
   array[
-    '50000000-0000-0000-0000-000000000002'::uuid,
-    '50000000-0000-0000-0000-000000000001'::uuid
+    greatest(
+      pg_temp.discovery_exercise_id('50000000-0000-0000-0000-000000000002'),
+      pg_temp.discovery_exercise_id('50000000-0000-0000-0000-000000000001')
+    ),
+    least(
+      pg_temp.discovery_exercise_id('50000000-0000-0000-0000-000000000002'),
+      pg_temp.discovery_exercise_id('50000000-0000-0000-0000-000000000001')
+    )
   ],
   'A cursor returns the next non-overlapping page'
 );
