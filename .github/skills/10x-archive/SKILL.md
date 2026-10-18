@@ -5,6 +5,7 @@ description: Archive a completed change by moving its folder into context/archiv
 
 # /10x-archive — Close a Change
 
+You are tasked with archiving a completed change by moving its folder into `context/archive/` and stamping its `change.md` with archived status, starting from `context/changes/<change-id>/` and following the steps outlined below.
 Move a completed change folder from `context/changes/<change-id>/` to `context/archive/<created-date>-<change-id>/`, stamp `change.md` with `status: archived` + `archived_at`, use `git mv` so file history follows, and — if `context/foundation/roadmap.md` carries a roadmap item whose `Change ID` equals `<change-id>` — close that item too: flip its `Status` to `done` and append an entry to the roadmap's `## Done` section.
 
 The gate is **lenient warn-only** — `/10x-archive` blocks on uncommitted changes inside the change folder or pre-existing staged changes. Everything else (incomplete Progress, missing impl-review, status not in `{implemented, impl_reviewed}`) is surfaced as a warning followed by a confirmation prompt; the user can still archive.
