@@ -1,10 +1,10 @@
 ---
 change_id: trustworthy-exercise-approval
 title: Require authoritative evidence for exercise approval
-status: implemented
+status: archived
 created: 2026-10-14
 updated: 2026-10-18
-archived_at: null
+archived_at: 2026-10-18T14:53:55Z
 ---
 
 ## Notes
