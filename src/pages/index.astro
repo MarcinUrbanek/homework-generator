@@ -1,8 +1,138 @@
 ---
-import Welcome from "@/components/Welcome.astro";
 import Layout from "@/layouts/Layout.astro";
+import { loadProfileRoles } from "@/lib/services/profile-roles";
+import { createClient } from "@/lib/supabase";
+
+const { user } = Astro.locals;
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+const roleResult = await loadProfileRoles(supabase, user?.id ?? null);
+const roles = roleResult.status === "loaded" ? roleResult.roles : [];
+const isTeacher = roles.includes("teacher");
+const isStudent = roles.includes("student");
+
+if (roleResult.status === "unavailable") {
+  Astro.response.status = 503;
+}
+
+const title =
+  roleResult.status !== "loaded" || roles.length === 0
+    ? "Panel"
+    : isTeacher && isStudent
+      ? "Panel"
+      : isStudent
+        ? "Panel ucznia"
+        : "Panel nauczyciela";
 ---
 
-<Layout>
-  <Welcome />
+<Layout title={title}>
+  <main
+    data-role={isStudent && !isTeacher ? "student" : isTeacher && !isStudent ? "teacher" : undefined}
+    class="bg-cosmic min-h-screen p-4 text-white"
+  >
+    <div class="mx-auto w-full max-w-3xl rounded-lg border border-white/10 bg-white/10 p-6 backdrop-blur-xl sm:p-8">
+      <h1 class="mb-3 bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-3xl font-bold text-transparent">
+        Panel
+      </h1>
+      <p class="text-blue-100/80">
+        Zalogowano jako <span class="font-semibold text-white">{user?.email}</span>
+      </p>
+
+      {roleResult.status === "unavailable" ? (
+        <section class="mt-6 rounded-md border border-red-300/40 bg-red-950/30 p-4" role="alert">
+          <h2 class="font-semibold">Nie udało się wczytać ról konta</h2>
+          <p class="mt-1 text-sm leading-6 text-blue-100/80">
+            Spróbuj ponownie później. Niektóre narzędzia mogą być teraz niedostępne.
+          </p>
+        </section>
+      ) : roles.length === 0 ? (
+        <section class="mt-6 rounded-md border border-red-300/40 bg-red-950/30 p-4" role="alert">
+          <h2 class="font-semibold">Konto nie ma przypisanej roli</h2>
+          <p class="mt-1 text-sm leading-6 text-blue-100/80">
+            Możesz nadal dołączyć do klasy za pomocą kodu otrzymanego od nauczyciela.
+          </p>
+        </section>
+      ) : null}
+
+      {isStudent && (
+        <section class="mt-8 border-t border-white/10 pt-6">
+          <h2 class="text-lg font-semibold">Zadania domowe</h2>
+          <p class="mt-1 text-sm leading-6 text-blue-100/70">
+            Otwórz przydzielone zadania, prześlij odpowiedzi i sprawdź zapisany wynik.
+          </p>
+          <a
+            href="/homework"
+            class="mt-4 inline-flex min-h-11 items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-blue-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            Zobacz zadania domowe
+          </a>
+        </section>
+      )}
+
+      {isTeacher && (
+        <>
+          <section class="mt-8 border-t border-white/10 pt-6">
+            <h2 class="text-lg font-semibold">Klasy i zaproszenia</h2>
+            <p class="mt-1 text-sm leading-6 text-blue-100/70">
+              Twórz klasy, wysyłaj zaproszenia i przydzielaj uczniom zadania.
+            </p>
+            <a
+              href="/classes"
+              class="mt-4 inline-flex min-h-11 items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-blue-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              Otwórz klasy
+            </a>
+          </section>
+
+          <section class="mt-8 border-t border-white/10 pt-6">
+            <h2 class="text-lg font-semibold">Zadania z matematyki</h2>
+            <p class="mt-1 text-sm leading-6 text-blue-100/70">
+              Wybierz temat i poziom trudności, a następnie wygeneruj propozycje zadań do sprawdzenia.
+            </p>
+            <a
+              href="/exercises/request"
+              class="mt-4 inline-flex min-h-11 items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-blue-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              Wygeneruj zadania
+            </a>
+            <a
+              href="/exercises/saved"
+              class="mt-3 inline-flex min-h-11 items-center justify-center rounded-md border border-white/30 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              Przeglądaj zatwierdzone zadania
+            </a>
+          </section>
+        </>
+      )}
+
+      <section class="mt-8 border-t border-white/10 pt-6">
+        <h2 class="text-lg font-semibold">Twoje klasy</h2>
+        <p class="mt-1 text-sm leading-6 text-blue-100/70">
+          Sprawdź dołączone klasy albo dołącz do nowej klasy, nawet jeśli jeszcze nie masz przydzielonych zadań.
+        </p>
+        <div class="mt-4 flex flex-col gap-3 sm:flex-row">
+          <a
+            href="/classes/joined"
+            class="inline-flex min-h-11 items-center justify-center rounded-md border border-white/30 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            Zobacz dołączone klasy
+          </a>
+          <a
+            href="/classes/join-code"
+            class="inline-flex min-h-11 items-center justify-center rounded-md border border-white/30 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            Dołącz za pomocą kodu
+          </a>
+        </div>
+      </section>
+
+      <form method="POST" action="/api/auth/signout" class="mt-8 border-t border-white/10 pt-6">
+        <button
+          type="submit"
+          class="min-h-11 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        >
+          Wyloguj się
+        </button>
+      </form>
+    </div>
+  </main>
 </Layout>

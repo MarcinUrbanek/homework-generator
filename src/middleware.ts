@@ -19,10 +19,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
     context.locals.user = null;
   }
 
-  if (
-    PROTECTED_ROUTES.some((route) => context.url.pathname.startsWith(route)) &&
-    context.url.pathname !== "/classes/join"
-  ) {
+  const isProtectedRoute =
+    context.url.pathname === "/" ||
+    (context.url.pathname !== "/dashboard" && PROTECTED_ROUTES.some((route) => context.url.pathname.startsWith(route)));
+
+  if (isProtectedRoute && context.url.pathname !== "/classes/join") {
     if (!context.locals.user) {
       const returnTo = `${context.url.pathname}${context.url.search}`;
       return context.redirect(`/auth/signin?${new URLSearchParams({ return_to: returnTo })}`);
