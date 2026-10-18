@@ -3,9 +3,14 @@ import { z } from "zod";
 
 import {
   exerciseCandidateSchema,
-  exerciseGenerationSuccessSchema,
+  generatedExerciseCandidateSchema,
   exerciseVerificationResultSchema,
 } from "@/lib/exercises/schemas";
+import {
+  ArithmeticAuthorityError,
+  arithmeticStructureSchema,
+  renderArithmeticExercise,
+} from "@/lib/exercises/arithmetic-authority";
 import type {
   ExerciseApprovalMapping,
   ExerciseCandidate,
@@ -15,10 +20,10 @@ import type {
 } from "@/types";
 
 const STORAGE_KEY = "latest-successful-exercise-batch";
-const STORAGE_VERSION = 3;
+const STORAGE_VERSION = 4;
 
 export type ExerciseReviewStatus =
-  "unverified" | "unique_answer" | "answer_mismatch" | "not_unique_answer" | "unsupported_evidence" | "indeterminate";
+  "unverified" | "unique_answer" | "answer_mismatch" | "unsupported_evidence" | "indeterminate";
 
 export type ExerciseReviewCandidate =
   | { candidate: ExerciseCandidate; status: "unverified" }
@@ -29,6 +34,7 @@ export type ExerciseReviewCandidate =
     };
 
 export interface ExerciseReviewBatch extends ExerciseGenerationSuccessMetadata {
+  eligibility: "current" | "reference-only";
   candidates: ExerciseReviewCandidate[];
   selectedVerificationIds: string[];
 }
@@ -39,6 +45,22 @@ interface StoredExerciseBatch {
 }
 
 const validExerciseCountSchema = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]);
+const legacyGenerationBatchSchema = z
+  .object({
+    requestedCount: z.literal(5),
+    validCount: validExerciseCountSchema,
+    partial_batch: z.literal(true).optional(),
+    candidates: z.array(exerciseCandidateSchema.strict()).min(1).max(5),
+  })
+  .strict()
+  .superRefine((batch, context) => {
+    if (batch.candidates.length !== batch.validCount) {
+      context.addIssue({ code: "custom", path: ["validCount"], message: "validCount must match candidates" });
+    }
+    if (batch.validCount < batch.requestedCount !== (batch.partial_batch === true)) {
+      context.addIssue({ code: "custom", path: ["partial_batch"], message: "partial_batch must match validCount" });
+    }
+  });
 const legacyPersistedEvidenceBaseSchema = z.object({
   verificationId: z.uuid(),
   candidateId: z.string().trim().min(1),
@@ -108,7 +130,7 @@ const legacyExerciseReviewBatchSchema = z
       context.addIssue({ code: "custom", path: ["partial_batch"], message: "partial_batch must match validCount" });
     }
   });
-const exerciseReviewCandidateSchema = z
+const versionThreeExerciseReviewCandidateSchema = z
   .object({
     candidate: exerciseCandidateSchema,
     status: z.enum([
@@ -141,9 +163,176 @@ const exerciseReviewCandidateSchema = z
       });
     }
   });
-
-const exerciseReviewBatchSchema = z
+const versionThreeExerciseReviewBatchSchema = z
   .object({
+    requestedCount: z.literal(5),
+    validCount: validExerciseCountSchema,
+    partial_batch: z.literal(true).optional(),
+    candidates: z.array(versionThreeExerciseReviewCandidateSchema).min(1).max(5),
+    selectedVerificationIds: z.array(z.uuid()).max(5),
+  })
+  .strict()
+  .superRefine((batch, context) => {
+    if (batch.candidates.length !== batch.validCount) {
+      context.addIssue({ code: "custom", path: ["validCount"], message: "validCount must match candidates" });
+    }
+    if (batch.validCount < batch.requestedCount !== (batch.partial_batch === true)) {
+      context.addIssue({ code: "custom", path: ["partial_batch"], message: "partial_batch must match validCount" });
+    }
+  });
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableJson).join(",")}]`;
+  }
+  if (typeof value === "object" && value !== null) {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJson((value as Record<string, unknown>)[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function renderedCandidate(candidate: ExerciseCandidate) {
+  if (candidate.arithmeticStructure === undefined || candidate.arithmeticStructure === null) return null;
+  try {
+    return renderArithmeticExercise(candidate, candidate.arithmeticStructure);
+  } catch (error) {
+    if (error instanceof ArithmeticAuthorityError) return null;
+    throw error;
+  }
+}
+
+function candidateMatchesCurrentAuthority(candidate: ExerciseCandidate): boolean {
+  const rendered = renderedCandidate(candidate);
+  return (
+    rendered !== null &&
+    rendered.text === candidate.text &&
+    rendered.proposedCanonicalAnswer === candidate.proposedCanonicalAnswer &&
+    stableJson(rendered.arithmeticStructure) === stableJson(candidate.arithmeticStructure)
+  );
+}
+
+function candidateMatchesCurrentPrompt(candidate: ExerciseCandidate): boolean {
+  const rendered = renderedCandidate(candidate);
+  return (
+    rendered !== null &&
+    rendered.text === candidate.text &&
+    stableJson(rendered.arithmeticStructure) === stableJson(candidate.arithmeticStructure)
+  );
+}
+
+export function isCurrentBoundSuccess(candidate: ExerciseCandidate, evidence: ExerciseVerificationResult): boolean {
+  if (
+    evidence.outcome !== "unique_answer" ||
+    evidence.candidateId !== candidate.id ||
+    evidence.verifierIdentity !== "ArithmeticAuthority" ||
+    evidence.verifierVersion !== "arithmetic-authority-v1" ||
+    evidence.authorityVersion !== 1
+  ) {
+    return false;
+  }
+
+  const candidateStructure = arithmeticStructureSchema.safeParse(candidate.arithmeticStructure);
+  const evidenceStructure = arithmeticStructureSchema.safeParse(evidence.arithmeticStructure);
+  if (!candidateStructure.success || !evidenceStructure.success) return false;
+  if (stableJson(candidateStructure.data) !== stableJson(evidenceStructure.data)) return false;
+
+  const rendered = renderedCandidate(candidate);
+  return (
+    rendered !== null &&
+    rendered.text === candidate.text &&
+    rendered.proposedCanonicalAnswer === candidate.proposedCanonicalAnswer &&
+    rendered.proposedCanonicalAnswer === evidence.verifiedAnswer &&
+    stableJson(rendered.arithmeticStructure) === stableJson(evidenceStructure.data)
+  );
+}
+
+function isCurrentBoundMismatch(candidate: ExerciseCandidate, evidence: ExerciseVerificationResult): boolean {
+  if (
+    evidence.outcome !== "answer_mismatch" ||
+    evidence.candidateId !== candidate.id ||
+    evidence.verifierIdentity !== "ArithmeticAuthority" ||
+    evidence.verifierVersion !== "arithmetic-authority-v1" ||
+    evidence.authorityVersion !== 1
+  ) {
+    return false;
+  }
+
+  const candidateStructure = arithmeticStructureSchema.safeParse(candidate.arithmeticStructure);
+  const evidenceStructure = arithmeticStructureSchema.safeParse(evidence.arithmeticStructure);
+  if (!candidateStructure.success || !evidenceStructure.success) return false;
+  if (stableJson(candidateStructure.data) !== stableJson(evidenceStructure.data)) return false;
+
+  const rendered = renderedCandidate(candidate);
+  return (
+    rendered !== null &&
+    rendered.text === candidate.text &&
+    rendered.proposedCanonicalAnswer !== candidate.proposedCanonicalAnswer &&
+    rendered.proposedCanonicalAnswer === evidence.verifiedAnswer &&
+    stableJson(rendered.arithmeticStructure) === stableJson(evidenceStructure.data)
+  );
+}
+
+function isCurrentUnsupportedEvidence(candidate: ExerciseCandidate, evidence: ExerciseVerificationResult): boolean {
+  return (
+    evidence.outcome === "unsupported_evidence" &&
+    evidence.candidateId === candidate.id &&
+    evidence.arithmeticStructure === null &&
+    evidence.authorityVersion === null
+  );
+}
+
+function isCurrentEvidence(candidate: ExerciseCandidate, evidence: ExerciseVerificationResult): boolean {
+  if (evidence.outcome === "unique_answer") return isCurrentBoundSuccess(candidate, evidence);
+  if (evidence.outcome === "answer_mismatch") return isCurrentBoundMismatch(candidate, evidence);
+  if (evidence.outcome === "indeterminate") return evidence.candidateId === candidate.id;
+  return isCurrentUnsupportedEvidence(candidate, evidence);
+}
+
+const exerciseReviewCandidateSchema = z
+  .object({
+    candidate: generatedExerciseCandidateSchema,
+    status: z.enum(["unverified", "unique_answer", "answer_mismatch", "unsupported_evidence", "indeterminate"]),
+    evidence: exerciseVerificationResultSchema.optional(),
+  })
+  .strict()
+  .superRefine((reviewCandidate, context) => {
+    if (
+      !candidateMatchesCurrentPrompt(reviewCandidate.candidate) ||
+      (reviewCandidate.status !== "answer_mismatch" && !candidateMatchesCurrentAuthority(reviewCandidate.candidate))
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["candidate"],
+        message: "Current candidates must match their rendered arithmetic structure",
+      });
+    }
+
+    if (reviewCandidate.status === "unverified") {
+      if (reviewCandidate.evidence !== undefined) {
+        context.addIssue({ code: "custom", path: ["evidence"], message: "Unverified candidates cannot have evidence" });
+      }
+      return;
+    }
+
+    if (
+      reviewCandidate.evidence?.outcome !== reviewCandidate.status ||
+      reviewCandidate.evidence.candidateId !== reviewCandidate.candidate.id ||
+      !isCurrentEvidence(reviewCandidate.candidate, reviewCandidate.evidence)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["evidence"],
+        message: "Current evidence must match the structured candidate and outcome",
+      });
+    }
+  });
+
+const currentExerciseReviewBatchSchema = z
+  .object({
+    eligibility: z.literal("current"),
     requestedCount: z.literal(5),
     validCount: validExerciseCountSchema,
     partial_batch: z.literal(true).optional(),
@@ -163,8 +352,7 @@ const exerciseReviewBatchSchema = z
       batch.candidates.flatMap((reviewCandidate) =>
         reviewCandidate.status === "unique_answer" &&
         reviewCandidate.evidence?.outcome === "unique_answer" &&
-        reviewCandidate.evidence.authorityVersion === 1 &&
-        reviewCandidate.evidence.arithmeticStructure !== null
+        isCurrentBoundSuccess(reviewCandidate.candidate, reviewCandidate.evidence)
           ? [reviewCandidate.evidence.verificationId]
           : [],
       ),
@@ -181,6 +369,37 @@ const exerciseReviewBatchSchema = z
     }
   });
 
+const referenceOnlyExerciseCandidateSchema = z
+  .object({
+    candidate: exerciseCandidateSchema.omit({ arithmeticStructure: true }).strict(),
+    status: z.literal("unverified"),
+  })
+  .strict();
+
+const referenceOnlyExerciseReviewBatchSchema = z
+  .object({
+    eligibility: z.literal("reference-only"),
+    requestedCount: z.literal(5),
+    validCount: validExerciseCountSchema,
+    partial_batch: z.literal(true).optional(),
+    candidates: z.array(referenceOnlyExerciseCandidateSchema).min(1).max(5),
+    selectedVerificationIds: z.array(z.uuid()).length(0),
+  })
+  .strict()
+  .superRefine((batch, context) => {
+    if (batch.candidates.length !== batch.validCount) {
+      context.addIssue({ code: "custom", path: ["validCount"], message: "validCount must match candidates" });
+    }
+    if (batch.validCount < batch.requestedCount !== (batch.partial_batch === true)) {
+      context.addIssue({ code: "custom", path: ["partial_batch"], message: "partial_batch must match validCount" });
+    }
+  });
+
+const exerciseReviewBatchSchema = z.discriminatedUnion("eligibility", [
+  currentExerciseReviewBatchSchema,
+  referenceOnlyExerciseReviewBatchSchema,
+]);
+
 function unsubscribeFromHydration(): void {
   return;
 }
@@ -194,6 +413,7 @@ const getServerSnapshot = () => false;
 
 export function createExerciseReviewBatch(batch: ExerciseGenerationSuccess): ExerciseReviewBatch {
   return {
+    eligibility: "current",
     requestedCount: batch.requestedCount,
     validCount: batch.validCount,
     ...(batch.partial_batch ? { partial_batch: true as const } : {}),
@@ -202,14 +422,36 @@ export function createExerciseReviewBatch(batch: ExerciseGenerationSuccess): Exe
   };
 }
 
-function migrateLegacyExerciseReviewBatch(batch: z.infer<typeof legacyExerciseReviewBatchSchema>): ExerciseReviewBatch {
+type ReferenceOnlyBatchSource = ExerciseGenerationSuccessMetadata & {
+  candidates: ExerciseCandidate[];
+};
+
+export function createReferenceOnlyExerciseReviewBatch(batch: ReferenceOnlyBatchSource): ExerciseReviewBatch {
   return {
+    eligibility: "reference-only",
     requestedCount: batch.requestedCount,
     validCount: batch.validCount,
     ...(batch.partial_batch ? { partial_batch: true } : {}),
-    candidates: batch.candidates.map(({ candidate }) => ({ candidate, status: "unverified" })),
+    candidates: batch.candidates.map((candidate) => {
+      const referenceCandidate = { ...candidate };
+      delete referenceCandidate.arithmeticStructure;
+      return { candidate: referenceCandidate, status: "unverified" };
+    }),
     selectedVerificationIds: [],
   };
+}
+
+function migrateLegacyExerciseReviewBatch(
+  batch: Pick<z.infer<typeof legacyExerciseReviewBatchSchema>, "requestedCount" | "validCount" | "partial_batch"> & {
+    candidates: { candidate: ExerciseCandidate }[];
+  },
+): ExerciseReviewBatch {
+  return createReferenceOnlyExerciseReviewBatch({
+    requestedCount: batch.requestedCount,
+    validCount: batch.validCount,
+    ...(batch.partial_batch ? { partial_batch: true } : {}),
+    candidates: batch.candidates.map(({ candidate }) => candidate),
+  });
 }
 
 export function restoreSessionExerciseBatch(storage: Storage): ExerciseReviewBatch | null {
@@ -231,18 +473,29 @@ export function restoreSessionExerciseBatch(storage: Storage): ExerciseReviewBat
     }
 
     if (parsedValue.version === 1) {
-      const parsedGenerationBatch = exerciseGenerationSuccessSchema.safeParse(parsedValue.batch);
-      if (!parsedGenerationBatch.success) {
+      const parsedLegacyBatch = legacyGenerationBatchSchema.safeParse(parsedValue.batch);
+      if (!parsedLegacyBatch.success) {
         clearSessionExerciseBatch(storage);
         return null;
       }
-      const migratedBatch = createExerciseReviewBatch(parsedGenerationBatch.data);
+      const migratedBatch = createReferenceOnlyExerciseReviewBatch(parsedLegacyBatch.data);
       storeSessionExerciseBatch(storage, migratedBatch);
       return migratedBatch;
     }
 
     if (parsedValue.version === 2) {
       const parsedLegacyBatch = legacyExerciseReviewBatchSchema.safeParse(parsedValue.batch);
+      if (!parsedLegacyBatch.success) {
+        clearSessionExerciseBatch(storage);
+        return null;
+      }
+      const migratedBatch = migrateLegacyExerciseReviewBatch(parsedLegacyBatch.data);
+      storeSessionExerciseBatch(storage, migratedBatch);
+      return migratedBatch;
+    }
+
+    if (parsedValue.version === 3) {
+      const parsedLegacyBatch = versionThreeExerciseReviewBatchSchema.safeParse(parsedValue.batch);
       if (!parsedLegacyBatch.success) {
         clearSessionExerciseBatch(storage);
         return null;
@@ -286,27 +539,38 @@ export function applyExerciseVerificationResults(
   batch: ExerciseReviewBatch,
   results: ExerciseVerificationResult[],
 ): ExerciseReviewBatch {
+  if (batch.eligibility !== "current") return batch;
+
   const resultByCandidateId = new Map(results.map((result) => [result.candidateId, result]));
   const candidateIds = new Set(batch.candidates.map(({ candidate }) => candidate.id));
   if (resultByCandidateId.size !== results.length || results.some((result) => !candidateIds.has(result.candidateId))) {
     return batch;
   }
 
-  const candidates = batch.candidates.map((reviewCandidate) => {
+  const candidates: ExerciseReviewCandidate[] = batch.candidates.map((reviewCandidate): ExerciseReviewCandidate => {
     const result = resultByCandidateId.get(reviewCandidate.candidate.id);
     if (reviewCandidate.status !== "unverified" && reviewCandidate.status !== "indeterminate") {
       return reviewCandidate;
     }
-    return result
-      ? { candidate: reviewCandidate.candidate, status: result.outcome, evidence: result }
-      : reviewCandidate;
+    if (!result) return reviewCandidate;
+    if (result.outcome === "indeterminate") {
+      return { candidate: reviewCandidate.candidate, status: "indeterminate", evidence: result };
+    }
+    if (
+      (result.outcome === "unique_answer" && !isCurrentBoundSuccess(reviewCandidate.candidate, result)) ||
+      (result.outcome === "answer_mismatch" && !isCurrentBoundMismatch(reviewCandidate.candidate, result)) ||
+      (result.outcome === "unsupported_evidence" && !isCurrentUnsupportedEvidence(reviewCandidate.candidate, result)) ||
+      result.outcome === "not_unique_answer"
+    ) {
+      return reviewCandidate;
+    }
+    return { candidate: reviewCandidate.candidate, status: result.outcome, evidence: result };
   });
   const successfulVerificationIds = new Set(
     candidates.flatMap((reviewCandidate) =>
       reviewCandidate.status === "unique_answer" &&
       reviewCandidate.evidence.outcome === "unique_answer" &&
-      reviewCandidate.evidence.authorityVersion === 1 &&
-      reviewCandidate.evidence.arithmeticStructure !== null
+      isCurrentBoundSuccess(reviewCandidate.candidate, reviewCandidate.evidence)
         ? [reviewCandidate.evidence.verificationId]
         : [],
     ),
@@ -324,12 +588,13 @@ export function selectExerciseVerification(
   verificationId: string,
   selected: boolean,
 ): ExerciseReviewBatch {
+  if (batch.eligibility !== "current") return batch;
+
   const isSuccessful = batch.candidates.some(
     (reviewCandidate) =>
       reviewCandidate.status === "unique_answer" &&
       reviewCandidate.evidence.outcome === "unique_answer" &&
-      reviewCandidate.evidence.authorityVersion === 1 &&
-      reviewCandidate.evidence.arithmeticStructure !== null &&
+      isCurrentBoundSuccess(reviewCandidate.candidate, reviewCandidate.evidence) &&
       reviewCandidate.evidence.verificationId === verificationId,
   );
   if (!isSuccessful) {
@@ -346,6 +611,8 @@ export function removeApprovedExerciseCandidates(
   batch: ExerciseReviewBatch,
   mappings: ExerciseApprovalMapping[],
 ): ExerciseReviewBatch | null {
+  if (batch.eligibility !== "current") return batch;
+
   const savedVerificationIds = new Set(mappings.map(({ verificationId }) => verificationId));
   const candidates = batch.candidates.filter(
     (reviewCandidate) =>

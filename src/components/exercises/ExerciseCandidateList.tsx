@@ -1,6 +1,10 @@
 import { AlertCircle, CheckCircle2, CircleHelp, XCircle } from "lucide-react";
 
-import type { ExerciseReviewBatch, ExerciseReviewCandidate } from "@/components/hooks/use-session-exercise-batch";
+import {
+  isCurrentBoundSuccess,
+  type ExerciseReviewBatch,
+  type ExerciseReviewCandidate,
+} from "@/components/hooks/use-session-exercise-batch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,11 +19,10 @@ interface ExerciseCandidateListProps {
 
 const statusPresentation = {
   unverified: { label: "Niezweryfikowane", variant: "warning" as const, icon: CircleHelp },
-  unique_answer: { label: "Odpowiedź potwierdzona", variant: "default" as const, icon: CheckCircle2 },
-  answer_mismatch: { label: "Odpowiedź niezgodna", variant: "destructive" as const, icon: XCircle },
-  not_unique_answer: { label: "Brak jednej odpowiedzi", variant: "warning" as const, icon: AlertCircle },
+  unique_answer: { label: "Dowód arytmetyczny potwierdzony", variant: "default" as const, icon: CheckCircle2 },
+  answer_mismatch: { label: "Proponowana odpowiedź niezgodna", variant: "destructive" as const, icon: XCircle },
   unsupported_evidence: { label: "Brak obsługiwanego dowodu", variant: "warning" as const, icon: AlertCircle },
-  indeterminate: { label: "Nie udało się rozstrzygnąć", variant: "outline" as const, icon: CircleHelp },
+  indeterminate: { label: "Błąd techniczny — wynik nierozstrzygnięty", variant: "outline" as const, icon: CircleHelp },
 };
 
 function eligibilityMessage(reviewCandidate: ExerciseReviewCandidate): string {
@@ -27,15 +30,13 @@ function eligibilityMessage(reviewCandidate: ExerciseReviewCandidate): string {
     case "unverified":
       return "Najpierw zweryfikuj zestaw.";
     case "answer_mismatch":
-      return "Zadanie nie może zostać zapisane, ponieważ zweryfikowana odpowiedź różni się od proponowanej.";
-    case "not_unique_answer":
-      return "Zadanie nie może zostać zapisane, ponieważ nie ma jednej jednoznacznej odpowiedzi.";
+      return "Zadanie nie może zostać zapisane, ponieważ obliczony wynik różni się od proponowanej odpowiedzi.";
     case "unsupported_evidence":
-      return "Zadanie nie może zostać zapisane, ponieważ jego struktura lub treść nie ma aktualnego dowodu.";
+      return "Zadanie nie może zostać zapisane, ponieważ jego struktura lub treść nie ma aktualnego dowodu. Wygeneruj nową propozycję.";
     case "indeterminate":
-      return "Zadanie nie może zostać zapisane, dopóki błąd techniczny nie zostanie rozstrzygnięty.";
+      return "Zadanie nie może zostać zapisane, dopóki błąd techniczny nie zostanie rozstrzygnięty. Ponowienie wymaga jawnego działania.";
     case "unique_answer":
-      return "Odpowiedź została potwierdzona. Zadanie można wybrać do zapisania.";
+      return "Aktualny dowód arytmetyczny potwierdza wynik. Oceń treść i użyteczność, a potem wybierz zadanie do zapisania.";
   }
 }
 
@@ -75,8 +76,7 @@ export function ExerciseCandidateList({ batch, disabled, onSelectionChange }: Ex
           const verificationId =
             status === "unique_answer" &&
             reviewCandidate.evidence.outcome === "unique_answer" &&
-            reviewCandidate.evidence.authorityVersion === 1 &&
-            reviewCandidate.evidence.arithmeticStructure !== null
+            isCurrentBoundSuccess(candidate, reviewCandidate.evidence)
               ? reviewCandidate.evidence.verificationId
               : null;
           const isSelected = verificationId ? batch.selectedVerificationIds.includes(verificationId) : false;

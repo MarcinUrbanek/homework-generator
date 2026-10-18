@@ -62,3 +62,8 @@ export const GRADE_4_EXERCISE_CATALOG: readonly Grade4ExerciseTopic[] = [
     },
   },
 ];
+
+export const SUPPORTED_GRADE_4_ARITHMETIC_CATALOG = GRADE_4_EXERCISE_CATALOG.filter(
+  (topic): topic is Grade4ExerciseTopic & { slug: SupportedArithmeticTopicSlug } =>
+    isSupportedArithmeticTopic(topic.slug),
+);

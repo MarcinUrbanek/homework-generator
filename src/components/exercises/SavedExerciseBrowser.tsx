@@ -2,7 +2,12 @@ import { useRef, useState } from "react";
 
 import { SavedExercisePoolView } from "@/components/exercises/SavedExercisePoolView";
 import { savedExerciseErrorSchema, savedExerciseSuccessSchema } from "@/lib/exercises/schemas";
-import type { ExerciseDifficulty, ExerciseTopicSlug, SavedExerciseFilters, SavedExerciseSummary } from "@/types";
+import type {
+  ExerciseDifficulty,
+  SavedExerciseFilters,
+  SavedExerciseSummary,
+  SupportedArithmeticTopicSlug,
+} from "@/types";
 
 interface RequestDescriptor {
   filters: SavedExerciseFilters;
@@ -22,7 +27,7 @@ function failureMessage(value: unknown): string {
 }
 
 export default function SavedExerciseBrowser() {
-  const [topic, setTopic] = useState<ExerciseTopicSlug>("addition-subtraction");
+  const [topic, setTopic] = useState<SupportedArithmeticTopicSlug>("addition-subtraction");
   const [difficulty, setDifficulty] = useState<ExerciseDifficulty | "all">("all");
   const [appliedFilters, setAppliedFilters] = useState<SavedExerciseFilters | null>(null);
   const [exercises, setExercises] = useState<SavedExerciseSummary[]>([]);

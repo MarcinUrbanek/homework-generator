@@ -191,6 +191,28 @@ describe("HomeworkAssignmentForm", () => {
     expect(container.textContent).toContain("5");
   });
 
+  it("offers only the three supported arithmetic topics for new assignments", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(roster)));
+    renderForm();
+    await loadRoster();
+
+    const topicTrigger = container.querySelector<HTMLButtonElement>("#homework-topic");
+    if (!topicTrigger) throw new Error("Expected topic selector");
+    act(() => {
+      topicTrigger.click();
+    });
+
+    expect(
+      Array.from(document.querySelectorAll<HTMLElement>('[data-slot="select-item"]')).map((option) =>
+        option.textContent.trim(),
+      ),
+    ).toEqual([
+      "Dodawanie i odejmowanie liczb naturalnych",
+      "Mnożenie i dzielenie liczb naturalnych",
+      "Kolejność wykonywania działań",
+    ]);
+  });
+
   it("trims an optional title and sends the chosen topic, difficulty, and count after review", async () => {
     const fetchMock = vi
       .fn()

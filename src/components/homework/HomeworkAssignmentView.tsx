@@ -6,9 +6,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DIFFICULTY_LABELS, GRADE_4_EXERCISE_CATALOG } from "@/lib/exercises/catalog";
+import {
+  DIFFICULTY_LABELS,
+  GRADE_4_EXERCISE_CATALOG,
+  SUPPORTED_GRADE_4_ARITHMETIC_CATALOG,
+} from "@/lib/exercises/catalog";
 import { exerciseNoun } from "@/lib/exercises/exercise-count";
-import type { ExerciseDifficulty, ExerciseTopicSlug, HomeworkApiErrorCode, HomeworkRosterMember } from "@/types";
+import type {
+  ExerciseDifficulty,
+  ExerciseTopicSlug,
+  HomeworkApiErrorCode,
+  HomeworkRosterMember,
+  SupportedArithmeticTopicSlug,
+} from "@/types";
 
 export type HomeworkAssignmentViewStatus =
   | "loading"
@@ -34,7 +44,7 @@ interface HomeworkAssignmentViewProps {
   members: HomeworkRosterMember[];
   selectedStudentIds: string[];
   title: string;
-  topic: ExerciseTopicSlug;
+  topic: SupportedArithmeticTopicSlug;
   difficulty: ExerciseDifficulty;
   exerciseCount: 1 | 2 | 3 | 4 | 5;
   errorMessage: string | null;
@@ -48,7 +58,7 @@ interface HomeworkAssignmentViewProps {
   onSelectAll: () => void;
   onClearSelection: () => void;
   onTitleChange: (value: string) => void;
-  onTopicChange: (value: ExerciseTopicSlug) => void;
+  onTopicChange: (value: SupportedArithmeticTopicSlug) => void;
   onDifficultyChange: (value: ExerciseDifficulty) => void;
   onExerciseCountChange: (value: 1 | 2 | 3 | 4 | 5) => void;
   onReview: SubmitEventHandler<HTMLFormElement>;
@@ -401,7 +411,7 @@ export function HomeworkAssignmentView({
             <Select
               value={topic}
               onValueChange={(value) => {
-                onTopicChange(value as ExerciseTopicSlug);
+                onTopicChange(value as SupportedArithmeticTopicSlug);
               }}
               disabled={!isEditing}
             >
@@ -409,7 +419,7 @@ export function HomeworkAssignmentView({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {GRADE_4_EXERCISE_CATALOG.map((item) => (
+                {SUPPORTED_GRADE_4_ARITHMETIC_CATALOG.map((item) => (
                   <SelectItem key={item.slug} value={item.slug}>
                     {item.label}
                   </SelectItem>

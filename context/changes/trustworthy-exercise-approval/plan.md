@@ -567,21 +567,21 @@ until explicitly supported; version strings alone cannot silently widen the doma
 #### Automated
 
 - [x] 3.1 Consumer database tests prove hidden discovery rows, rejected new allocations, all-or-nothing mixed legacy detail/submission denial, and unchanged historical result/retry behavior: `npx supabase test db --local supabase/tests/database/saved_exercise_discovery.sql supabase/tests/database/homework_assignments.sql supabase/tests/database/homework_submissions.sql`. — 2026-10-16: 158 assertions passed across the three suites after correcting the invalid-format fixture target; uncommitted worktree.
-- [x] 3.2 Homework service/API/UI tests prove result-only reload and quarantine denial without prompt or canonical-answer leakage: `npm test -- src/lib/services/student-homework.test.ts src/lib/services/homework-assignments.test.ts src/pages/api/homework src/components/homework/StudentHomeworkForm.test.tsx`.
+- [x] 3.2 Homework service/API/UI tests prove result-only reload and quarantine denial without prompt or canonical-answer leakage: `npm test -- src/lib/services/student-homework.test.ts src/lib/services/homework-assignments.test.ts src/pages/api/homework src/components/homework/StudentHomeworkForm.test.tsx`. — bedd3d7
 
 #### Manual
 
-- [x] 3.3 With an authorized student, legacy pending homework is unavailable, legacy submitted homework shows the original result without prompts, and current certified homework remains readable and submittable; another student and revoked membership remain denied.
+- [x] 3.3 With an authorized student, legacy pending homework is unavailable, legacy submitted homework shows the original result without prompts, and current certified homework remains readable and submittable; another student and revoked membership remain denied. — bedd3d7
 
 ### Phase 4: Teacher review compatibility
 
 #### Automated
 
-- [ ] 4.1 Review/storage tests preserve old text, clear stale selections, prevent legacy verify/approve retries, and retain new structured selection semantics: `npm test -- src/components/hooks/use-session-exercise-batch.test.ts src/components/exercises/RequestExercisesForm.test.tsx src/components/exercises/SavedExerciseBrowser.test.tsx src/components/homework/HomeworkAssignmentForm.test.tsx`.
+- [x] 4.1 Review/storage tests preserve old text, clear stale selections, prevent legacy verify/approve retries, and retain new structured selection semantics: `npm test -- src/components/hooks/use-session-exercise-batch.test.ts src/components/exercises/RequestExercisesForm.test.tsx src/components/exercises/SavedExerciseBrowser.test.tsx src/components/homework/HomeworkAssignmentForm.test.tsx`.
 
 #### Manual
 
-- [ ] 4.2 Restore an old selected batch, read the ineligibility/regeneration notice, generate a supported replacement, verify, select, and approve using keyboard controls and a narrow viewport.
+- [x] 4.2 Restore an old selected batch, read the ineligibility/regeneration notice, generate a supported replacement, verify, select, and approve using keyboard controls and a narrow viewport.
 
 ### Phase 5: Independent evidence and rollout
 

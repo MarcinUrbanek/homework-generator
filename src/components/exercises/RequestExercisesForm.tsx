@@ -11,7 +11,7 @@ import {
   exerciseVerificationErrorSchema,
   exerciseVerificationSuccessSchema,
 } from "@/lib/exercises/schemas";
-import type { ExerciseDifficulty, ExerciseGenerationRequest, ExerciseTopicSlug } from "@/types";
+import type { ExerciseDifficulty, ExerciseGenerationRequest, SupportedArithmeticTopicSlug } from "@/types";
 
 type PendingAction = "generation" | "verification" | "approval";
 
@@ -20,7 +20,7 @@ function savedCountMessage(savedCount: number): string {
 }
 
 export default function RequestExercisesForm() {
-  const [topic, setTopic] = useState<ExerciseTopicSlug>("addition-subtraction");
+  const [topic, setTopic] = useState<SupportedArithmeticTopicSlug>("addition-subtraction");
   const [difficulty, setDifficulty] = useState<ExerciseDifficulty>("easy");
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -83,7 +83,7 @@ export default function RequestExercisesForm() {
   }
 
   async function handleVerify(retryIndeterminate: boolean): Promise<void> {
-    if (!batch || !beginAction("verification")) return;
+    if (batch?.eligibility !== "current" || !beginAction("verification")) return;
     const candidates = batch.candidates
       .filter(({ status }) => (retryIndeterminate ? status === "indeterminate" : status === "unverified"))
       .map(({ candidate }) => candidate);
@@ -103,7 +103,9 @@ export default function RequestExercisesForm() {
       const parsedSuccess = exerciseVerificationSuccessSchema.safeParse(responseValue);
       if (response.ok && parsedSuccess.success) {
         applyVerificationResults(parsedSuccess.data.results);
-        setStatusMessage("Weryfikacja zakończona. Przejrzyj wyniki i wybierz zadania do zapisania.");
+        setStatusMessage(
+          "Dowód arytmetyczny został sprawdzony. Oceń treść i użyteczność propozycji, a następnie wybierz zadania do zapisania.",
+        );
         return;
       }
 
@@ -119,7 +121,9 @@ export default function RequestExercisesForm() {
   }
 
   async function handleApprove(): Promise<void> {
-    if (!batch || batch.selectedVerificationIds.length === 0 || !beginAction("approval")) return;
+    if (batch?.eligibility !== "current" || batch.selectedVerificationIds.length === 0 || !beginAction("approval")) {
+      return;
+    }
 
     try {
       const response = await fetch("/api/exercises/approve", {

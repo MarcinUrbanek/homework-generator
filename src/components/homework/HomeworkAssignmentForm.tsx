@@ -11,10 +11,10 @@ import {
 } from "@/lib/homework/schemas";
 import type {
   ExerciseDifficulty,
-  ExerciseTopicSlug,
   HomeworkApiErrorCode,
   HomeworkAssignmentRequest,
   HomeworkRosterMember,
+  SupportedArithmeticTopicSlug,
 } from "@/types";
 
 interface HomeworkAssignmentFormProps {
@@ -54,7 +54,7 @@ function HomeworkAssignmentFormForClass({ classId }: HomeworkAssignmentFormProps
   const [members, setMembers] = useState<HomeworkRosterMember[]>([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [title, setTitle] = useState("");
-  const [topic, setTopic] = useState<ExerciseTopicSlug>("addition-subtraction");
+  const [topic, setTopic] = useState<SupportedArithmeticTopicSlug>("addition-subtraction");
   const [difficulty, setDifficulty] = useState<ExerciseDifficulty>("easy");
   const [exerciseCount, setExerciseCount] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
