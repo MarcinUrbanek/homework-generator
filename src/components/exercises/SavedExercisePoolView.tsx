@@ -6,18 +6,27 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DIFFICULTY_LABELS, GRADE_4_EXERCISE_CATALOG } from "@/lib/exercises/catalog";
-import type { ExerciseDifficulty, ExerciseTopicSlug, SavedExerciseFilters, SavedExerciseSummary } from "@/types";
+import {
+  DIFFICULTY_LABELS,
+  GRADE_4_EXERCISE_CATALOG,
+  SUPPORTED_GRADE_4_ARITHMETIC_CATALOG,
+} from "@/lib/exercises/catalog";
+import type {
+  ExerciseDifficulty,
+  SavedExerciseFilters,
+  SavedExerciseSummary,
+  SupportedArithmeticTopicSlug,
+} from "@/types";
 
 export interface SavedExercisePoolViewProps {
-  topic: ExerciseTopicSlug;
+  topic: SupportedArithmeticTopicSlug;
   difficulty: ExerciseDifficulty | "all";
   appliedFilters: SavedExerciseFilters | null;
   exercises: SavedExerciseSummary[];
   nextCursor: string | null;
   pending: "search" | "more" | null;
   errorMessage: string | null;
-  onTopicChange: (topic: ExerciseTopicSlug) => void;
+  onTopicChange: (topic: SupportedArithmeticTopicSlug) => void;
   onDifficultyChange: (difficulty: ExerciseDifficulty | "all") => void;
   onSubmit: React.SubmitEventHandler<HTMLFormElement>;
   onLoadMore: () => void;
@@ -72,14 +81,14 @@ export function SavedExercisePoolView({
               <Select
                 value={topic}
                 onValueChange={(value) => {
-                  onTopicChange(value as ExerciseTopicSlug);
+                  onTopicChange(value as SupportedArithmeticTopicSlug);
                 }}
               >
                 <SelectTrigger id="saved-topic" className="h-11 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {GRADE_4_EXERCISE_CATALOG.map((catalogTopic) => (
+                  {SUPPORTED_GRADE_4_ARITHMETIC_CATALOG.map((catalogTopic) => (
                     <SelectItem key={catalogTopic.slug} value={catalogTopic.slug}>
                       {catalogTopic.label}
                     </SelectItem>

@@ -77,6 +77,26 @@ afterEach(() => {
 });
 
 describe("SavedExerciseBrowser", () => {
+  it("offers only supported arithmetic topics for saved-exercise reuse", () => {
+    vi.stubGlobal("fetch", vi.fn());
+    renderBrowser();
+    const topicTrigger = container.querySelector<HTMLButtonElement>("#saved-topic");
+    if (!topicTrigger) throw new Error("Expected topic selector");
+    act(() => {
+      topicTrigger.click();
+    });
+
+    expect(
+      Array.from(document.querySelectorAll<HTMLElement>('[data-slot="select-item"]')).map((option) =>
+        option.textContent.trim(),
+      ),
+    ).toEqual([
+      "Dodawanie i odejmowanie liczb naturalnych",
+      "Mnożenie i dzielenie liczb naturalnych",
+      "Kolejność wykonywania działań",
+    ]);
+  });
+
   it("waits for explicit submission and requests the topic across all difficulty levels", async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(success()));
     vi.stubGlobal("fetch", fetchMock);

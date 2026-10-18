@@ -3,7 +3,12 @@ import { useState } from "react";
 import { SavedExercisePoolView } from "@/components/exercises/SavedExercisePoolView";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { ExerciseDifficulty, ExerciseTopicSlug, SavedExerciseFilters, SavedExerciseSummary } from "@/types";
+import type {
+  ExerciseDifficulty,
+  SavedExerciseFilters,
+  SavedExerciseSummary,
+  SupportedArithmeticTopicSlug,
+} from "@/types";
 
 const modes = ["light", "dark"] as const;
 const states = ["initial", "loading", "populated", "terminal", "empty", "search-error", "more-error"] as const;
@@ -92,7 +97,7 @@ function fixture(
 export default function SavedExercisePoolStateGallery() {
   const [mode, setMode] = useState<GalleryMode>("light");
   const [galleryState, setGalleryState] = useState<GalleryState>("initial");
-  const [topic, setTopic] = useState<ExerciseTopicSlug>("addition-subtraction");
+  const [topic, setTopic] = useState<SupportedArithmeticTopicSlug>("addition-subtraction");
   const [difficulty, setDifficulty] = useState<ExerciseDifficulty | "all">("all");
   const view = fixture(galleryState);
 

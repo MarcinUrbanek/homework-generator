@@ -4,17 +4,25 @@ import { ExerciseRequestView } from "@/components/exercises/ExerciseRequestView"
 import {
   applyExerciseVerificationResults,
   createExerciseReviewBatch,
+  createReferenceOnlyExerciseReviewBatch,
   selectExerciseVerification,
   type ExerciseReviewBatch,
 } from "@/components/hooks/use-session-exercise-batch";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { ExerciseCandidate, ExerciseDifficulty, ExerciseGenerationSuccess, ExerciseTopicSlug } from "@/types";
+import type {
+  ArithmeticStructure,
+  ExerciseCandidate,
+  ExerciseDifficulty,
+  ExerciseGenerationSuccess,
+  SupportedArithmeticTopicSlug,
+} from "@/types";
 
 const roles = ["teacher", "student"] as const;
 const modes = ["light", "dark"] as const;
 const states = [
   "unverified",
+  "legacy-reference",
   "verifying",
   "mixed",
   "selected",
@@ -30,6 +38,7 @@ type GalleryState = (typeof states)[number];
 
 const stateLabels: Record<GalleryState, string> = {
   unverified: "Unverified batch",
+  "legacy-reference": "Legacy reference-only batch",
   verifying: "Verification loading",
   mixed: "Mixed verification",
   selected: "Selected subset",
@@ -43,8 +52,8 @@ function candidate(
   id: string,
   text: string,
   answer: string,
-  arithmeticStructure: unknown = null,
-  topic: ExerciseCandidate["topic"] = "multiplication-division",
+  arithmeticStructure: ArithmeticStructure,
+  topic: SupportedArithmeticTopicSlug = "multiplication-division",
 ): ExerciseCandidate {
   return {
     id,
@@ -58,19 +67,23 @@ function candidate(
   };
 }
 
-const firstStructure = {
+const firstStructure: ArithmeticStructure = {
   version: 1,
   expression: { kind: "multiply", left: { kind: "number", value: 36 }, right: { kind: "number", value: 7 } },
 };
-const secondStructure = {
+const secondStructure: ArithmeticStructure = {
   version: 1,
   expression: { kind: "divide", left: { kind: "number", value: 864 }, right: { kind: "number", value: 8 } },
 };
-const fourthStructure = {
+const thirdStructure: ArithmeticStructure = {
+  version: 1,
+  expression: { kind: "add", left: { kind: "number", value: 48 }, right: { kind: "number", value: 32 } },
+};
+const fourthStructure: ArithmeticStructure = {
   version: 1,
   expression: { kind: "multiply", left: { kind: "number", value: 125 }, right: { kind: "number", value: 6 } },
 };
-const fifthStructure = {
+const fifthStructure: ArithmeticStructure = {
   version: 1,
   expression: { kind: "divide", left: { kind: "number", value: 945 }, right: { kind: "number", value: 9 } },
 };
@@ -93,15 +106,14 @@ const generatedBatch: ExerciseGenerationSuccess = {
     ),
     candidate(
       "gallery-3",
-      "W bibliotece ustawiono 9 półek po 24 książki. Ile książek ustawiono?",
-      "216",
-      null,
-      "word-problems",
+      "Oblicz wartość wyrażenia: (48 + 32). Podaj wynik jako jedną liczbę naturalną.",
+      "80",
+      thirdStructure,
     ),
     candidate(
       "gallery-4",
       "Oblicz wartość wyrażenia: (125 × 6). Podaj wynik jako jedną liczbę naturalną.",
-      "700",
+      "750",
       fourthStructure,
     ),
     candidate(
@@ -113,7 +125,14 @@ const generatedBatch: ExerciseGenerationSuccess = {
   ],
 };
 
-const mixedBatch = applyExerciseVerificationResults(createExerciseReviewBatch(generatedBatch), [
+const mismatchBatch: ExerciseGenerationSuccess = {
+  ...generatedBatch,
+  candidates: generatedBatch.candidates.map((item) =>
+    item.id === "gallery-4" ? { ...item, proposedCanonicalAnswer: "700" } : item,
+  ),
+};
+
+const mixedBatch = applyExerciseVerificationResults(createExerciseReviewBatch(mismatchBatch), [
   {
     candidateId: "gallery-1",
     verificationId: "11111111-1111-4111-8111-111111111111",
@@ -136,7 +155,7 @@ const mixedBatch = applyExerciseVerificationResults(createExerciseReviewBatch(ge
     verificationId: "33333333-3333-4333-8333-333333333333",
     outcome: "unsupported_evidence",
     verifiedAnswer: null,
-    rationale: "Zadanie tekstowe nie należy do obsługiwanej struktury arytmetycznej.",
+    rationale: "Starszy zapis nie zawiera aktualnego dowodu arytmetycznego.",
     verifierIdentity: "ArithmeticAuthority",
     verifierVersion: "arithmetic-authority-v1",
     verifiedAt: "2026-09-29T12:00:00.000Z",
@@ -185,6 +204,7 @@ const partialPostSaveBatch: ExerciseReviewBatch = {
 
 function fixtureBatch(state: GalleryState): ExerciseReviewBatch | null {
   if (state === "all-saved") return null;
+  if (state === "legacy-reference") return createReferenceOnlyExerciseReviewBatch(generatedBatch);
   if (state === "unverified" || state === "verifying") return createExerciseReviewBatch(generatedBatch);
   if (state === "selected" || state === "approval-loading" || state === "approval-error") return selectedBatch;
   if (state === "partial-post-save") return partialPostSaveBatch;
@@ -195,7 +215,7 @@ export default function ExerciseRequestStateGallery() {
   const [role, setRole] = useState<GalleryRole>("teacher");
   const [mode, setMode] = useState<GalleryMode>("light");
   const [galleryState, setGalleryState] = useState<GalleryState>("unverified");
-  const [topic, setTopic] = useState<ExerciseTopicSlug>("multiplication-division");
+  const [topic, setTopic] = useState<SupportedArithmeticTopicSlug>("multiplication-division");
   const [difficulty, setDifficulty] = useState<ExerciseDifficulty>("medium");
   const restoredBatch = fixtureBatch(galleryState);
   const pendingAction =

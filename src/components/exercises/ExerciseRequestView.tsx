@@ -7,20 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DIFFICULTY_LABELS, GRADE_4_EXERCISE_CATALOG } from "@/lib/exercises/catalog";
+import { DIFFICULTY_LABELS, SUPPORTED_GRADE_4_ARITHMETIC_CATALOG } from "@/lib/exercises/catalog";
 import { exerciseNoun } from "@/lib/exercises/exercise-count";
-import type { ExerciseDifficulty, ExerciseTopicSlug } from "@/types";
+import type { ExerciseDifficulty, SupportedArithmeticTopicSlug } from "@/types";
 
 type PendingAction = "generation" | "verification" | "approval";
 
 export interface ExerciseRequestViewProps {
-  topic: ExerciseTopicSlug;
+  topic: SupportedArithmeticTopicSlug;
   difficulty: ExerciseDifficulty;
   pendingAction: PendingAction | null;
   errorMessage: string | null;
   statusMessage: string | null;
   restoredBatch: ExerciseReviewBatch | null;
-  onTopicChange: (topic: ExerciseTopicSlug) => void;
+  onTopicChange: (topic: SupportedArithmeticTopicSlug) => void;
   onDifficultyChange: (difficulty: ExerciseDifficulty) => void;
   onSubmit: React.SubmitEventHandler<HTMLFormElement>;
   onVerify: () => void;
@@ -50,6 +50,7 @@ export function ExerciseRequestView({
   const unverifiedCount = restoredBatch?.candidates.filter(({ status }) => status === "unverified").length ?? 0;
   const indeterminateCount = restoredBatch?.candidates.filter(({ status }) => status === "indeterminate").length ?? 0;
   const selectedCount = restoredBatch?.selectedVerificationIds.length ?? 0;
+  const isCurrentBatch = restoredBatch?.eligibility === "current";
 
   return (
     <>
@@ -73,14 +74,14 @@ export function ExerciseRequestView({
               <Select
                 value={topic}
                 onValueChange={(value) => {
-                  onTopicChange(value as ExerciseTopicSlug);
+                  onTopicChange(value as SupportedArithmeticTopicSlug);
                 }}
               >
                 <SelectTrigger id="topic" className="h-11 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {GRADE_4_EXERCISE_CATALOG.map((catalogTopic) => (
+                  {SUPPORTED_GRADE_4_ARITHMETIC_CATALOG.map((catalogTopic) => (
                     <SelectItem key={catalogTopic.slug} value={catalogTopic.slug}>
                       {catalogTopic.label}
                     </SelectItem>
@@ -128,12 +129,21 @@ export function ExerciseRequestView({
         </FieldSet>
       </form>
 
+      <Alert role="note" className="mt-5">
+        <ShieldCheck aria-hidden="true" />
+        <AlertDescription>
+          Ta wersja weryfikacji obsługuje dodawanie i odejmowanie, mnożenie i dzielenie oraz kolejność działań. Zadania
+          tekstowe nie są obsługiwane. System najpierw sprawdza wynik z aktualnej struktury arytmetycznej; potem
+          nauczyciel ocenia treść i użyteczność zadania.
+        </AlertDescription>
+      </Alert>
+
       <div className="grid min-h-6 gap-3 pt-4" aria-live="polite" aria-atomic="true">
         {pendingAction === "generation" && (
           <p className="text-muted-foreground text-sm">Generator przygotowuje propozycje. Może to potrwać do minuty.</p>
         )}
         {pendingAction === "verification" && (
-          <p className="text-muted-foreground text-sm">Trwa niezależna weryfikacja odpowiedzi.</p>
+          <p className="text-muted-foreground text-sm">System sprawdza strukturę i oblicza wynik arytmetycznie.</p>
         )}
         {pendingAction === "approval" && (
           <p className="text-muted-foreground text-sm">Zapisywanie wybranych zadań...</p>
@@ -154,10 +164,20 @@ export function ExerciseRequestView({
 
       {restoredBatch && (
         <>
+          {restoredBatch.eligibility === "reference-only" && (
+            <Alert variant="warning" className="mt-6">
+              <AlertCircle aria-hidden="true" />
+              <AlertDescription>
+                Ten zestaw pochodzi ze starszej wersji i jest zachowany wyłącznie jako materiał referencyjny. Nie można
+                go ponownie zweryfikować ani zatwierdzić. Wygeneruj nowy zestaw z obsługiwanym tematem, aby rozpocząć
+                aktualną weryfikację.
+              </AlertDescription>
+            </Alert>
+          )}
           <ExerciseCandidateList batch={restoredBatch} disabled={isBusy} onSelectionChange={onSelectionChange} />
           <section className="mt-6 border-t pt-5" aria-label="Działania zestawu">
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-              <Button type="button" onClick={onVerify} disabled={isBusy || unverifiedCount === 0}>
+              <Button type="button" onClick={onVerify} disabled={isBusy || !isCurrentBatch || unverifiedCount === 0}>
                 {pendingAction === "verification" && unverifiedCount > 0 ? (
                   <LoaderCircle className="animate-spin" aria-hidden="true" />
                 ) : (
@@ -165,7 +185,7 @@ export function ExerciseRequestView({
                 )}
                 Zweryfikuj zestaw
               </Button>
-              {indeterminateCount > 0 && (
+              {isCurrentBatch && indeterminateCount > 0 && (
                 <Button type="button" variant="outline" onClick={onRetry} disabled={isBusy}>
                   <RefreshCw aria-hidden="true" />
                   Ponów nierozstrzygnięte ({indeterminateCount})
@@ -181,7 +201,12 @@ export function ExerciseRequestView({
               <p className="text-sm font-semibold" aria-live="polite">
                 Wybrano: {selectedCount} {exerciseNoun(selectedCount)}
               </p>
-              <Button type="button" size="lg" onClick={onApprove} disabled={isBusy || selectedCount === 0}>
+              <Button
+                type="button"
+                size="lg"
+                onClick={onApprove}
+                disabled={isBusy || !isCurrentBatch || selectedCount === 0}
+              >
                 {pendingAction === "approval" ? (
                   <LoaderCircle className="animate-spin" aria-hidden="true" />
                 ) : (

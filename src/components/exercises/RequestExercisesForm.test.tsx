@@ -108,8 +108,8 @@ function requestBody(fetchMock: ReturnType<typeof vi.fn>, callIndex: number): un
   return JSON.parse(requestInit.body) as unknown;
 }
 
-function storeVersionOneBatch(): void {
-  sessionStorage.setItem("latest-successful-exercise-batch", JSON.stringify({ version: 1, batch: firstBatch }));
+function storeCurrentBatch(): void {
+  storeSessionExerciseBatch(sessionStorage, createExerciseReviewBatch(firstBatch));
 }
 
 function storeSelectedReviewedBatch(): void {
@@ -123,6 +123,16 @@ function storeFullySelectedReviewedBatch(): void {
   batch = selectExerciseVerification(batch, firstVerificationId, true);
   batch = selectExerciseVerification(batch, secondVerificationId, true);
   storeSessionExerciseBatch(sessionStorage, batch);
+}
+
+function storeLegacySelectedBatch(): void {
+  let batch = applyExerciseVerificationResults(createExerciseReviewBatch(firstBatch), [firstSuccess, secondSuccess]);
+  batch = selectExerciseVerification(batch, firstVerificationId, true);
+  batch = selectExerciseVerification(batch, secondVerificationId, true);
+  sessionStorage.setItem(
+    "latest-successful-exercise-batch",
+    JSON.stringify({ version: 3, batch: { ...batch, eligibility: undefined } }),
+  );
 }
 
 function renderForm(): void {
@@ -156,7 +166,7 @@ afterEach(() => {
 
 describe("RequestExercisesForm review workflow", () => {
   it("verifies explicitly, exposes granular results, and retries only indeterminate candidates", async () => {
-    storeVersionOneBatch();
+    storeCurrentBatch();
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ results: [firstSuccess, indeterminate] }))
@@ -172,8 +182,8 @@ describe("RequestExercisesForm review workflow", () => {
 
     const initialRequest = exerciseVerificationRequestSchema.parse(requestBody(fetchMock, 0));
     expect(initialRequest.candidates.map((candidate) => candidate.id)).toEqual(["candidate-1", "candidate-2"]);
-    expect(container.textContent).toContain("Odpowiedź potwierdzona");
-    expect(container.textContent).toContain("Nie udało się rozstrzygnąć");
+    expect(container.textContent).toContain("Dowód arytmetyczny potwierdzony");
+    expect(container.textContent).toContain("Błąd techniczny — wynik nierozstrzygnięty");
     const checkboxes = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'));
     expect(checkboxes[0].disabled).toBe(false);
     expect(checkboxes.map((checkbox) => checkbox.getAttribute("aria-label"))).toEqual(
@@ -188,12 +198,12 @@ describe("RequestExercisesForm review workflow", () => {
 
     const retryRequest = exerciseVerificationRequestSchema.parse(requestBody(fetchMock, 1));
     expect(retryRequest.candidates.map((candidate) => candidate.id)).toEqual(["candidate-2"]);
-    expect(container.textContent).not.toContain("Nie udało się rozstrzygnąć");
-    expect(container.textContent.match(/Odpowiedź potwierdzona/g)).toHaveLength(2);
+    expect(container.textContent).not.toContain("Błąd techniczny — wynik nierozstrzygnięty");
+    expect(container.textContent.match(/Dowód arytmetyczny potwierdzony/g)).toHaveLength(2);
   });
 
   it("locks generation, verification, clearing, and selection while verification is pending", () => {
-    storeVersionOneBatch();
+    storeCurrentBatch();
     vi.stubGlobal(
       "fetch",
       vi.fn(() => new Promise<Response>(() => undefined)),
@@ -321,6 +331,14 @@ const replacementBatch: ExerciseGenerationSuccess = {
   ],
 };
 
+const replacementVerification: ExerciseVerificationResult = {
+  ...firstSuccess,
+  candidateId: "candidate-2",
+  verificationId: secondVerificationId,
+  verifiedAnswer: "30",
+  arithmeticStructure: replacementBatch.candidates[0].arithmeticStructure,
+};
+
 function storeBatch(batch: ExerciseGenerationSuccess): void {
   sessionStorage.setItem("latest-successful-exercise-batch", JSON.stringify({ version: 1, batch }));
 }
@@ -356,6 +374,26 @@ function selectTopic(label: string): void {
 }
 
 describe("RequestExercisesForm", () => {
+  it("offers only the three supported arithmetic topics", () => {
+    renderForm();
+    const topicTrigger = container.querySelector<HTMLButtonElement>("#topic");
+    if (!topicTrigger) throw new Error("Expected topic selector");
+    act(() => {
+      topicTrigger.click();
+    });
+
+    expect(
+      Array.from(document.querySelectorAll<HTMLElement>('[data-slot="select-item"]')).map((option) =>
+        option.textContent.trim(),
+      ),
+    ).toEqual([
+      "Dodawanie i odejmowanie liczb naturalnych",
+      "Mnożenie i dzielenie liczb naturalnych",
+      "Kolejność wykonywania działań",
+    ]);
+    expect(container.textContent).toContain("Zadania tekstowe nie są obsługiwane.");
+  });
+
   it("submits the selected payload, locks duplicate requests, and replaces the prior batch", async () => {
     storeBatch(generationBatch);
     let resolveResponse: (response: Response) => void = () => undefined;
@@ -441,6 +479,71 @@ describe("RequestExercisesForm", () => {
 
     expect(container.textContent).not.toContain("Oblicz 12 + 7.");
     expect(sessionStorage.getItem("latest-successful-exercise-batch")).toBeNull();
+  });
+
+  it("keeps a selected legacy batch reference-only until a new batch is generated and reviewed", async () => {
+    storeLegacySelectedBatch();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(replacementBatch))
+      .mockResolvedValueOnce(jsonResponse({ results: [replacementVerification] }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          mappings: [
+            {
+              verificationId: secondVerificationId,
+              exerciseId: "44444444-4444-4444-8444-444444444444",
+              created: true,
+            },
+          ],
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    renderForm();
+
+    expect(container.textContent).toContain("zachowany wyłącznie jako materiał referencyjny");
+    expect(container.textContent).toContain("Oblicz wartość wyrażenia: (12 + 7).");
+    expect(
+      Array.from(container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')).every(
+        (input) => !input.checked && input.disabled,
+      ),
+    ).toBe(true);
+    expect(button("Zweryfikuj zestaw").disabled).toBe(true);
+    expect(button("Zatwierdź i zapisz").disabled).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      submitForm();
+      await Promise.resolve();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("Oblicz wartość wyrażenia: ((48 - 19) + 1).");
+    expect(container.textContent).not.toContain("materiał referencyjny");
+    expect(button("Zweryfikuj zestaw").disabled).toBe(false);
+
+    await act(async () => {
+      button("Zweryfikuj zestaw").click();
+      await Promise.resolve();
+    });
+    expect(exerciseVerificationRequestSchema.parse(requestBody(fetchMock, 1)).candidates.map(({ id }) => id)).toEqual([
+      "candidate-2",
+    ]);
+    const currentCheckbox = container.querySelector<HTMLInputElement>('input[type="checkbox"]');
+    if (!currentCheckbox) throw new Error("Expected replacement selection checkbox");
+    expect(currentCheckbox.disabled).toBe(false);
+    act(() => {
+      currentCheckbox.click();
+    });
+    expect(button("Zatwierdź i zapisz").disabled).toBe(false);
+
+    await act(async () => {
+      button("Zatwierdź i zapisz").click();
+      await Promise.resolve();
+    });
+    expect(exerciseApprovalRequestSchema.parse(requestBody(fetchMock, 2))).toEqual({
+      verificationIds: [secondVerificationId],
+    });
+    expect(container.textContent).toContain("Zapisano 1 zadanie w zatwierdzonej puli.");
   });
 
   it.each([

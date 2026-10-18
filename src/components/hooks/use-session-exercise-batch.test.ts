@@ -8,6 +8,7 @@ import {
   applyExerciseVerificationResults,
   clearSessionExerciseBatch,
   createExerciseReviewBatch,
+  createReferenceOnlyExerciseReviewBatch,
   removeApprovedExerciseCandidates,
   restoreSessionExerciseBatch,
   selectExerciseVerification,
@@ -85,12 +86,17 @@ describe("session exercise review batch storage", () => {
   it("migrates a valid version-1 generation batch with every candidate unverified", () => {
     sessionStorage.setItem("latest-successful-exercise-batch", JSON.stringify({ version: 1, batch: firstBatch }));
 
-    expect(restoreSessionExerciseBatch(sessionStorage)).toEqual(createExerciseReviewBatch(firstBatch));
+    const restored = restoreSessionExerciseBatch(sessionStorage);
+    expect(restored).toEqual(createReferenceOnlyExerciseReviewBatch(firstBatch));
+    expect(restored?.eligibility).toBe("reference-only");
+    expect(restored?.candidates[0].candidate.text).toBe(firstBatch.candidates[0].text);
+    expect(restored?.candidates[0].candidate).not.toHaveProperty("arithmeticStructure");
+    expect(restored?.selectedVerificationIds).toEqual([]);
     const storedValue: unknown = JSON.parse(sessionStorage.getItem("latest-successful-exercise-batch") ?? "null");
-    expect(storedValue).toEqual(expect.objectContaining({ version: 3 }));
+    expect(storedValue).toEqual(expect.objectContaining({ version: 4 }));
   });
 
-  it("restores version-3 evidence and successful selection", () => {
+  it("restores version-4 structured evidence and successful selection", () => {
     let reviewBatch = applyExerciseVerificationResults(createExerciseReviewBatch(firstBatch), [
       successfulResult,
       indeterminateResult,
@@ -101,7 +107,7 @@ describe("session exercise review batch storage", () => {
     expect(restoreSessionExerciseBatch(sessionStorage)).toEqual(reviewBatch);
   });
 
-  it("migrates version-2 model evidence to unverified references and clears selection", () => {
+  it("migrates version-2 model evidence to reference-only text and clears selection", () => {
     const legacyCandidate = { ...firstBatch.candidates[0], arithmeticStructure: undefined };
     const legacyEvidence = {
       candidateId: legacyCandidate.id,
@@ -130,14 +136,53 @@ describe("session exercise review batch storage", () => {
     const restored = restoreSessionExerciseBatch(sessionStorage);
 
     expect(restored).toMatchObject({
+      eligibility: "reference-only",
       validCount: 1,
       candidates: [{ candidate: { text: legacyCandidate.text }, status: "unverified" }],
       selectedVerificationIds: [],
     });
     expect(restored?.candidates[0]).not.toHaveProperty("evidence");
     expect(JSON.parse(sessionStorage.getItem("latest-successful-exercise-batch") ?? "null")).toMatchObject({
-      version: 3,
+      version: 4,
     });
+  });
+
+  it("migrates version-3 structured selections to reference-only text and clears every selection", () => {
+    let reviewed = applyExerciseVerificationResults(createExerciseReviewBatch(firstBatch), [successfulResult]);
+    reviewed = selectExerciseVerification(reviewed, verificationId, true);
+    sessionStorage.setItem(
+      "latest-successful-exercise-batch",
+      JSON.stringify({ version: 3, batch: { ...reviewed, eligibility: undefined } }),
+    );
+
+    const restored = restoreSessionExerciseBatch(sessionStorage);
+
+    expect(restored).toMatchObject({
+      eligibility: "reference-only",
+      candidates: firstBatch.candidates.map(({ text }) => ({
+        candidate: { text },
+        status: "unverified",
+      })),
+      selectedVerificationIds: [],
+    });
+    expect(restored?.candidates[0]).not.toHaveProperty("evidence");
+    expect(JSON.parse(sessionStorage.getItem("latest-successful-exercise-batch") ?? "null")).toMatchObject({
+      version: 4,
+    });
+  });
+
+  it("rejects version-4 evidence whose text no longer matches its structured snapshot", () => {
+    const reviewed = applyExerciseVerificationResults(createExerciseReviewBatch(firstBatch), [successfulResult]);
+    storeSessionExerciseBatch(sessionStorage, reviewed);
+    const stored = JSON.parse(sessionStorage.getItem("latest-successful-exercise-batch") ?? "null") as {
+      version: number;
+      batch: { candidates: { candidate: { text: string } }[] };
+    };
+    stored.batch.candidates[0].candidate.text = "Oblicz 12 + 7.";
+    sessionStorage.setItem("latest-successful-exercise-batch", JSON.stringify(stored));
+
+    expect(restoreSessionExerciseBatch(sessionStorage)).toBeNull();
+    expect(sessionStorage.length).toBe(0);
   });
 
   it("retains settled results while replacing only a targeted indeterminate result", () => {
@@ -176,13 +221,25 @@ describe("session exercise review batch storage", () => {
     expect(remainder?.selectedVerificationIds).toEqual([]);
   });
 
+  it("does not restore or select a success attributed to the legacy model verifier", () => {
+    const legacyModelResult: ExerciseVerificationResult = {
+      ...successfulResult,
+      verifierIdentity: "OpenRouter",
+      verifierVersion: "legacy-model-v1",
+    };
+    const reviewed = applyExerciseVerificationResults(createExerciseReviewBatch(firstBatch), [legacyModelResult]);
+
+    expect(reviewed.candidates[0]).toMatchObject({ status: "unverified" });
+    expect(selectExerciseVerification(reviewed, verificationId, true)).toBe(reviewed);
+  });
+
   it.each([
     ["malformed JSON", "{"],
-    ["an incompatible version", JSON.stringify({ version: 4, batch: firstBatch })],
+    ["an incompatible version", JSON.stringify({ version: 5, batch: firstBatch })],
     [
       "invalid evidence/status",
       JSON.stringify({
-        version: 3,
+        version: 4,
         batch: {
           ...createExerciseReviewBatch(firstBatch),
           validCount: 1,
@@ -193,7 +250,7 @@ describe("session exercise review batch storage", () => {
     [
       "ineligible selection",
       JSON.stringify({
-        version: 3,
+        version: 4,
         batch: { ...createExerciseReviewBatch(firstBatch), selectedVerificationIds: [verificationId] },
       }),
     ],
