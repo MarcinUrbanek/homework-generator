@@ -214,12 +214,12 @@ Prerequisites for implementation verification: installed project dependencies, t
 
 #### Automated
 
-- [x] 2.1 Updated smoke passes against production preview with local Supabase: `npm run smoke`, including exact root/query redirects, reachable sign-in, authenticated panel HTML, both-session legacy 404, and post-signout root protection.
-- [x] 2.2 Focused regressions, lint, and production build pass: `npm test -- src/middleware.test.ts src/lib/auth/return-destination.test.ts src/pages/api/auth/signin.test.ts src/lib/services/profile-roles.test.ts`, `npm run lint`, and `npm run build`.
-- [x] 2.3 Current README/onboarding guidance describes protected `/`, exact root matching, and retired `/dashboard`; no current rendered link points to the retired route.
+- [x] 2.1 Updated smoke passes against production preview with local Supabase: `npm run smoke`, including exact root/query redirects, reachable sign-in, authenticated panel HTML, both-session legacy 404, and post-signout root protection. — f1d622d
+- [x] 2.2 Focused regressions, lint, and production build pass: `npm test -- src/middleware.test.ts src/lib/auth/return-destination.test.ts src/pages/api/auth/signin.test.ts src/lib/services/profile-roles.test.ts`, `npm run lint`, and `npm run build`. — f1d622d
+- [x] 2.3 Current README/onboarding guidance describes protected `/`, exact root matching, and retired `/dashboard`; no current rendered link points to the retired route. — f1d622d
 
 #### Manual
 
-- [x] 2.4 At `/`, student-only and teacher-only accounts show only their respective tools, dual-role shows both, loaded-empty shows its dedicated alert, and unavailable-role shows its distinct alert with HTTP 503; shared class links and sign-out remain present in all five states.
-- [x] 2.5 A controlled invitation URL retains its complete path and query through sign-in and through signup/confirmation; explicit `return_to=/dashboard` reaches 404 without a compatibility rewrite.
-- [x] 2.6 Sign out and revisit `/`; sign-in remains reachable, and exercise/class/homework back links return to `/` without unexpected layout or keyboard-navigation changes.
+- [x] 2.4 At `/`, student-only and teacher-only accounts show only their respective tools, dual-role shows both, loaded-empty shows its dedicated alert, and unavailable-role shows its distinct alert with HTTP 503; shared class links and sign-out remain present in all five states. — f1d622d
+- [x] 2.5 A controlled invitation URL retains its complete path and query through sign-in and through signup/confirmation; explicit `return_to=/dashboard` reaches 404 without a compatibility rewrite. — f1d622d
+- [x] 2.6 Sign out and revisit `/`; sign-in remains reachable, and exercise/class/homework back links return to `/` without unexpected layout or keyboard-navigation changes. — f1d622d
