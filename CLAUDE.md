@@ -25,10 +25,10 @@ Full server-side rendering (`output: "server"` in astro.config.mjs). All pages a
 ### Auth flow
 
 - `src/lib/supabase.ts` — creates a Supabase SSR client using `@supabase/ssr` with cookie-based sessions. Uses `astro:env/server` for `SUPABASE_URL` and `SUPABASE_KEY` (server-only secrets declared in astro.config.mjs `env.schema`).
-- `src/middleware.ts` — runs on every request, resolves the current user, attaches to `context.locals.user`. Redirects unauthenticated users away from routes listed in `PROTECTED_ROUTES`.
+- `src/middleware.ts` — runs on every request, resolves the current user, attaches to `context.locals.user`. The protected starting page is `src/pages/index.astro` at `/`; middleware protects this exact pathname separately, so `/` is not a protected prefix. Other protected route families use `PROTECTED_ROUTES` prefixes. Anonymous `/` redirects to `/auth/signin` with the full path and query in `return_to`; `/dashboard` is retired and returns 404 whether signed in or not.
 - API endpoints: `src/pages/api/auth/{signin,signup,signout}.ts`
 - Auth pages: `src/pages/auth/{signin,signup,confirm-email}.astro`
-- Protected page example: `src/pages/dashboard.astro`
+- Protected starting page: `src/pages/index.astro` (`/`)
 
 ### Key conventions
 
@@ -37,6 +37,7 @@ Full server-side rendering (`output: "server"` in astro.config.mjs). All pages a
 - **Tailwind class merging**: use the `cn()` helper from `@/lib/utils` (clsx + tailwind-merge) for conditional/merged class names. Do not concatenate class strings manually.
 - **shadcn/ui**: components live in `src/components/ui/`, "new-york" style variant. Install new ones with `npx shadcn@latest add [name]`.
 - **API routes**: use uppercase `GET`, `POST` exports; validate input with zod.
+- **Homepage auth verification**: `npm run smoke` checks anonymous root and query redirects, reachable sign-in, authenticated panel content, `/dashboard` 404 in both sessions, and root protection after sign-out. Run it against a production preview with local Supabase as described in `README.md`.
 - **Supabase migrations**: `supabase/migrations/` using naming format `YYYYMMDDHHmmss_short_description.sql`. Always enable RLS on new tables with granular per-operation, per-role policies.
 - **React**: no Next.js directives ("use client" etc.). Extract hooks to `src/components/hooks/`.
 - **Services/helpers** go in `src/lib/` (or `src/lib/services/` for extracted business logic).
