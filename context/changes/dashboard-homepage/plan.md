@@ -202,24 +202,24 @@ Prerequisites for implementation verification: installed project dependencies, t
 
 #### Automated
 
-- [x] 1.1 Focused middleware and auth/role regressions pass: `npm test -- src/middleware.test.ts src/lib/auth/return-destination.test.ts src/pages/api/auth/signin.test.ts src/lib/services/profile-roles.test.ts`.
-- [x] 1.2 Lint and production build pass: `npm run lint` and `npm run build`.
-- [x] 1.3 Route/link inspection confirms the legacy page is absent and no current rendered navigation link targets `/dashboard`.
+- [x] 1.1 Focused middleware and auth/role regressions pass: `npm test -- src/middleware.test.ts src/lib/auth/return-destination.test.ts src/pages/api/auth/signin.test.ts src/lib/services/profile-roles.test.ts`. — ea0cfd4
+- [x] 1.2 Lint and production build pass: `npm run lint` and `npm run build`. — ea0cfd4
+- [x] 1.3 Route/link inspection confirms the legacy page is absent and no current rendered navigation link targets `/dashboard`. — ea0cfd4
 
 #### Manual
 
-- [x] 1.4 Anonymous `/` opens reachable sign-in; ordinary sign-in reaches the unchanged panel at `/`, and representative back-to-panel links return there.
+- [x] 1.4 Anonymous `/` opens reachable sign-in; ordinary sign-in reaches the unchanged panel at `/`, and representative back-to-panel links return there. — ea0cfd4
 
 ### Phase 2: Align integrated verification and documentation
 
 #### Automated
 
-- [ ] 2.1 Updated smoke passes against production preview with local Supabase: `npm run smoke`, including exact root/query redirects, reachable sign-in, authenticated panel HTML, both-session legacy 404, and post-signout root protection.
-- [ ] 2.2 Focused regressions, lint, and production build pass: `npm test -- src/middleware.test.ts src/lib/auth/return-destination.test.ts src/pages/api/auth/signin.test.ts src/lib/services/profile-roles.test.ts`, `npm run lint`, and `npm run build`.
-- [ ] 2.3 Current README/onboarding guidance describes protected `/`, exact root matching, and retired `/dashboard`; no current rendered link points to the retired route.
+- [x] 2.1 Updated smoke passes against production preview with local Supabase: `npm run smoke`, including exact root/query redirects, reachable sign-in, authenticated panel HTML, both-session legacy 404, and post-signout root protection.
+- [x] 2.2 Focused regressions, lint, and production build pass: `npm test -- src/middleware.test.ts src/lib/auth/return-destination.test.ts src/pages/api/auth/signin.test.ts src/lib/services/profile-roles.test.ts`, `npm run lint`, and `npm run build`.
+- [x] 2.3 Current README/onboarding guidance describes protected `/`, exact root matching, and retired `/dashboard`; no current rendered link points to the retired route.
 
 #### Manual
 
-- [ ] 2.4 At `/`, student-only and teacher-only accounts show only their respective tools, dual-role shows both, loaded-empty shows its dedicated alert, and unavailable-role shows its distinct alert with HTTP 503; shared class links and sign-out remain present in all five states.
-- [ ] 2.5 A controlled invitation URL retains its complete path and query through sign-in and through signup/confirmation; explicit `return_to=/dashboard` reaches 404 without a compatibility rewrite.
-- [ ] 2.6 Sign out and revisit `/`; sign-in remains reachable, and exercise/class/homework back links return to `/` without unexpected layout or keyboard-navigation changes.
+- [x] 2.4 At `/`, student-only and teacher-only accounts show only their respective tools, dual-role shows both, loaded-empty shows its dedicated alert, and unavailable-role shows its distinct alert with HTTP 503; shared class links and sign-out remain present in all five states.
+- [x] 2.5 A controlled invitation URL retains its complete path and query through sign-in and through signup/confirmation; explicit `return_to=/dashboard` reaches 404 without a compatibility rewrite.
+- [x] 2.6 Sign out and revisit `/`; sign-in remains reachable, and exercise/class/homework back links return to `/` without unexpected layout or keyboard-navigation changes.

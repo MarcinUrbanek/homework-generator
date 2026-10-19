@@ -20,6 +20,7 @@ const createdHomeworkTeacherIds = [];
 const homeworkExerciseIds = [];
 const homeworkRunId = randomUUID();
 let homeworkContext = null;
+let anonymousRootSigninLocation = "";
 
 if (homeworkChecksEnabled && !classChecksEnabled) {
   throw new Error("Homework smoke checks require SMOKE_CLASS_CHECKS=true");
@@ -60,6 +61,50 @@ function storeCookies(response, cookieJar = jar) {
   }
 }
 
+function hasExactSigninRedirect(actual, returnTo) {
+  if (actual.status !== 302 || !actual.location) return false;
+  let target;
+  try {
+    target = new URL(actual.location, BASE_URL);
+  } catch {
+    return false;
+  }
+  const base = new URL(BASE_URL);
+  return (
+    target.origin === base.origin &&
+    target.pathname === "/auth/signin" &&
+    target.searchParams.size === 1 &&
+    target.searchParams.get("return_to") === returnTo &&
+    target.hash === ""
+  );
+}
+
+function hasTeacherPanelContent(actual) {
+  const html = actual.html ?? "";
+  const teacherLinks = [
+    ["/classes", "Otwórz klasy"],
+    ["/exercises/request", "Wygeneruj zadania"],
+    ["/exercises/saved", "Przeglądaj zatwierdzone zadania"],
+  ];
+  const hasLink = ([href, label]) => {
+    const escapedHref = href.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(
+      `<a\\b[^>]*\\bhref=["']${escapedHref}["'][^>]*>\\s*${escapedLabel}\\s*</a>`,
+      "i",
+    ).test(html);
+  };
+
+  return (
+    /<h1\b[^>]*>\s*Panel\s*<\/h1>/i.test(html) &&
+    html.includes(email) &&
+    teacherLinks.every(hasLink) &&
+    /<form\b(?=[^>]*\bmethod=["']POST["'])(?=[^>]*\baction=["']\/api\/auth\/signout["'])[^>]*>/i.test(html) &&
+    !html.includes("10x Astro Starter") &&
+    !html.includes("A production-ready starter with authentication")
+  );
+}
+
 async function request(path, { method = "GET", form, json, cookieJar = jar } = {}) {
   const response = await fetch(BASE_URL + path, {
     method,
@@ -85,6 +130,7 @@ async function request(path, { method = "GET", form, json, cookieJar = jar } = {
     location: response.headers.get("location") ?? "",
     errorCode: body?.error?.code ?? "",
     body,
+    html: responseBody,
   };
 }
 
@@ -511,12 +557,37 @@ const homeworkSteps = homeworkChecksEnabled
   : [];
 
 const steps = [
-  ["home renders", () => request("/"), { status: 200 }],
+  [
+    "anonymous root redirects to sign-in with an exact root return destination",
+    async () => {
+      const actual = await request("/");
+      anonymousRootSigninLocation = actual.location;
+      return actual;
+    },
+    { status: 302, validate: (actual) => hasExactSigninRedirect(actual, "/") },
+  ],
+  [
+    "anonymous query root redirects to sign-in with its exact return destination",
+    () => request("/?source=example"),
+    { status: 302, validate: (actual) => hasExactSigninRedirect(actual, "/?source=example") },
+  ],
+  [
+    "root sign-in destination renders",
+    () => {
+      try {
+        const destination = new URL(anonymousRootSigninLocation, BASE_URL);
+        return request(`${destination.pathname}${destination.search}`);
+      } catch {
+        return request("");
+      }
+    },
+    { status: 200 },
+  ],
+  ["retired dashboard route is unavailable anonymously", () => request("/dashboard"), { status: 404 }],
 
   ["development gallery is unavailable", () => request("/dev/ui-exercise-request"), { status: 404 }],
   ["saved exercise gallery is unavailable", () => request("/dev/ui-saved-exercises"), { status: 404 }],
 
-  ["dashboard redirects anonymous user", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
   [
     "exercise request redirects anonymous user",
     () => request("/exercises/request"),
@@ -569,9 +640,18 @@ const steps = [
   [
     "signin accepts correct password",
     () => request("/api/auth/signin", { method: "POST", form: { email, password } }),
-    { status: 302, location: "/" },
+    { status: 302, exactLocation: "/" },
   ],
-  ["dashboard renders for signed-in user", () => request("/dashboard"), { status: 200 }],
+  [
+    "root renders the authenticated teacher panel",
+    () => request("/"),
+    { status: 200, validate: hasTeacherPanelContent },
+  ],
+  [
+    "retired dashboard route remains unavailable when authenticated",
+    () => request("/dashboard"),
+    { status: 404 },
+  ],
   ["exercise request renders for teacher", () => request("/exercises/request"), { status: 200 }],
 
   ...(classChecksEnabled
@@ -701,8 +781,17 @@ const steps = [
 
   ...unconfiguredProviderSteps,
 
-  ["signout clears session", () => request("/api/auth/signout", { method: "POST" }), { status: 302, location: "/" }],
-  ["dashboard redirects after signout", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
+  [
+    "signout clears session with the exact root redirect",
+    () => request("/api/auth/signout", { method: "POST" }),
+    { status: 302, exactLocation: "/" },
+  ],
+  [
+    "root redirects to sign-in after signout",
+    () => request("/"),
+    { status: 302, validate: (actual) => hasExactSigninRedirect(actual, "/") },
+  ],
+  ["retired dashboard route remains unavailable after signout", () => request("/dashboard"), { status: 404 }],
 ];
 
 let failed = 0;
@@ -712,12 +801,15 @@ try {
     const ok =
       actual.status === expected.status &&
       (expected.location === undefined || actual.location.startsWith(expected.location)) &&
+      (expected.exactLocation === undefined || actual.location === expected.exactLocation) &&
       (expected.errorCode === undefined || actual.errorCode === expected.errorCode) &&
       (expected.validate === undefined || expected.validate(actual));
     console.log(`${ok ? "PASS" : "FAIL"}  ${name}  -> ${actual.status} ${actual.location || actual.errorCode}`);
     if (!ok) {
       failed++;
-      console.log(`      expected ${expected.status} ${expected.location ?? expected.errorCode ?? ""}`);
+      console.log(
+        `      expected ${expected.status} ${expected.exactLocation ?? expected.location ?? expected.errorCode ?? ""}`,
+      );
     }
   }
 } finally {

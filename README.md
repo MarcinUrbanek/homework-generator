@@ -60,7 +60,7 @@ npm run dev
 - `npm run lint:fix` - Auto-fix ESLint issues
 - `npm run format` - Run Prettier
 - `npm run test` - Run the Vitest suite once
-- `npm run smoke` - Smoke test auth and the teacher exercise-request boundary against a running server (`BASE_URL`, defaults to `http://localhost:4321`)
+- `npm run smoke` - Smoke test root-page authentication, the retired dashboard route, and protected teacher routes against a running server (`BASE_URL`, defaults to `http://localhost:4321`)
 
 ## Project Structure
 
@@ -149,17 +149,17 @@ Users can then sign in immediately after sign-up without clicking a confirmation
 
 ### Auth routes
 
-| Route                     | Description                                                             |
-| ------------------------- | ----------------------------------------------------------------------- |
-| `/auth/signin`            | Email/password sign-in form                                             |
-| `/auth/signup`            | Email/password sign-up form                                             |
-| `/auth/confirm-email`     | Post-signup "check your inbox" page                                     |
-| `/dashboard`              | Example protected page (redirects to `/auth/signin` if unauthenticated) |
-| `/homework`               | Student's current homework list, when the account has a student role    |
-| `/homework/:assignmentId` | One student's allocated homework and final result                       |
-| `/exercises/request`      | Teacher-only Polish exercise candidate request page                     |
+| Route                     | Description                                                                 |
+| ------------------------- | --------------------------------------------------------------------------- |
+| `/auth/signin`            | Email/password sign-in form                                                 |
+| `/auth/signup`            | Email/password sign-up form                                                 |
+| `/auth/confirm-email`     | Post-signup "check your inbox" page                                         |
+| `/`                       | Protected, role-aware starting panel (redirects anonymous users to sign-in) |
+| `/homework`               | Student's current homework list, when the account has a student role        |
+| `/homework/:assignmentId` | One student's allocated homework and final result                           |
+| `/exercises/request`      | Teacher-only Polish exercise candidate request page                         |
 
-Route protection is handled in `src/middleware.ts`. Add paths to the `PROTECTED_ROUTES` array there to require authentication.
+Route protection is handled in `src/middleware.ts`. The homepage `/` is protected by an exact pathname match; it is not a protected prefix and does not make every route beneath `/` protected. Protected route families such as `/exercises`, `/classes`, and `/homework` use prefix matching through `PROTECTED_ROUTES`. An anonymous request to `/` redirects to `/auth/signin` with the complete path and query in `return_to` (for example, `/?source=example`); after sign-in, the user returns to that destination. The former `/dashboard` route is retired and returns 404 for both anonymous and authenticated users.
 
 ## Student homework
 
@@ -290,16 +290,24 @@ Live-check prerequisites: local Supabase running, a teacher profile, and the ser
 
 ## Smoke test
 
-`scripts/smoke.mjs` is a dependency-free Node script that walks the auth flow and the protected exercise-request boundary over HTTP. Run it against a server with local Supabase and without OpenRouter values so it verifies the typed missing-configuration response without making a paid provider call:
+`scripts/smoke.mjs` is a Node script that walks the auth flow, verifies anonymous root redirects and the authenticated panel HTML, confirms `/dashboard` stays retired, and checks the protected exercise-request boundary over HTTP. Run it against a server with local Supabase and without OpenRouter values so it verifies the typed missing-configuration response without making a paid provider call:
 
 ```bash
 npm run build && npm run preview
 BASE_URL=http://localhost:4321 npm run smoke
 ```
 
-It needs a reachable Supabase instance (local or cloud) with email confirmation disabled and the repository migrations applied. The smoke signup receives the default teacher profile created by the database trigger.
+It needs a reachable Supabase instance (local or cloud) with email confirmation disabled and the repository migrations applied. The smoke signup receives the default teacher profile created by the database trigger. `npm run smoke` checks that anonymous `/` (including a query-string destination) redirects to a reachable sign-in page, sign-in returns exactly to `/`, the teacher panel contains its expected content, `/dashboard` returns 404 before and after sign-in, and sign-out restores root protection.
 
-> **Note:** this script exists primarily to guard the development of the starter itself — it is a fast sanity check that dependency upgrades did not break the build, the Cloudflare adapter or the Supabase auth flow. It is **not** a substitute for a real test suite. Once you build your own product on top of this starter, add proper tests (unit, integration, end-to-end) suited to your application.
+When the preview loads provider credentials from `.dev.vars`, set `SMOKE_CONFIGURED_PREVIEW=true` and `SMOKE_EXPECT_UNCONFIGURED_PROVIDERS=false` for the smoke run. This skips the missing-provider assertions, so the smoke does not call provider-backed routes. In PowerShell:
+
+```powershell
+$env:SMOKE_CONFIGURED_PREVIEW = "true"
+$env:SMOKE_EXPECT_UNCONFIGURED_PROVIDERS = "false"
+npm run smoke
+```
+
+The smoke suite supplements focused unit and integration tests; it does not replace them.
 
 ## CI
 

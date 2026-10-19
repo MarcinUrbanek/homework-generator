@@ -57,7 +57,10 @@ async function invokeMiddleware(path: string, user: TestUser | null = null, miss
   return { context, next, response };
 }
 
-function expectSignInRedirect(response: Response | undefined, returnTo: string) {
+function expectSignInRedirect(response: Response | void, returnTo: string) {
+  expect(response).toBeDefined();
+  if (!response) return;
+
   expect(response?.status).toBe(303);
   const location = response?.headers.get("Location");
   expect(location).not.toBeNull();
