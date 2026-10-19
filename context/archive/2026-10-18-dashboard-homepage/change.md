@@ -1,10 +1,10 @@
 ---
 change_id: dashboard-homepage
 title: Serve the dashboard at the homepage for logged-in users
-status: implemented
+status: archived
 created: 2026-10-18
 updated: 2026-10-19
-archived_at: null
+archived_at: 2026-10-19T07:48:05Z
 ---
 
 ## Notes
