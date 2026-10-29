@@ -11,6 +11,6 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: false,
-    include: ["src/**/*.test.{ts,tsx}"],
+    include: ["src/**/*.test.{ts,tsx}", ".github/hooks/**/*.test.mjs"],
   },
 });

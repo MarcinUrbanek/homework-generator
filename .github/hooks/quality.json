@@ -1,0 +1,20 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "type": "command",
+        "command": "node .github/hooks/quality.mjs",
+        "cwd": ".",
+        "timeout": 30
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "node .github/hooks/quality.mjs",
+        "cwd": ".",
+        "timeout": 240
+      }
+    ]
+  }
+}

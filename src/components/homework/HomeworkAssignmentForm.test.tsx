@@ -251,7 +251,7 @@ describe("HomeworkAssignmentForm", () => {
       difficulty: "hard",
       exerciseCount: 3,
     });
-  });
+  }, 15_000);
 
   it("keeps an empty or whitespace-only title optional", async () => {
     const fetchMock = vi

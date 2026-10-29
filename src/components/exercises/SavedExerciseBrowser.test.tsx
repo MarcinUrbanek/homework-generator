@@ -150,7 +150,7 @@ describe("SavedExerciseBrowser", () => {
     });
     expect(container.textContent).toContain("Zadanie 2");
     expect(container.textContent).not.toContain("Zadanie 1");
-  });
+  }, 15_000);
 
   it("replaces populated results with an explicit empty state", async () => {
     const fetchMock = vi

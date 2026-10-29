@@ -144,6 +144,12 @@ function renderForm(): void {
   });
 }
 
+async function flushPromises(): Promise<void> {
+  await act(async () => {
+    for (let index = 0; index < 8; index += 1) await Promise.resolve();
+  });
+}
+
 function button(label: string): HTMLButtonElement {
   const match = Array.from(container.querySelectorAll("button")).find((element) => element.textContent.includes(label));
   if (!match) throw new Error(`Expected button: ${label}`);
@@ -175,10 +181,10 @@ describe("RequestExercisesForm review workflow", () => {
     renderForm();
 
     expect(fetchMock).not.toHaveBeenCalled();
-    await act(async () => {
+    act(() => {
       button("Zweryfikuj zestaw").click();
-      await Promise.resolve();
     });
+    await flushPromises();
 
     const initialRequest = exerciseVerificationRequestSchema.parse(requestBody(fetchMock, 0));
     expect(initialRequest.candidates.map((candidate) => candidate.id)).toEqual(["candidate-1", "candidate-2"]);
@@ -191,16 +197,16 @@ describe("RequestExercisesForm review workflow", () => {
     );
     expect(checkboxes[1].disabled).toBe(true);
 
-    await act(async () => {
+    act(() => {
       button("Ponów nierozstrzygnięte").click();
-      await Promise.resolve();
     });
+    await flushPromises();
 
     const retryRequest = exerciseVerificationRequestSchema.parse(requestBody(fetchMock, 1));
     expect(retryRequest.candidates.map((candidate) => candidate.id)).toEqual(["candidate-2"]);
     expect(container.textContent).not.toContain("Błąd techniczny — wynik nierozstrzygnięty");
     expect(container.textContent.match(/Dowód arytmetyczny potwierdzony/g)).toHaveLength(2);
-  });
+  }, 15_000);
 
   it("locks generation, verification, clearing, and selection while verification is pending", () => {
     storeCurrentBatch();

@@ -34,3 +34,10 @@ pnpm-debug.log*
 
 # vscode
 .vscode/
+
+# Local agent skills and prompts
+/.github/skills/
+/.github/prompts/
+
+#md files
+.md/
