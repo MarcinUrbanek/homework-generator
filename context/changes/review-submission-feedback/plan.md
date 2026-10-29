@@ -335,7 +335,7 @@ Additive table and functions; `list_student_homework` is dropped/recreated withi
 
 #### Manual
 
-- [ ] 1.5 With local seed data, the student homework list and a submitted homework detail still render (no "Nie udało się wczytać zadań domowych"), confirming schema compatibility
+- [x] 1.5 With local seed data, the student homework list and a submitted homework detail still render (no "Nie udało się wczytać zadań domowych"), confirming schema compatibility
 
 #### Notes
 
@@ -377,10 +377,10 @@ Additive table and functions; `list_student_homework` is dropped/recreated withi
 
 #### Manual
 
-- [ ] 3.4 As the seeded teacher, navigate class → Zadania domowe → assignment → student and see correct counts, statuses and expected answers
-- [ ] 3.5 Save, edit and clear feedback; the assignment table's feedback marker updates after reload
-- [ ] 3.6 A departed student's submission is read-only and an unsubmitted student has no form
-- [ ] 3.7 Another teacher gets 404/403 on all three pages for a class they don't own
+- [x] 3.4 As the seeded teacher, navigate class → Zadania domowe → assignment → student and see correct counts, statuses and expected answers
+- [x] 3.5 Save, edit and clear feedback; the assignment table's feedback marker updates after reload
+- [x] 3.6 A departed student's submission is read-only and an unsubmitted student has no form
+- [x] 3.7 Another teacher gets 404/403 on all three pages for a class they don't own
 
 #### Notes
 
@@ -402,9 +402,9 @@ Additive table and functions; `list_student_homework` is dropped/recreated withi
 
 #### Manual
 
-- [ ] 4.5 As the student, the list shows the badge and the result page shows the teacher's comment with line breaks preserved; after the teacher clears it, both disappear
-- [ ] 4.6 A classmate and the dual-role account never see another student's feedback
-- [ ] 4.7 After the student is removed from the class, they can no longer open the homework or its feedback
+- [x] 4.5 As the student, the list shows the badge and the result page shows the teacher's comment with line breaks preserved; after the teacher clears it, both disappear
+- [x] 4.6 A classmate and the dual-role account never see another student's feedback
+- [x] 4.7 After the student is removed from the class, they can no longer open the homework or its feedback
 
 #### Notes
 
