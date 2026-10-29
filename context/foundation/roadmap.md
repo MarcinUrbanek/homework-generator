@@ -49,7 +49,7 @@ Primary-school classroom math teachers in Poland need many distinct exercises at
 | S-05 | join-teacher-managed-class    | student can sign in and join a class through a code or direct invitation link                                            | S-04          | FR-001, FR-003                | done |
 | S-06 | assign-distinct-homework      | teacher can choose an exercise count and assign each selected student a distinct set from one approved difficulty bucket | S-02, S-05    | US-01, FR-010                 | done |
 | S-07 | submit-and-score-homework     | student can open homework, submit answers, and immediately see pass or fail from the defined score rule                  | S-06          | US-01, FR-011, FR-012, FR-013 | done |
-| S-08 | review-submission-feedback    | teacher can review submitted answers and provide feedback that the student can later view                                | S-07          | US-01, FR-013                 | in-progress |
+| S-08 | review-submission-feedback    | teacher can review submitted answers and provide feedback that the student can later view                                | S-07          | US-01, FR-013                 | done |
 
 ## Streams
 
@@ -184,7 +184,7 @@ What's already in place in the codebase as of `2026-09-21` (auto-researched and 
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** Feedback must remain isolated to the intended student, so this follows the exercised submission and result-access path.
-- **Status:** in-progress
+- **Status:** done
 
 ## Backlog Handoff
 
@@ -215,3 +215,4 @@ What's already in place in the codebase as of `2026-09-21` (auto-researched and 
 - **S-05: student can sign in and join a class through a code or direct invitation link** — Archived 2026-10-06 → `context/archive/2026-10-05-join-teacher-managed-class/`. Lesson: —.
 - **S-06: teacher can choose an exercise count and assign each selected student a distinct set from one approved difficulty bucket** — Archived 2026-10-09 → `context/archive/2026-10-08-assign-distinct-homework/`. Lesson: —.
 - **S-07: student can open homework, submit answers, and immediately see pass or fail from the defined score rule** — Archived 2026-10-12 → `context/archive/2026-10-09-submit-and-score-homework/`. Lesson: —.
+- **S-08: teacher can review submitted answers and provide feedback that the student can later view** — Archived 2026-10-29 → `context/archive/2026-10-29-review-submission-feedback/`. Lesson: —.
