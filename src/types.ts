@@ -454,3 +454,100 @@ export interface StudentHomeworkApiError {
     message: string;
   };
 }
+
+export const HOMEWORK_REVIEW_API_ERROR_CODES = [
+  "INVALID_REQUEST",
+  "UNAUTHENTICATED",
+  "FORBIDDEN",
+  "HOMEWORK_UNAVAILABLE",
+  "FEEDBACK_NOT_ALLOWED",
+  "DATABASE_UNAVAILABLE",
+  "PERSISTENCE_FAILURE",
+] as const;
+
+export type HomeworkReviewApiErrorCode = (typeof HOMEWORK_REVIEW_API_ERROR_CODES)[number];
+
+export interface TeacherClassHomeworkSummary {
+  assignmentId: string;
+  title: string | null;
+  grade: string;
+  topic: ExerciseTopicSlug;
+  difficulty: ExerciseDifficulty;
+  exerciseCount: number;
+  createdAt: string;
+  recipientCount: number;
+  submittedCount: number;
+  passedCount: number;
+  feedbackCount: number;
+}
+
+export interface TeacherHomeworkAssignment {
+  assignmentId: string;
+  classId: string;
+  className: string;
+  title: string | null;
+  grade: string;
+  topic: ExerciseTopicSlug;
+  difficulty: ExerciseDifficulty;
+  exerciseCount: number;
+  createdAt: string;
+}
+
+export interface TeacherHomeworkRecipient {
+  studentId: string;
+  email: string;
+  isMember: boolean;
+  submitted: boolean;
+  submittedAt: string | null;
+  correctCount: number | null;
+  passed: boolean | null;
+  hasFeedback: boolean;
+}
+
+export interface TeacherHomeworkAssignmentDetail {
+  assignment: TeacherHomeworkAssignment;
+  recipients: TeacherHomeworkRecipient[];
+}
+
+export interface TeacherHomeworkReviewAnswer {
+  position: number;
+  prompt: string;
+  answer: string | null;
+  isCorrect: boolean;
+  expectedAnswer: string;
+}
+
+export interface TeacherHomeworkReviewSubmission {
+  submissionId: string;
+  submittedAt: string;
+  correctCount: number;
+  assignedCount: number;
+  passed: boolean;
+  answers: TeacherHomeworkReviewAnswer[];
+}
+
+export interface TeacherHomeworkSubmissionReview {
+  assignment: TeacherHomeworkAssignment;
+  student: {
+    studentId: string;
+    email: string;
+    isMember: boolean;
+  };
+  submission: TeacherHomeworkReviewSubmission | null;
+  feedback: HomeworkFeedback | null;
+}
+
+export interface HomeworkFeedbackRequest {
+  feedback: string;
+}
+
+export interface HomeworkFeedbackSuccess {
+  feedback: HomeworkFeedback | null;
+}
+
+export interface HomeworkReviewApiError {
+  error: {
+    code: HomeworkReviewApiErrorCode;
+    message: string;
+  };
+}

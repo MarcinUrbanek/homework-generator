@@ -328,10 +328,10 @@ Additive table and functions; `list_student_homework` is dropped/recreated withi
 
 #### Automated
 
-- [x] 1.1 Migration applies cleanly on local Supabase: `npx supabase db reset`
-- [x] 1.2 Database tests pass, including the new feedback suite: `npm run db:test`
-- [x] 1.3 Unit tests pass: `npm test`
-- [x] 1.4 Lint passes: `npm run lint`
+- [x] 1.1 Migration applies cleanly on local Supabase: `npx supabase db reset` — 77c9d4b
+- [x] 1.2 Database tests pass, including the new feedback suite: `npm run db:test` — 77c9d4b
+- [x] 1.3 Unit tests pass: `npm test` — 77c9d4b
+- [x] 1.4 Lint passes: `npm run lint` — 77c9d4b
 
 #### Manual
 
@@ -354,9 +354,18 @@ Additive table and functions; `list_student_homework` is dropped/recreated withi
 
 #### Automated
 
-- [ ] 2.1 Unit and route tests pass: `npm test`
-- [ ] 2.2 Lint passes: `npm run lint`
-- [ ] 2.3 Build succeeds: `npm run build`
+- [x] 2.1 Unit and route tests pass: `npm test`
+- [x] 2.2 Lint passes: `npm run lint`
+- [x] 2.3 Build succeeds: `npm run build`
+
+#### Notes
+
+- Teacher review schemas live in a sibling `src/lib/homework/review-schemas.ts` (the plan allowed this) so `schemas.ts` doesn't keep growing. The shared feedback schemas and `HOMEWORK_FEEDBACK_MAX_LENGTH` stay in `schemas.ts`.
+- `trimHomeworkFeedback` trims the same ASCII whitespace set as the SQL save RPC, so the client-side 2000-character check matches the database rule.
+- The service also maps `42501` to `HOMEWORK_UNAVAILABLE`. Only sessions without execute rights can trigger it, and they should see a 404, not a 500.
+- The route checks params and body first, then authentication, the same as `submit.ts`. Authorization follows the teacher-route pattern (`members.ts`): a `non-teacher` or `profile-unavailable` profile gets 403. Responses send `Cache-Control: private, no-store`.
+- Full `npm test` ran with `--maxWorkers=2` (same reason as Phase 1).
+- The create tool writes CRLF line endings, so new TS files were Prettier-formatted before lint.
 
 ### Phase 3: Teacher review pages
 
