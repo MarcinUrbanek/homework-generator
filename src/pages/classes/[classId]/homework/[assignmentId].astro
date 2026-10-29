@@ -1,0 +1,131 @@
+---
+import TeacherReviewMessage from "@/components/homework/TeacherReviewMessage.astro";
+import { Badge } from "@/components/ui/badge";
+import Layout from "@/layouts/Layout.astro";
+import { exerciseNoun } from "@/lib/exercises/exercise-count";
+import { getTeacherHomeworkAssignment } from "@/lib/services/homework-review";
+import { loadTeacherReviewPage } from "@/lib/services/homework-review-page";
+import { createClient } from "@/lib/supabase";
+import type { TeacherHomeworkRecipient } from "@/types";
+
+Astro.response.headers.set("Cache-Control", "private, no-store");
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+const page = await loadTeacherReviewPage({
+  params: [Astro.params.classId, Astro.params.assignmentId],
+  locals: Astro.locals,
+  supabase,
+  load: async (client, [classId, assignmentId]) => {
+    const detail = await getTeacherHomeworkAssignment(client, assignmentId);
+    return detail.assignment.classId === classId ? detail : null;
+  },
+});
+Astro.response.status = page.status;
+
+const classId = Astro.params.classId ?? "";
+const classHomeworkHref = `/classes/${encodeURIComponent(classId)}/homework`;
+const dateFormatter = new Intl.DateTimeFormat("pl-PL", {
+  dateStyle: "long",
+  timeStyle: "short",
+  timeZone: "Europe/Warsaw",
+});
+
+function statusLabel(recipient: TeacherHomeworkRecipient, exerciseCount: number): string {
+  if (!recipient.submitted) return "nie oddano";
+  const score = `${String(recipient.correctCount ?? 0)}/${String(exerciseCount)}`;
+  return recipient.passed ? `zaliczone · ${score}` : `nie zaliczone · ${score}`;
+}
+---
+
+<Layout title={page.state === "ready" ? (page.data.assignment.title ?? "Zadanie domowe") : "Brak dostępu"}>
+  <main data-role="teacher" class="min-h-screen bg-background px-4 py-8 text-foreground sm:py-12">
+    <div class="mx-auto w-full max-w-3xl">
+      <a href={classHomeworkHref} class="text-sm font-semibold text-primary underline-offset-4 hover:underline">
+        Powrót do zadań klasy
+      </a>
+
+      {page.state === "ready" ? (
+        <section class="mt-6 grid gap-6">
+          <header>
+            <p class="text-sm font-semibold text-primary">{page.data.assignment.className}</p>
+            <h1 class="mt-2 break-words text-3xl font-bold sm:text-4xl">
+              {page.data.assignment.title ?? "Zadanie domowe"}
+            </h1>
+            <p class="mt-3 text-sm text-muted-foreground">
+              {page.data.assignment.exerciseCount} {exerciseNoun(page.data.assignment.exerciseCount)} · Przydzielono:{" "}
+              <time datetime={page.data.assignment.createdAt}>
+                {dateFormatter.format(new Date(page.data.assignment.createdAt))}
+              </time>
+            </p>
+          </header>
+
+          <div class="overflow-x-auto rounded-lg border bg-card shadow-sm">
+            <table class="w-full text-left text-sm">
+              <caption class="sr-only">Wyniki uczniów dla tego zadania</caption>
+              <thead class="border-b bg-muted/50">
+                <tr>
+                  <th scope="col" class="px-4 py-3 font-semibold">
+                    Uczeń
+                  </th>
+                  <th scope="col" class="px-4 py-3 font-semibold">
+                    Status
+                  </th>
+                  <th scope="col" class="px-4 py-3 font-semibold">
+                    Komentarz
+                  </th>
+                  <th scope="col" class="px-4 py-3 font-semibold">
+                    <span class="sr-only">Akcje</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {page.data.recipients.map((recipient) => (
+                  <tr class="border-b last:border-b-0" data-student-id={recipient.studentId}>
+                    <td class="px-4 py-3 align-top">
+                      <span class="break-all">{recipient.email}</span>
+                      {!recipient.isMember && (
+                        <Badge variant="warning" className="ml-2 align-middle">
+                          opuścił klasę
+                        </Badge>
+                      )}
+                    </td>
+                    <td class="px-4 py-3 align-top">
+                      <span
+                        class:list={[
+                          "font-medium",
+                          !recipient.submitted && "text-muted-foreground",
+                          recipient.submitted && recipient.passed && "text-success",
+                          recipient.submitted && !recipient.passed && "text-warning",
+                        ]}
+                      >
+                        {statusLabel(recipient, page.data.assignment.exerciseCount)}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3 align-top">
+                      {recipient.hasFeedback ? (
+                        <Badge variant="secondary">Komentarz dodany</Badge>
+                      ) : (
+                        <span class="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td class="px-4 py-3 text-right align-top">
+                      {recipient.submitted ? (
+                        <a
+                          class="inline-flex min-h-11 items-center justify-center rounded-md border px-3 text-sm font-semibold transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2"
+                          href={`${classHomeworkHref}/${encodeURIComponent(page.data.assignment.assignmentId)}/${encodeURIComponent(recipient.studentId)}`}
+                        >
+                          Sprawdź
+                        </a>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : (
+        <TeacherReviewMessage state={page.state} backHref="/classes" backLabel="Wróć do klas" />
+      )}
+    </div>
+  </main>
+</Layout>

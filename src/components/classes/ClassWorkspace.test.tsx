@@ -72,6 +72,10 @@ describe("ClassWorkspace", () => {
     expect(
       workspaceContainer.querySelector('a[href="/classes/00000000-0000-4000-8000-000000000001/assign"]'),
     ).not.toBeNull();
+    const homeworkLink = workspaceContainer.querySelector(
+      'a[href="/classes/00000000-0000-4000-8000-000000000001/homework"]',
+    );
+    expect(homeworkLink?.textContent).toContain("Zadania domowe");
   });
 
   it("adds a newly created class to the workspace", async () => {

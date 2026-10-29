@@ -1,0 +1,154 @@
+---
+import HomeworkFeedbackForm from "@/components/homework/HomeworkFeedbackForm";
+import TeacherReviewMessage from "@/components/homework/TeacherReviewMessage.astro";
+import { Badge } from "@/components/ui/badge";
+import Layout from "@/layouts/Layout.astro";
+import { getTeacherHomeworkSubmission } from "@/lib/services/homework-review";
+import { loadTeacherReviewPage } from "@/lib/services/homework-review-page";
+import { createClient } from "@/lib/supabase";
+
+Astro.response.headers.set("Cache-Control", "private, no-store");
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+const page = await loadTeacherReviewPage({
+  params: [Astro.params.classId, Astro.params.assignmentId, Astro.params.studentId],
+  locals: Astro.locals,
+  supabase,
+  load: async (client, [classId, assignmentId, studentId]) => {
+    const review = await getTeacherHomeworkSubmission(client, assignmentId, studentId);
+    return review.assignment.classId === classId ? review : null;
+  },
+});
+Astro.response.status = page.status;
+
+const classId = Astro.params.classId ?? "";
+const assignmentHref = `/classes/${encodeURIComponent(classId)}/homework/${encodeURIComponent(Astro.params.assignmentId ?? "")}`;
+const dateFormatter = new Intl.DateTimeFormat("pl-PL", {
+  dateStyle: "long",
+  timeStyle: "short",
+  timeZone: "Europe/Warsaw",
+});
+
+function displayAnswer(answer: string | null): string {
+  return answer === null || answer.trim() === "" ? "Bez odpowiedzi" : answer;
+}
+---
+
+<Layout title={page.state === "ready" ? `Wynik: ${page.data.student.email}` : "Brak dostępu"}>
+  <main data-role="teacher" class="min-h-screen bg-background px-4 py-8 text-foreground sm:py-12">
+    <div class="mx-auto w-full max-w-3xl">
+      <a href={assignmentHref} class="text-sm font-semibold text-primary underline-offset-4 hover:underline">
+        Powrót do wyników zadania
+      </a>
+
+      {page.state === "ready" ? (
+        <section class="mt-6 grid gap-6">
+          <header>
+            <p class="text-sm font-semibold text-primary">
+              {page.data.assignment.className} · {page.data.assignment.title ?? "Zadanie domowe"}
+            </p>
+            <h1 class="mt-2 break-all text-2xl font-bold sm:text-3xl">{page.data.student.email}</h1>
+            {!page.data.student.isMember && (
+              <Badge variant="warning" className="mt-3">
+                opuścił klasę
+              </Badge>
+            )}
+          </header>
+
+          {page.data.submission === null ? (
+            <section class="rounded-lg border bg-card p-5 sm:p-6" aria-labelledby="review-unsubmitted-heading">
+              <h2 id="review-unsubmitted-heading" class="font-semibold">
+                Uczeń nie oddał tego zadania
+              </h2>
+              <p class="mt-2 text-muted-foreground">
+                Status: nie oddano. Komentarz można dodać dopiero po oddaniu pracy.
+              </p>
+            </section>
+          ) : (
+            <>
+              <section
+                class:list={[
+                  "rounded-lg border p-4 sm:p-5",
+                  page.data.submission.passed ? "border-success/30 bg-success/5" : "border-warning/30 bg-warning/5",
+                ]}
+                aria-labelledby="review-result-heading"
+              >
+                <h2 id="review-result-heading" class="font-semibold">
+                  {page.data.submission.passed ? "Zaliczone" : "Nie zaliczone"}
+                </h2>
+                <p class="mt-1 text-sm">
+                  Poprawne odpowiedzi: {page.data.submission.correctCount} z {page.data.submission.assignedCount}
+                </p>
+                <p class="mt-1 text-sm text-muted-foreground">
+                  Wysłano:{" "}
+                  <time datetime={page.data.submission.submittedAt}>
+                    {dateFormatter.format(new Date(page.data.submission.submittedAt))}
+                  </time>
+                </p>
+              </section>
+
+              <ol class="grid gap-3" aria-label="Odpowiedzi ucznia">
+                {page.data.submission.answers.map((answer) => (
+                  <li
+                    class:list={[
+                      "rounded-lg border p-4 sm:p-5",
+                      answer.isCorrect ? "border-success/30 bg-success/5" : "border-warning/30 bg-warning/5",
+                    ]}
+                  >
+                    <h3 class="font-semibold">Zadanie {answer.position}</h3>
+                    <p class="mt-2 whitespace-pre-line text-sm leading-6">{answer.prompt}</p>
+                    <dl class="mt-3 grid gap-1 text-sm sm:grid-cols-[auto_1fr] sm:gap-x-3">
+                      <dt class="text-muted-foreground">Odpowiedź ucznia:</dt>
+                      <dd class="font-medium">{displayAnswer(answer.answer)}</dd>
+                      <dt class="text-muted-foreground">Poprawna odpowiedź:</dt>
+                      <dd class="font-medium">{answer.expectedAnswer}</dd>
+                    </dl>
+                    <p class:list={["mt-2 text-sm font-semibold", answer.isCorrect ? "text-success" : "text-warning"]}>
+                      {answer.isCorrect ? "Poprawna" : "Niepoprawna"}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+
+              <section class="rounded-lg border bg-card p-4 shadow-sm sm:p-6" aria-labelledby="review-feedback-heading">
+                <h2 id="review-feedback-heading" class="text-lg font-semibold">
+                  Komentarz nauczyciela
+                </h2>
+                {page.data.student.isMember ? (
+                  <div class="mt-4">
+                    <HomeworkFeedbackForm
+                      client:load
+                      assignmentId={page.data.assignment.assignmentId}
+                      studentId={page.data.student.studentId}
+                      initialFeedback={page.data.feedback}
+                    />
+                  </div>
+                ) : (
+                  <div class="mt-3 grid gap-2">
+                    <p class="text-sm text-muted-foreground">
+                      Uczeń opuścił klasę, więc komentarza nie można już zmienić.
+                    </p>
+                    {page.data.feedback ? (
+                      <>
+                        <p class="whitespace-pre-line break-words leading-7">{page.data.feedback.body}</p>
+                        <p class="text-sm text-muted-foreground">
+                          Ostatnia zmiana:{" "}
+                          <time datetime={page.data.feedback.updatedAt}>
+                            {dateFormatter.format(new Date(page.data.feedback.updatedAt))}
+                          </time>
+                        </p>
+                      </>
+                    ) : (
+                      <p class="text-sm">Brak komentarza.</p>
+                    )}
+                  </div>
+                )}
+              </section>
+            </>
+          )}
+        </section>
+      ) : (
+        <TeacherReviewMessage state={page.state} backHref="/classes" backLabel="Wróć do klas" />
+      )}
+    </div>
+  </main>
+</Layout>

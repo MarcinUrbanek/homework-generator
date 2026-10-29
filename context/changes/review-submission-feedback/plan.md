@@ -354,9 +354,9 @@ Additive table and functions; `list_student_homework` is dropped/recreated withi
 
 #### Automated
 
-- [x] 2.1 Unit and route tests pass: `npm test`
-- [x] 2.2 Lint passes: `npm run lint`
-- [x] 2.3 Build succeeds: `npm run build`
+- [x] 2.1 Unit and route tests pass: `npm test` — 357abc6
+- [x] 2.2 Lint passes: `npm run lint` — 357abc6
+- [x] 2.3 Build succeeds: `npm run build` — 357abc6
 
 #### Notes
 
@@ -371,9 +371,9 @@ Additive table and functions; `list_student_homework` is dropped/recreated withi
 
 #### Automated
 
-- [ ] 3.1 Component tests pass: `npm test`
-- [ ] 3.2 Lint passes: `npm run lint`
-- [ ] 3.3 Build succeeds: `npm run build`
+- [x] 3.1 Component tests pass: `npm test`
+- [x] 3.2 Lint passes: `npm run lint`
+- [x] 3.3 Build succeeds: `npm run build`
 
 #### Manual
 
@@ -381,6 +381,15 @@ Additive table and functions; `list_student_homework` is dropped/recreated withi
 - [ ] 3.5 Save, edit and clear feedback; the assignment table's feedback marker updates after reload
 - [ ] 3.6 A departed student's submission is read-only and an unsubmitted student has no form
 - [ ] 3.7 Another teacher gets 404/403 on all three pages for a class they don't own
+
+#### Notes
+
+- The three pages share `loadTeacherReviewPage` (`src/lib/services/homework-review-page.ts`, with unit tests) for the `assign.astro` guard order: invalid UUID → 404, non-teacher → 403, no client → 503. The service's `HOMEWORK_UNAVAILABLE` or `INVALID_REQUEST` → 404, `DATABASE_UNAVAILABLE` → 503, anything else → 500. A route `classId` that doesn't match the assignment's `class_id` → 404. Pages send `Cache-Control: private, no-store`.
+- Error states render through the shared `src/components/homework/TeacherReviewMessage.astro`.
+- Only submitted rows in the assignment table link to the review page. Opening the review page for an unsubmitted student shows "nie oddano" with no form.
+- The feedback form counts characters after the same ASCII trim the server uses. It disables save above 2000 characters and refuses to save an empty comment. "Usuń komentarz" appears only when saved feedback exists, and clears it with `PUT {feedback: ""}`. A 409 locks the form. 400, 403/404, 5xx and network errors show Polish messages, and save stays retryable.
+- The class list page has no class-name header because `list_teacher_class_homework` doesn't return the class name. The assignment and review pages show the class name.
+- "Zadania domowe" is an outline button next to "Przydziel zadania" in `ClassWorkspace`.
 
 ### Phase 4: Student feedback display and smoke
 

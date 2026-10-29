@@ -1,0 +1,41 @@
+---
+interface Props {
+  state: "not-found" | "forbidden" | "error";
+  backHref: string;
+  backLabel: string;
+}
+
+const { state, backHref, backLabel } = Astro.props;
+const copy = {
+  "not-found": {
+    eyebrow: "Niedostępne",
+    heading: "Nie można otworzyć tej strony",
+    message: "Zadanie lub klasa nie istnieje albo nie masz do nich dostępu.",
+  },
+  forbidden: {
+    eyebrow: "Brak dostępu",
+    heading: "Ta strona jest dostępna tylko dla nauczycieli",
+    message: "Nie udało się potwierdzić uprawnień nauczyciela dla tego konta.",
+  },
+  error: {
+    eyebrow: "Błąd",
+    heading: "Nie udało się wczytać danych",
+    message: "Usługa jest chwilowo niedostępna. Spróbuj ponownie później.",
+  },
+}[state];
+---
+
+<section
+  class="mt-6 rounded-lg border border-destructive/30 bg-card p-6 text-card-foreground shadow-sm sm:p-8"
+  role="alert"
+>
+  <p class="text-sm font-semibold text-destructive">{copy.eyebrow}</p>
+  <h1 class="mt-2 text-2xl font-bold sm:text-3xl">{copy.heading}</h1>
+  <p class="mt-3 leading-7 text-muted-foreground">{copy.message}</p>
+  <a
+    class="mt-5 inline-flex min-h-11 items-center justify-center rounded-md border px-4 text-sm font-semibold transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2"
+    href={backHref}
+  >
+    {backLabel}
+  </a>
+</section>
