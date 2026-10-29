@@ -1,10 +1,10 @@
 ---
 change_id: student-homework-access
 title: Restore student homework access
-status: implementing
+status: archived
 created: 2026-10-10
-updated: 2026-10-10
-archived_at: null
+updated: 2026-10-29
+archived_at: 2026-10-29T16:14:46Z
 ---
 
 ## Notes
