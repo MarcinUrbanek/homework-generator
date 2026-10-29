@@ -395,10 +395,10 @@ Additive table and functions; `list_student_homework` is dropped/recreated withi
 
 #### Automated
 
-- [x] 4.1 Component tests pass: `npm test`
-- [x] 4.2 Lint passes: `npm run lint`
-- [x] 4.3 Build succeeds: `npm run build`
-- [x] 4.4 Configured production-preview smoke passes with feedback checks: `$env:SMOKE_CLASS_CHECKS='true'; $env:SMOKE_HOMEWORK_CHECKS='true'; npm run smoke`
+- [x] 4.1 Component tests pass: `npm test` — 14aa982
+- [x] 4.2 Lint passes: `npm run lint` — 14aa982
+- [x] 4.3 Build succeeds: `npm run build` — 14aa982
+- [x] 4.4 Configured production-preview smoke passes with feedback checks: `$env:SMOKE_CLASS_CHECKS='true'; $env:SMOKE_HOMEWORK_CHECKS='true'; npm run smoke` — 14aa982
 
 #### Manual
 
