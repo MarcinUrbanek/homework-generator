@@ -3,7 +3,7 @@ project: "Homework generator"
 version: 1
 status: draft
 created: 2026-09-21
-updated: 2026-10-12
+updated: 2026-10-29
 prd_version: 1
 main_goal: market-feedback
 top_blocker: time
@@ -49,7 +49,7 @@ Primary-school classroom math teachers in Poland need many distinct exercises at
 | S-05 | join-teacher-managed-class    | student can sign in and join a class through a code or direct invitation link                                            | S-04          | FR-001, FR-003                | done |
 | S-06 | assign-distinct-homework      | teacher can choose an exercise count and assign each selected student a distinct set from one approved difficulty bucket | S-02, S-05    | US-01, FR-010                 | done |
 | S-07 | submit-and-score-homework     | student can open homework, submit answers, and immediately see pass or fail from the defined score rule                  | S-06          | US-01, FR-011, FR-012, FR-013 | done |
-| S-08 | review-submission-feedback    | teacher can review submitted answers and provide feedback that the student can later view                                | S-07          | US-01, FR-013                 | proposed |
+| S-08 | review-submission-feedback    | teacher can review submitted answers and provide feedback that the student can later view                                | S-07          | US-01, FR-013                 | planning |
 
 ## Streams
 
@@ -184,7 +184,7 @@ What's already in place in the codebase as of `2026-09-21` (auto-researched and 
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** Feedback must remain isolated to the intended student, so this follows the exercised submission and result-access path.
-- **Status:** proposed
+- **Status:** planning
 
 ## Backlog Handoff
 
