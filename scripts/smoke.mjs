@@ -208,6 +208,87 @@ async function createHomeworkUser(role, label) {
   return { id: data.user.id, email: userEmail, cookieJar };
 }
 
+// Exercise pool rows must link to certified arithmetic evidence. Verification evidence is append-only and
+// keeps a non-cascading link to its teacher, so a stable local fixture teacher owns it across runs; the
+// approved pool rows are re-created by the approval RPC and deleted at cleanup.
+const homeworkPoolOwnerEmail = "smoke-homework-pool-owner@example.test";
+// Hand-checked medium addition fixtures: operands <= 10000 and the ones digits cross ten.
+const homeworkPoolFixtures = [
+  { id: "5e000000-0000-4000-8000-000000000001", left: 9876, right: 8765, answer: "18641" },
+  { id: "5e000000-0000-4000-8000-000000000002", left: 9758, right: 7869, answer: "17627" },
+  { id: "5e000000-0000-4000-8000-000000000003", left: 8967, right: 9478, answer: "18445" },
+];
+
+async function findAuthUserByEmail(targetEmail) {
+  for (let page = 1; ; page++) {
+    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw new Error("Could not look up local smoke accounts");
+    const user = data.users.find((candidate) => candidate.email?.toLowerCase() === targetEmail);
+    if (user) return user;
+    if (data.users.length < 1000) return null;
+  }
+}
+
+async function approveHomeworkPool() {
+  let poolOwner = await findAuthUserByEmail(homeworkPoolOwnerEmail);
+  if (!poolOwner) {
+    const { data, error } = await adminClient.auth.admin.createUser({
+      email: homeworkPoolOwnerEmail,
+      password,
+      email_confirm: true,
+    });
+    if (error || !data.user) throw new Error("Could not create the local homework pool owner");
+    poolOwner = data.user;
+  }
+  const { error: passwordError } = await adminClient.auth.admin.updateUserById(poolOwner.id, { password });
+  if (passwordError) throw new Error("Could not configure the local homework pool owner");
+
+  const cookieJar = new Map();
+  const signIn = await request("/api/auth/signin", {
+    method: "POST",
+    form: { email: homeworkPoolOwnerEmail, password },
+    cookieJar,
+  });
+  if (signIn.status !== 302) throw new Error("Could not sign in the local homework pool owner");
+
+  const verifications = homeworkPoolFixtures.map(({ id, left, right, answer }, index) => ({
+    id,
+    teacher_id: poolOwner.id,
+    candidate_id: `smoke-homework-pool-${index + 1}`,
+    candidate_text: `Oblicz wartość wyrażenia: (${left} + ${right}). Podaj wynik jako jedną liczbę naturalną.`,
+    proposed_canonical_answer: answer,
+    grade: "4",
+    topic: "addition-subtraction",
+    difficulty: "medium",
+    outcome: "unique_answer",
+    verified_answer: answer,
+    verifier_identity: "configured-smoke",
+    verifier_version: "1",
+    verified_at: "2026-10-01T08:00:00.000Z",
+    rationale: "Hand-checked local smoke fixture.",
+    arithmetic_structure: {
+      version: 1,
+      expression: { kind: "add", left: { kind: "number", value: left }, right: { kind: "number", value: right } },
+    },
+    authority_version: 1,
+  }));
+  const { error: verificationError } = await adminClient
+    .from("exercise_verifications")
+    .upsert(verifications, { onConflict: "id", ignoreDuplicates: true });
+  if (verificationError) throw new Error("Could not seed certified homework smoke evidence");
+
+  const approval = await request("/api/exercises/approve", {
+    method: "POST",
+    json: { verificationIds: homeworkPoolFixtures.map(({ id }) => id) },
+    cookieJar,
+  });
+  const mappings = approval.body?.mappings;
+  if (approval.status !== 200 || !Array.isArray(mappings) || mappings.length !== homeworkPoolFixtures.length) {
+    throw new Error("Could not approve the shared homework smoke pool");
+  }
+  return mappings.map(({ exerciseId }) => exerciseId);
+}
+
 async function setupHomeworkSmoke() {
   const owner = await createHomeworkUser("teacher", "owner");
   const otherTeacher = await createHomeworkUser("teacher", "other-teacher");
@@ -231,33 +312,16 @@ async function setupHomeworkSmoke() {
     .insert(students.map(({ id }) => ({ class_id: classId, student_id: id })));
   if (membershipError) throw new Error("Could not seed local homework smoke memberships");
 
-  const exerciseFixtures = Array.from({ length: 3 }, (_, index) => ({
-    id: randomUUID(),
-    exercise_text: `Smoke exercise ${homeworkRunId}-${index + 1}`,
-    canonical_answer: `SMOKE-CANONICAL-${homeworkRunId}-${index + 1}`,
-    grade: "4",
-    topic: "addition-subtraction",
-    difficulty: "easy",
-    verification_verdict: "unique_answer",
-    verifier_identity: "configured-smoke",
-    verifier_version: "1",
-    verified_at: new Date().toISOString(),
-    verification_rationale: "Controlled local smoke fixture.",
-    creator_id: otherTeacher.id,
-    approver_id: otherTeacher.id,
-    approved_at: new Date(Date.now() - index * 1000).toISOString(),
-  }));
-  homeworkExerciseIds.push(...exerciseFixtures.map(({ id }) => id));
-  const { error: exerciseError } = await adminClient.from("exercises").insert(exerciseFixtures);
-  if (exerciseError) throw new Error("Could not seed the shared approved homework smoke pool");
+  const exerciseIds = await approveHomeworkPool();
+  homeworkExerciseIds.push(...exerciseIds);
 
   homeworkContext = {
     owner,
     otherTeacher,
     students,
     classId,
-    exerciseIds: exerciseFixtures.map(({ id }) => id),
-    canonicalAnswers: exerciseFixtures.map(({ canonical_answer }) => canonical_answer),
+    exerciseIds,
+    canonicalAnswers: homeworkPoolFixtures.map(({ answer }) => answer),
     rosterStudentIds: students.map(({ id }) => id),
     idempotencyKey: randomUUID(),
   };
@@ -266,7 +330,7 @@ async function setupHomeworkSmoke() {
     studentIds: homeworkContext.rosterStudentIds.slice(0, 3),
     title: "  Smoke homework  ",
     topic: "addition-subtraction",
-    difficulty: "easy",
+    difficulty: "medium",
     exerciseCount: 2,
     idempotencyKey: homeworkContext.idempotencyKey,
   };
@@ -324,6 +388,25 @@ async function inspectPersistedHomework(assignmentId) {
     ),
   };
 }
+
+function feedbackPath(studentId) {
+  return `/api/homework/${homeworkContext.assignmentId}/students/${studentId}/feedback`;
+}
+
+function teacherHomeworkPaths() {
+  const base = `/classes/${homeworkContext.classId}/homework`;
+  return [
+    base,
+    `${base}/${homeworkContext.assignmentId}`,
+    `${base}/${homeworkContext.assignmentId}/${homeworkContext.students[0].id}`,
+  ];
+}
+
+function studentListEntry(actual) {
+  return actual.body?.assignments?.find(({ assignmentId }) => assignmentId === homeworkContext.assignmentId);
+}
+
+const smokeFeedback = "Dobra praca.\nPopraw zadanie 2.";
 
 const smokeCandidate = {
   id: "smoke-candidate-1",
@@ -517,6 +600,190 @@ const homeworkSteps = homeworkChecksEnabled
             actual.body?.excludedCount === 1 &&
             actual.body?.replayed === true &&
             !actual.privacyLeak,
+        },
+      ],
+      [
+        "student submits the assigned homework",
+        () =>
+          request(`/api/homework/${homeworkContext.assignmentId}/submit`, {
+            method: "POST",
+            json: {
+              answers: [
+                { position: 1, answer: "1" },
+                { position: 2, answer: "2" },
+              ],
+            },
+            cookieJar: homeworkContext.students[0].cookieJar,
+          }),
+        { status: 201, validate: (actual) => actual.body?.kind === "scored" && actual.body?.correctCount === 0 },
+      ],
+      [
+        "teacher class homework page lists the assignment with counts",
+        () => request(teacherHomeworkPaths()[0], { cookieJar: homeworkContext.owner.cookieJar }),
+        {
+          status: 200,
+          validate: (actual) => actual.html.includes("Smoke homework") && actual.html.includes("Oddane: 1"),
+        },
+      ],
+      [
+        "teacher assignment page shows submitted and unsubmitted students",
+        () => request(teacherHomeworkPaths()[1], { cookieJar: homeworkContext.owner.cookieJar }),
+        {
+          status: 200,
+          validate: (actual) =>
+            actual.html.includes(homeworkContext.students[0].email) &&
+            actual.html.includes(homeworkContext.students[1].email) &&
+            actual.html.includes("nie oddano"),
+        },
+      ],
+      [
+        "teacher review page shows answers, expected answers, and the feedback form",
+        () => request(teacherHomeworkPaths()[2], { cookieJar: homeworkContext.owner.cookieJar }),
+        {
+          status: 200,
+          validate: (actual) =>
+            homeworkContext.canonicalAnswers.some((answer) => actual.html.includes(answer)) &&
+            actual.html.includes("Komentarz dla ucznia"),
+        },
+      ],
+      [
+        "another teacher cannot open the class homework review pages",
+        async () => {
+          const responses = await Promise.all(
+            teacherHomeworkPaths().map((path) => request(path, { cookieJar: homeworkContext.otherTeacher.cookieJar })),
+          );
+          return {
+            status: responses.every(({ status }) => status === 404)
+              ? 404
+              : responses.map(({ status }) => status).join(","),
+            location: "",
+            errorCode: "",
+            leaksAnswers: responses.some(({ html }) =>
+              homeworkContext.canonicalAnswers.some((answer) => html.includes(answer)),
+            ),
+          };
+        },
+        { status: 404, validate: (actual) => !actual.leaksAnswers },
+      ],
+      [
+        "student cannot save homework feedback",
+        () =>
+          request(feedbackPath(homeworkContext.students[0].id), {
+            method: "PUT",
+            json: { feedback: "Sam sobie" },
+            cookieJar: homeworkContext.students[0].cookieJar,
+          }),
+        { status: 403, errorCode: "FORBIDDEN" },
+      ],
+      [
+        "another teacher cannot save homework feedback",
+        () =>
+          request(feedbackPath(homeworkContext.students[0].id), {
+            method: "PUT",
+            json: { feedback: "Nie moja klasa" },
+            cookieJar: homeworkContext.otherTeacher.cookieJar,
+          }),
+        { status: 404, errorCode: "HOMEWORK_UNAVAILABLE" },
+      ],
+      [
+        "unsubmitted homework cannot receive feedback",
+        () =>
+          request(feedbackPath(homeworkContext.students[1].id), {
+            method: "PUT",
+            json: { feedback: "Brak pracy" },
+            cookieJar: homeworkContext.owner.cookieJar,
+          }),
+        { status: 409, errorCode: "FEEDBACK_NOT_ALLOWED" },
+      ],
+      [
+        "teacher saves multi-line feedback on a submitted homework",
+        () =>
+          request(feedbackPath(homeworkContext.students[0].id), {
+            method: "PUT",
+            json: { feedback: `  ${smokeFeedback}  ` },
+            cookieJar: homeworkContext.owner.cookieJar,
+          }),
+        { status: 200, validate: (actual) => actual.body?.feedback?.body === smokeFeedback },
+      ],
+      [
+        "student sees the feedback on the detail API without expected answers",
+        async () => {
+          const actual = await request(`/api/homework/${homeworkContext.assignmentId}`, {
+            cookieJar: homeworkContext.students[0].cookieJar,
+          });
+          return { ...actual, privacyLeak: homeworkResponseHasPrivacyLeak(actual, { checkEmails: true }) };
+        },
+        {
+          status: 200,
+          validate: (actual) =>
+            actual.body?.feedback?.body === smokeFeedback &&
+            typeof actual.body?.feedback?.updatedAt === "string" &&
+            !actual.privacyLeak,
+        },
+      ],
+      [
+        "student list flags homework with feedback",
+        () => request("/api/homework/list", { cookieJar: homeworkContext.students[0].cookieJar }),
+        { status: 200, validate: (actual) => studentListEntry(actual)?.hasFeedback === true },
+      ],
+      [
+        "student pages show the feedback badge and comment",
+        async () => {
+          const list = await request("/homework", { cookieJar: homeworkContext.students[0].cookieJar });
+          const detail = await request(`/homework/${homeworkContext.assignmentId}`, {
+            cookieJar: homeworkContext.students[0].cookieJar,
+          });
+          return {
+            status: list.status === 200 && detail.status === 200 ? 200 : `${list.status},${detail.status}`,
+            location: "",
+            errorCode: "",
+            listHasBadge: list.html.includes("Komentarz nauczyciela"),
+            detailHasComment:
+              detail.html.includes("Komentarz nauczyciela") && detail.html.includes("Popraw zadanie 2."),
+          };
+        },
+        { status: 200, validate: (actual) => actual.listHasBadge && actual.detailHasComment },
+      ],
+      [
+        "classmate cannot see another student's feedback",
+        async () => {
+          const list = await request("/api/homework/list", { cookieJar: homeworkContext.students[1].cookieJar });
+          const detail = await request(`/api/homework/${homeworkContext.assignmentId}`, {
+            cookieJar: homeworkContext.students[1].cookieJar,
+          });
+          return {
+            ...list,
+            entryHasFeedback: studentListEntry(list)?.hasFeedback,
+            leaksFeedback: [list.html, detail.html].some((html) => html.includes("Popraw zadanie 2.")),
+          };
+        },
+        {
+          status: 200,
+          validate: (actual) => actual.entryHasFeedback === false && !actual.leaksFeedback,
+        },
+      ],
+      [
+        "teacher clears the feedback",
+        () =>
+          request(feedbackPath(homeworkContext.students[0].id), {
+            method: "PUT",
+            json: { feedback: "" },
+            cookieJar: homeworkContext.owner.cookieJar,
+          }),
+        { status: 200, validate: (actual) => actual.body?.feedback === null },
+      ],
+      [
+        "cleared feedback disappears for the student",
+        async () => {
+          const list = await request("/api/homework/list", { cookieJar: homeworkContext.students[0].cookieJar });
+          const detail = await request(`/api/homework/${homeworkContext.assignmentId}`, {
+            cookieJar: homeworkContext.students[0].cookieJar,
+          });
+          return { ...detail, listHasFeedback: studentListEntry(list)?.hasFeedback };
+        },
+        {
+          status: 200,
+          validate: (actual) => actual.body?.feedback === null && actual.listHasFeedback === false,
         },
       ],
       [

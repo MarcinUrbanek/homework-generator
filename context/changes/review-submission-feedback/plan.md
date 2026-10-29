@@ -371,9 +371,9 @@ Additive table and functions; `list_student_homework` is dropped/recreated withi
 
 #### Automated
 
-- [x] 3.1 Component tests pass: `npm test`
-- [x] 3.2 Lint passes: `npm run lint`
-- [x] 3.3 Build succeeds: `npm run build`
+- [x] 3.1 Component tests pass: `npm test` — ac733aa
+- [x] 3.2 Lint passes: `npm run lint` — ac733aa
+- [x] 3.3 Build succeeds: `npm run build` — ac733aa
 
 #### Manual
 
@@ -395,13 +395,23 @@ Additive table and functions; `list_student_homework` is dropped/recreated withi
 
 #### Automated
 
-- [ ] 4.1 Component tests pass: `npm test`
-- [ ] 4.2 Lint passes: `npm run lint`
-- [ ] 4.3 Build succeeds: `npm run build`
-- [ ] 4.4 Configured production-preview smoke passes with feedback checks: `$env:SMOKE_CLASS_CHECKS='true'; $env:SMOKE_HOMEWORK_CHECKS='true'; npm run smoke`
+- [x] 4.1 Component tests pass: `npm test`
+- [x] 4.2 Lint passes: `npm run lint`
+- [x] 4.3 Build succeeds: `npm run build`
+- [x] 4.4 Configured production-preview smoke passes with feedback checks: `$env:SMOKE_CLASS_CHECKS='true'; $env:SMOKE_HOMEWORK_CHECKS='true'; npm run smoke`
 
 #### Manual
 
 - [ ] 4.5 As the student, the list shows the badge and the result page shows the teacher's comment with line breaks preserved; after the teacher clears it, both disappear
 - [ ] 4.6 A classmate and the dual-role account never see another student's feedback
 - [ ] 4.7 After the student is removed from the class, they can no longer open the homework or its feedback
+
+#### Notes
+
+- The student feedback card (`TeacherFeedbackCard` in `StudentHomeworkView`) renders after the result summary in both the live-result and result-only states. It shows the body as plain text with `whitespace-pre-line`, plus "Zaktualizowano <date>". `StudentHomeworkForm` takes feedback from the SSR detail and from refreshed or recovered details. It sets feedback to null after a fresh submit, so a freshly submitted result shows no card.
+- The list badge uses the shared `Badge` (`secondary`) on rows where `hasFeedback` is true.
+- **Pre-existing smoke breakage fixed (needed for gate 4.4):** since `620e4f0`, the `exercises_authority_insert` trigger rejects pool rows without certified evidence. Every `SMOKE_HOMEWORK_CHECKS` run therefore failed in setup with `Could not seed the shared approved homework smoke pool`, before any homework step ran. The fixture now inserts three hand-checked medium addition verifications (5-digit answers, so the privacy substring checks can't match by accident) and approves them through `/api/exercises/approve`. Verification evidence can't be deleted (service role only has select/insert) and its teacher FK doesn't cascade. A stable local account, `smoke-homework-pool-owner@example.test`, therefore owns that evidence and is reused across runs. Pool rows are still deleted at cleanup, and the approval RPC re-creates them on the next run. Two consecutive smoke runs passed. The assignment request uses `difficulty: "medium"` to match the fixtures.
+- With certified exercises, the smoke student submits through the real `POST /api/homework/:id/submit` instead of seeded rows. The feedback steps run before the existing all-departed step, while both students are still members.
+- Smoke command used: the requested flags plus the environment the script requires, mirroring CI: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from `.dev.vars` (local `127.0.0.1`) and `SMOKE_CONFIGURED_PREVIEW=true`, because `.dev.vars` configures providers. Ran against `npm run preview` after `npm run build`. The preview was stopped afterwards.
+- README smoke section documents the feedback checks and the persistent pool-owner account.
+- Extra repo-wide check: `npx astro check` (CI runs it) → 0 errors.

@@ -456,4 +456,61 @@ describe("StudentHomeworkForm", () => {
     rootMounted = false;
     expect(submittedSignal.aborted).toBe(true);
   });
+
+  describe("teacher feedback", () => {
+    const feedback = { body: "Dobra praca.\nPopraw zadanie 3.", updatedAt: "2026-10-23T08:00:00.000Z" };
+
+    function feedbackCard(): HTMLElement | null {
+      return container.querySelector('[aria-labelledby="student-homework-feedback-heading"]');
+    }
+
+    it("shows the comment with preserved line breaks on a saved prompt result", async () => {
+      const detail: StudentHomeworkDetailSuccess = { ...detailResponse(persistedResult), feedback };
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(detail)));
+      renderDetail(detail);
+      await flushPromises();
+
+      const card = feedbackCard();
+      expect(card?.textContent).toContain("Komentarz nauczyciela");
+      expect(card?.textContent).toContain("Zaktualizowano");
+      const body = card?.querySelector("p");
+      expect(body?.textContent).toBe(feedback.body);
+      expect(body?.className).toContain("whitespace-pre-line");
+    });
+
+    it("shows the comment on a result-only detail and renders it as plain text", () => {
+      vi.stubGlobal("fetch", vi.fn());
+      renderDetail({ ...resultOnlyDetail(), feedback: { ...feedback, body: "<b>Brawo</b>" } });
+
+      expect(feedbackCard()?.textContent).toContain("<b>Brawo</b>");
+      expect(container.querySelector("b")).toBeNull();
+    });
+
+    it("shows no card without feedback or after a fresh submission", async () => {
+      vi.stubGlobal("fetch", vi.fn());
+      renderDetail(resultOnlyDetail());
+      expect(feedbackCard()).toBeNull();
+      act(() => {
+        root.unmount();
+      });
+      container.remove();
+
+      const fetchMock = vi.fn().mockResolvedValue(jsonResponse(submitResponse()));
+      vi.stubGlobal("fetch", fetchMock);
+      renderForm();
+      await openReview();
+      await confirmAnswers();
+
+      expect(container.textContent).toContain("Wynik zadania domowego");
+      expect(feedbackCard()).toBeNull();
+    });
+
+    it("picks up feedback added later when the persisted result is refreshed", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ ...detailResponse(persistedResult), feedback })));
+      renderForm(persistedResult);
+      await flushPromises();
+
+      expect(feedbackCard()?.textContent).toContain("Popraw zadanie 3.");
+    });
+  });
 });

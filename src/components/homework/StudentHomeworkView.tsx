@@ -1,4 +1,12 @@
-import { AlertCircle, CheckCircle2, ClipboardCheck, LoaderCircle, RefreshCw, XCircle } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  ClipboardCheck,
+  LoaderCircle,
+  MessageSquare,
+  RefreshCw,
+  XCircle,
+} from "lucide-react";
 import { useEffect, useRef, type SubmitEventHandler } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -7,6 +15,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { normalizeStudentHomeworkAnswer } from "@/lib/exercises/answer-normalization";
 import { cn } from "@/lib/utils";
 import type {
+  HomeworkFeedback,
   StudentHomeworkAnswerResult,
   StudentHomeworkDetailAssignment,
   StudentHomeworkExercise,
@@ -33,6 +42,7 @@ interface StudentHomeworkPromptViewProps {
   status: StudentHomeworkViewStatus;
   errorMessage: string | null;
   result: StudentHomeworkSubmissionResult | null;
+  feedback?: HomeworkFeedback | null;
   onAnswerChange: (position: number, answer: string) => void;
   onReview: SubmitEventHandler<HTMLFormElement>;
   onConfirm: () => void;
@@ -44,12 +54,38 @@ interface StudentHomeworkResultOnlyViewProps {
   mode: "result-only";
   assignment: StudentHomeworkDetailAssignment;
   result: StudentHomeworkSubmissionResult;
+  feedback?: HomeworkFeedback | null;
 }
 
 type StudentHomeworkViewProps = StudentHomeworkPromptViewProps | StudentHomeworkResultOnlyViewProps;
 
 function displayAnswer(answer: StudentHomeworkAnswerResult["answer"]): string {
   return answer === null || answer.trim() === "" ? "Bez odpowiedzi" : answer;
+}
+
+function TeacherFeedbackCard({ feedback }: { feedback: HomeworkFeedback }) {
+  return (
+    <section
+      className="bg-card text-card-foreground rounded-lg border p-4 shadow-sm sm:p-5"
+      aria-labelledby="student-homework-feedback-heading"
+    >
+      <h3 id="student-homework-feedback-heading" className="flex items-center gap-2 font-semibold">
+        <MessageSquare className="size-4" aria-hidden="true" />
+        Komentarz nauczyciela
+      </h3>
+      <p className="mt-2 leading-7 break-words whitespace-pre-line">{feedback.body}</p>
+      <p className="text-muted-foreground mt-2 text-sm">
+        Zaktualizowano{" "}
+        <time dateTime={feedback.updatedAt}>
+          {new Intl.DateTimeFormat("pl-PL", {
+            dateStyle: "long",
+            timeStyle: "short",
+            timeZone: "Europe/Warsaw",
+          }).format(new Date(feedback.updatedAt))}
+        </time>
+      </p>
+    </section>
+  );
 }
 
 function ResultSummary({ result }: { result: StudentHomeworkSubmissionResult }) {
@@ -106,6 +142,7 @@ export default function StudentHomeworkView(props: StudentHomeworkViewProps) {
           Wynik zadania domowego
         </h2>
         <ResultSummary result={props.result} />
+        {props.feedback && <TeacherFeedbackCard feedback={props.feedback} />}
         <ol className="grid gap-3">
           {props.result.answers.map((answer) => {
             const savedAnswer = answersByPosition.get(answer.position);
@@ -198,6 +235,7 @@ export default function StudentHomeworkView(props: StudentHomeworkViewProps) {
           Wynik zadania domowego
         </h2>
         <ResultSummary result={result} />
+        {props.feedback && <TeacherFeedbackCard feedback={props.feedback} />}
         <ol className="grid gap-3">
           {exercises.map((exercise) => {
             const submittedAnswer = answersByPosition.get(exercise.position);

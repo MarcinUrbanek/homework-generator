@@ -309,6 +309,8 @@ npm run smoke
 
 The smoke suite supplements focused unit and integration tests; it does not replace them.
 
+With a local Supabase, `SMOKE_CLASS_CHECKS=true` and `SMOKE_HOMEWORK_CHECKS=true` (plus `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for fixtures and cleanup) also run the homework checks. These cover assignment boundaries and submission feedback: the teacher review pages and their 404 for another teacher, saving, rejecting (student 403, other teacher 404, unsubmitted 409) and clearing feedback, the student detail and list feedback flag, and that a classmate never sees another student's comment. The homework pool fixtures are certified through `/api/exercises/approve`. Their append-only verification evidence belongs to a stable local account (`smoke-homework-pool-owner@example.test`) that the smoke reuses and does not delete. Approved pool rows and all per-run accounts are deleted at cleanup.
+
 ## CI
 
 GitHub Actions runs two jobs on every push and PR to `master`:

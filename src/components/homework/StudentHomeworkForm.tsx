@@ -77,7 +77,14 @@ function messageForErrorCode(code: StudentHomeworkApiErrorCode | undefined): str
 
 export default function StudentHomeworkForm({ detail }: StudentHomeworkFormProps) {
   if (detail.kind === "result-only") {
-    return <StudentHomeworkView mode="result-only" assignment={detail.assignment} result={detail.result} />;
+    return (
+      <StudentHomeworkView
+        mode="result-only"
+        assignment={detail.assignment}
+        result={detail.result}
+        feedback={detail.feedback}
+      />
+    );
   }
 
   return <StudentHomeworkPromptForm detail={detail} />;
@@ -90,6 +97,7 @@ function StudentHomeworkPromptForm({ detail }: { detail: StudentHomeworkPromptDe
   const [status, setStatus] = useState<StudentHomeworkViewStatus>(submission ? "result" : "editing");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [result, setResult] = useState(submission);
+  const [feedback, setFeedback] = useState(detail.feedback);
   const [historicalResult, setHistoricalResult] = useState<StudentHomeworkResultOnlyDetailSuccess | null>(null);
   const pendingAnswers = useRef<StudentHomeworkSubmitRequest | null>(null);
   const recoveringConflict = useRef(false);
@@ -103,6 +111,7 @@ function StudentHomeworkPromptForm({ detail }: { detail: StudentHomeworkPromptDe
     setValidationErrors({});
     setErrorMessage(null);
     setResult(null);
+    setFeedback(null);
     setHistoricalResult(null);
     setStatus("unavailable");
   }, [exercises]);
@@ -131,6 +140,7 @@ function StudentHomeworkPromptForm({ detail }: { detail: StudentHomeworkPromptDe
       return;
     }
 
+    setFeedback(detail.data.feedback);
     if (detail.data.kind === "result-only") {
       setHistoricalResult(detail.data);
       setResult(detail.data.result);
@@ -170,6 +180,7 @@ function StudentHomeworkPromptForm({ detail }: { detail: StudentHomeworkPromptDe
         }
         if (response.ok) {
           const detail = studentHomeworkDetailSuccessSchema.safeParse(value);
+          if (detail.success) setFeedback(detail.data.feedback);
           if (detail.success && detail.data.kind === "result-only") {
             setHistoricalResult(detail.data);
             setResult(detail.data.result);
@@ -251,6 +262,7 @@ function StudentHomeworkPromptForm({ detail }: { detail: StudentHomeworkPromptDe
         if (parsed.success) {
           const submittedResult = resultFromSubmit(parsed.data);
           setResult(submittedResult);
+          setFeedback(null);
           if (parsed.data.kind === "result-only") {
             setHistoricalResult({ kind: "result-only", assignment, result: submittedResult, feedback: null });
           } else {
@@ -358,6 +370,7 @@ function StudentHomeworkPromptForm({ detail }: { detail: StudentHomeworkPromptDe
         mode="result-only"
         assignment={historicalResult.assignment}
         result={historicalResult.result}
+        feedback={historicalResult.feedback}
       />
     );
   }
@@ -373,6 +386,7 @@ function StudentHomeworkPromptForm({ detail }: { detail: StudentHomeworkPromptDe
       status={status}
       errorMessage={errorMessage}
       result={result}
+      feedback={feedback}
       onAnswerChange={handleAnswerChange}
       onReview={handleReview}
       onConfirm={handleConfirm}

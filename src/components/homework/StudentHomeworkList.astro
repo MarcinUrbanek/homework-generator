@@ -1,4 +1,5 @@
 ---
+import { Badge } from "@/components/ui/badge";
 import { exerciseNoun } from "@/lib/exercises/exercise-count";
 import type { StudentHomeworkSummary } from "@/types";
 
@@ -130,6 +131,11 @@ function cardTitle(assignment: StudentHomeworkSummary): string {
                       {assignment.passed ? "Zaliczone" : "Nie zaliczone"} · {assignment.correctCount}/
                       {assignment.exerciseCount} poprawnych
                     </p>
+                    {assignment.hasFeedback && (
+                      <Badge variant="secondary" className="mt-2">
+                        Komentarz nauczyciela
+                      </Badge>
+                    )}
                   </div>
                   <a
                     class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md border px-4 text-sm font-semibold transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2"
