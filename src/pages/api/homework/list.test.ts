@@ -25,6 +25,7 @@ const listResult: StudentHomeworkListSuccess = {
       submittedAt: null,
       correctCount: null,
       passed: null,
+      hasFeedback: false,
     },
   ],
 };
@@ -135,6 +136,7 @@ describe("GET /api/homework/list", () => {
           submitted_at: null,
           correct_count: null,
           passed: null,
+          has_feedback: false,
         },
       ],
       error: null,

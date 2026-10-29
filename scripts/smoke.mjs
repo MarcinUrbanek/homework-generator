@@ -89,10 +89,7 @@ function hasTeacherPanelContent(actual) {
   const hasLink = ([href, label]) => {
     const escapedHref = href.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp(
-      `<a\\b[^>]*\\bhref=["']${escapedHref}["'][^>]*>\\s*${escapedLabel}\\s*</a>`,
-      "i",
-    ).test(html);
+    return new RegExp(`<a\\b[^>]*\\bhref=["']${escapedHref}["'][^>]*>\\s*${escapedLabel}\\s*</a>`, "i").test(html);
   };
 
   return (
@@ -647,11 +644,7 @@ const steps = [
     () => request("/"),
     { status: 200, validate: hasTeacherPanelContent },
   ],
-  [
-    "retired dashboard route remains unavailable when authenticated",
-    () => request("/dashboard"),
-    { status: 404 },
-  ],
+  ["retired dashboard route remains unavailable when authenticated", () => request("/dashboard"), { status: 404 }],
   ["exercise request renders for teacher", () => request("/exercises/request"), { status: 200 }],
 
   ...(classChecksEnabled

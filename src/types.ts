@@ -381,6 +381,7 @@ export interface StudentHomeworkSummary {
   submittedAt: string | null;
   correctCount: number | null;
   passed: boolean | null;
+  hasFeedback: boolean;
 }
 
 export interface StudentHomeworkListSuccess {
@@ -415,17 +416,24 @@ export interface StudentHomeworkSubmissionResult {
   answers: StudentHomeworkAnswerResult[];
 }
 
+export interface HomeworkFeedback {
+  body: string;
+  updatedAt: string;
+}
+
 export interface StudentHomeworkPromptDetailSuccess {
   kind: "prompts";
   assignment: StudentHomeworkDetailAssignment;
   exercises: StudentHomeworkExercise[];
   submission: StudentHomeworkSubmissionResult | null;
+  feedback: HomeworkFeedback | null;
 }
 
 export interface StudentHomeworkResultOnlyDetailSuccess {
   kind: "result-only";
   assignment: StudentHomeworkDetailAssignment;
   result: StudentHomeworkSubmissionResult;
+  feedback: HomeworkFeedback | null;
 }
 
 export type StudentHomeworkDetailSuccess = StudentHomeworkPromptDetailSuccess | StudentHomeworkResultOnlyDetailSuccess;

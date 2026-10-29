@@ -48,7 +48,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 function detailResponse(submission: StudentHomeworkSubmissionResult | null): StudentHomeworkDetailSuccess {
-  return { kind: "prompts", assignment, exercises, submission };
+  return { kind: "prompts", assignment, exercises, submission, feedback: null };
 }
 
 function resultOnlyDetail(): StudentHomeworkDetailSuccess {
@@ -56,6 +56,7 @@ function resultOnlyDetail(): StudentHomeworkDetailSuccess {
     kind: "result-only",
     assignment,
     result: persistedResult,
+    feedback: null,
   };
 }
 

@@ -34,6 +34,7 @@ function validSummary() {
     submitted_at: null,
     correct_count: null,
     passed: null,
+    has_feedback: false,
   };
 }
 
@@ -48,6 +49,7 @@ function validPublicSummary() {
     submittedAt: null,
     correctCount: null,
     passed: null,
+    hasFeedback: false,
   };
 }
 
@@ -82,6 +84,7 @@ function validDetail() {
       { position: 2, prompt: "Ile to 2 + 2?" },
     ],
     submission: null,
+    feedback: null,
   };
 }
 
@@ -208,6 +211,60 @@ describe("student homework RPC schemas", () => {
         exercises: [{ ...validDetail().exercises[0], exercise_id: assignmentId }],
       }).success,
     ).toBe(false);
+  });
+
+  it("accepts feedback only alongside a submitted result", () => {
+    const feedback = { body: "Dobra praca.\nPopraw zadanie 2.", updated_at: submittedAt };
+    const submission = {
+      submission_id: "00000000-0000-4000-8000-000000000002",
+      submitted_at: submittedAt,
+      correct_count: 1,
+      assigned_count: 2,
+      passed: true,
+      answers: [
+        { position: 1, answer: "1", normalized_answer: "1", is_correct: true },
+        { position: 2, answer: null, normalized_answer: null, is_correct: false },
+      ],
+    };
+
+    expect(studentHomeworkDetailRpcSchema.safeParse({ ...validDetail(), submission, feedback }).success).toBe(true);
+    expect(studentHomeworkDetailRpcSchema.safeParse({ ...validDetail(), feedback }).success).toBe(false);
+    expect(
+      studentHomeworkDetailRpcSchema.safeParse({
+        ...validDetail(),
+        submission,
+        feedback: { ...feedback, body: "a".repeat(2001) },
+      }).success,
+    ).toBe(false);
+    expect(
+      studentHomeworkDetailRpcSchema.safeParse({ ...validDetail(), submission, feedback: { ...feedback, body: "  " } })
+        .success,
+    ).toBe(false);
+    expect(
+      studentHomeworkDetailRpcSchema.safeParse({
+        ...validDetail(),
+        submission,
+        feedback: { ...feedback, teacher_id: assignmentId },
+      }).success,
+    ).toBe(false);
+    const { feedback: _omitted, ...withoutFeedback } = validDetail();
+    expect(studentHomeworkDetailRpcSchema.safeParse(withoutFeedback).success).toBe(false);
+  });
+
+  it("requires the list feedback flag and rejects it on unsubmitted homework", () => {
+    const { has_feedback: _omitted, ...withoutFlag } = validSummary();
+    expect(studentHomeworkSummaryRpcRowSchema.safeParse(withoutFlag).success).toBe(false);
+    expect(studentHomeworkSummaryRpcRowSchema.safeParse({ ...validSummary(), has_feedback: true }).success).toBe(false);
+    expect(
+      studentHomeworkSummaryRpcRowSchema.safeParse({
+        ...validSummary(),
+        submitted: true,
+        submitted_at: submittedAt,
+        correct_count: 1,
+        passed: true,
+        has_feedback: true,
+      }).success,
+    ).toBe(true);
   });
 
   it("validates persisted raw and normalized results while excluding normalized data from public DTOs", () => {

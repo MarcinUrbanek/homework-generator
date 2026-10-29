@@ -30,6 +30,7 @@ const detail: StudentHomeworkDetailSuccess = {
     { position: 2, prompt: "Ile to 2 + 2?" },
   ],
   submission: null,
+  feedback: null,
 };
 
 function context(userId: string | null = "student", pathAssignmentId: string = assignmentId): APIContext {
@@ -143,6 +144,7 @@ describe("GET /api/homework/:assignmentId", () => {
           { position: 2, answer: "3", isCorrect: false },
         ],
       },
+      feedback: null,
     };
     const { handler } = handlerFor({ detail: savedResult });
 
@@ -175,6 +177,7 @@ describe("GET /api/homework/:assignmentId", () => {
           { position: 2, prompt: "Ile to 2 + 2?" },
         ],
         submission: null,
+        feedback: null,
       },
       error: null,
     });

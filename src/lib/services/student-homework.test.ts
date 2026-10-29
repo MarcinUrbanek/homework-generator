@@ -35,6 +35,7 @@ function summaryRow(overrides: Record<string, unknown> = {}) {
     submitted_at: null,
     correct_count: null,
     passed: null,
+    has_feedback: false,
     ...overrides,
   };
 }
@@ -82,6 +83,7 @@ function detailRow(withSubmission = false) {
           ],
         }
       : null,
+    feedback: null,
   };
 }
 
@@ -106,6 +108,7 @@ function resultOnlyDetailRow() {
         { position: 2, answer: null, is_correct: false },
       ],
     },
+    feedback: null,
   };
 }
 
@@ -167,6 +170,7 @@ describe("student homework adapters", () => {
       submittedAt: null,
       correctCount: null,
       passed: null,
+      hasFeedback: false,
     });
     expect(JSON.stringify(result)).not.toMatch(/canonical_answer|exercise_id|recipient_id|student_email|verifier/i);
   });
@@ -219,6 +223,7 @@ describe("student homework adapters", () => {
           { position: 2, answer: null, isCorrect: false },
         ],
       },
+      feedback: null,
     });
     expect(JSON.stringify(result)).not.toMatch(/normalized_answer|canonical_answer|exercise_id|verifier|classmate/i);
   });
@@ -248,8 +253,55 @@ describe("student homework adapters", () => {
           { position: 2, answer: null, isCorrect: false },
         ],
       },
+      feedback: null,
     });
     expect(JSON.stringify(result)).not.toMatch(/prompt|canonical_answer|normalized_answer|authority/i);
+  });
+
+  it("maps student feedback and the list feedback flag to public fields", async () => {
+    const listRpc = vi.fn().mockResolvedValue({
+      success: true,
+      data: [
+        summaryRow({
+          submitted: true,
+          submitted_at: submittedAt,
+          correct_count: 1,
+          passed: true,
+          has_feedback: true,
+        }),
+      ],
+      error: null,
+    });
+    await expect(listStudentHomework(rpcClient(listRpc))).resolves.toMatchObject({
+      assignments: [{ assignmentId, hasFeedback: true }],
+    });
+
+    const feedback = { body: "Dobra praca.\nPopraw zadanie 2.", updated_at: "2026-10-10T08:00:00.000Z" };
+    const promptRpc = vi.fn().mockResolvedValue({ success: true, data: { ...detailRow(true), feedback }, error: null });
+    await expect(getStudentHomework(rpcClient(promptRpc), assignmentId)).resolves.toMatchObject({
+      kind: "prompts",
+      feedback: { body: feedback.body, updatedAt: feedback.updated_at },
+    });
+
+    const resultOnlyRpc = vi.fn().mockResolvedValue({ data: { ...resultOnlyDetailRow(), feedback }, error: null });
+    await expect(getStudentHomework(rpcClient(resultOnlyRpc), assignmentId)).resolves.toMatchObject({
+      kind: "result-only",
+      feedback: { body: feedback.body, updatedAt: feedback.updated_at },
+    });
+  });
+
+  it("rejects feedback without a submission and rows missing the feedback fields", async () => {
+    const feedback = { body: "Komentarz", updated_at: "2026-10-10T08:00:00.000Z" };
+    const orphanRpc = vi.fn().mockResolvedValue({ data: { ...detailRow(false), feedback }, error: null });
+    await expect(getStudentHomework(rpcClient(orphanRpc), assignmentId)).rejects.toMatchObject({
+      code: "PERSISTENCE_FAILURE",
+    });
+
+    const { feedback: _omitted, ...legacyDetail } = detailRow(true);
+    const legacyRpc = vi.fn().mockResolvedValue({ data: legacyDetail, error: null });
+    await expect(getStudentHomework(rpcClient(legacyRpc), assignmentId)).rejects.toMatchObject({
+      code: "PERSISTENCE_FAILURE",
+    });
   });
 
   it("rejects malformed detail results and invalid IDs without disclosing SQL messages", async () => {

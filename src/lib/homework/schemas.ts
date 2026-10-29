@@ -137,6 +137,27 @@ export function isHomeworkApiErrorCode(value: string): value is HomeworkApiError
   return homeworkApiErrorCodeSchema.safeParse(value).success;
 }
 
+export const HOMEWORK_FEEDBACK_MAX_LENGTH = 2000;
+
+const homeworkFeedbackBodySchema = z
+  .string()
+  .max(HOMEWORK_FEEDBACK_MAX_LENGTH)
+  .refine((value) => value.trim().length > 0);
+
+export const homeworkFeedbackRpcSchema = z
+  .object({
+    body: homeworkFeedbackBodySchema,
+    updated_at: z.iso.datetime({ offset: true }),
+  })
+  .strict();
+
+export const homeworkFeedbackSchema = z
+  .object({
+    body: homeworkFeedbackBodySchema,
+    updatedAt: z.iso.datetime({ offset: true }),
+  })
+  .strict();
+
 const studentHomeworkExerciseCountSchema = z.number().int().min(1).max(5);
 const studentHomeworkAnswerPositionSchema = z.number().int().min(1).max(5);
 const studentHomeworkRawAnswerSchema = z
@@ -166,15 +187,20 @@ function validateHomeworkSubmissionSummary(
     correctCount,
     passed,
     exerciseCount,
+    hasFeedback,
   }: {
     submitted: boolean;
     submittedAt: string | null;
     correctCount: number | null;
     passed: boolean | null;
     exerciseCount: number;
+    hasFeedback: boolean;
   },
   context: z.RefinementCtx,
 ) {
+  if (hasFeedback && !submitted) {
+    context.addIssue({ code: "custom", path: ["hasFeedback"], message: "Feedback requires a submission" });
+  }
   const hasCompleteResult = submittedAt !== null && correctCount !== null && passed !== null;
   if (
     submitted !== hasCompleteResult ||
@@ -295,14 +321,25 @@ export const studentHomeworkSummaryRpcRowSchema = z
     submitted_at: z.iso.datetime({ offset: true }).nullable(),
     correct_count: z.number().int().min(0).nullable(),
     passed: z.boolean().nullable(),
+    has_feedback: z.boolean(),
   })
   .strict()
   .superRefine(
     (
-      { submitted, submitted_at: submittedAt, correct_count: correctCount, passed, exercise_count: exerciseCount },
+      {
+        submitted,
+        submitted_at: submittedAt,
+        correct_count: correctCount,
+        passed,
+        exercise_count: exerciseCount,
+        has_feedback: hasFeedback,
+      },
       context,
     ) => {
-      validateHomeworkSubmissionSummary({ submitted, submittedAt, correctCount, passed, exerciseCount }, context);
+      validateHomeworkSubmissionSummary(
+        { submitted, submittedAt, correctCount, passed, exerciseCount, hasFeedback },
+        context,
+      );
     },
   );
 
@@ -317,10 +354,14 @@ export const studentHomeworkSummarySchema = z
     submittedAt: z.iso.datetime({ offset: true }).nullable(),
     correctCount: z.number().int().min(0).nullable(),
     passed: z.boolean().nullable(),
+    hasFeedback: z.boolean(),
   })
   .strict()
-  .superRefine(({ submitted, submittedAt, correctCount, passed, exerciseCount }, context) => {
-    validateHomeworkSubmissionSummary({ submitted, submittedAt, correctCount, passed, exerciseCount }, context);
+  .superRefine(({ submitted, submittedAt, correctCount, passed, exerciseCount, hasFeedback }, context) => {
+    validateHomeworkSubmissionSummary(
+      { submitted, submittedAt, correctCount, passed, exerciseCount, hasFeedback },
+      context,
+    );
   });
 
 export const studentHomeworkListSuccessSchema = z
@@ -349,9 +390,10 @@ const studentHomeworkPromptDetailRpcSchema = z
       .strict()
       .array(),
     submission: studentHomeworkSubmissionResultRpcSchema.nullable(),
+    feedback: homeworkFeedbackRpcSchema.nullable(),
   })
   .strict()
-  .superRefine(({ assignment, exercises, submission }, context) => {
+  .superRefine(({ assignment, exercises, submission, feedback }, context) => {
     validateOrderedPositions(
       exercises.map(({ position }) => position),
       assignment.exercise_count,
@@ -364,6 +406,9 @@ const studentHomeworkPromptDetailRpcSchema = z
         path: ["submission", "assigned_count"],
         message: "Submission count mismatch",
       });
+    }
+    if (feedback && !submission) {
+      context.addIssue({ code: "custom", path: ["feedback"], message: "Feedback requires a submission" });
     }
   });
 
@@ -414,6 +459,7 @@ const studentHomeworkResultOnlyDetailRpcSchema = z
     kind: z.literal("result-only"),
     assignment: studentHomeworkAssignmentRpcSchema,
     result: studentHomeworkResultOnlySubmissionRpcSchema,
+    feedback: homeworkFeedbackRpcSchema.nullable(),
   })
   .strict()
   .superRefine(({ assignment, result }, context) => {
@@ -527,9 +573,10 @@ const studentHomeworkPromptDetailSuccessSchema = z
       .strict()
       .array(),
     submission: studentHomeworkSubmissionResultSchema.nullable(),
+    feedback: homeworkFeedbackSchema.nullable(),
   })
   .strict()
-  .superRefine(({ assignment, exercises, submission }, context) => {
+  .superRefine(({ assignment, exercises, submission, feedback }, context) => {
     validateOrderedPositions(
       exercises.map(({ position }) => position),
       assignment.exerciseCount,
@@ -538,6 +585,9 @@ const studentHomeworkPromptDetailSuccessSchema = z
     );
     if (submission && submission.assignedCount !== assignment.exerciseCount) {
       context.addIssue({ code: "custom", path: ["submission", "assignedCount"], message: "Submission count mismatch" });
+    }
+    if (feedback && !submission) {
+      context.addIssue({ code: "custom", path: ["feedback"], message: "Feedback requires a submission" });
     }
   });
 
@@ -554,6 +604,7 @@ const studentHomeworkResultOnlyDetailSuccessSchema = z
       })
       .strict(),
     result: studentHomeworkSubmissionResultSchema,
+    feedback: homeworkFeedbackSchema.nullable(),
   })
   .strict()
   .superRefine(({ assignment, result }, context) => {

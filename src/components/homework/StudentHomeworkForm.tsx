@@ -252,7 +252,7 @@ function StudentHomeworkPromptForm({ detail }: { detail: StudentHomeworkPromptDe
           const submittedResult = resultFromSubmit(parsed.data);
           setResult(submittedResult);
           if (parsed.data.kind === "result-only") {
-            setHistoricalResult({ kind: "result-only", assignment, result: submittedResult });
+            setHistoricalResult({ kind: "result-only", assignment, result: submittedResult, feedback: null });
           } else {
             setHistoricalResult(null);
           }

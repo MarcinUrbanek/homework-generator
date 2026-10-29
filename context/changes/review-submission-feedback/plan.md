@@ -328,14 +328,27 @@ Additive table and functions; `list_student_homework` is dropped/recreated withi
 
 #### Automated
 
-- [ ] 1.1 Migration applies cleanly on local Supabase: `npx supabase db reset`
-- [ ] 1.2 Database tests pass, including the new feedback suite: `npm run db:test`
-- [ ] 1.3 Unit tests pass: `npm test`
-- [ ] 1.4 Lint passes: `npm run lint`
+- [x] 1.1 Migration applies cleanly on local Supabase: `npx supabase db reset`
+- [x] 1.2 Database tests pass, including the new feedback suite: `npm run db:test`
+- [x] 1.3 Unit tests pass: `npm test`
+- [x] 1.4 Lint passes: `npm run lint`
 
 #### Manual
 
 - [ ] 1.5 With local seed data, the student homework list and a submitted homework detail still render (no "Nie udało się wczytać zadań domowych"), confirming schema compatibility
+
+#### Notes
+
+- Implemented in the main context (unattended run, no subagent).
+- Migration `20261029120000_add_homework_submission_feedback.sql`. Internal helpers `owned_homework_assignment_summary(uuid)` and `homework_submission_feedback_json(uuid)` are SECURITY DEFINER with execute revoked from every role. They are not RPCs.
+- Feedback body: ASCII whitespace is trimmed before storage, and the 2000-character limit applies after trimming. Line breaks inside the body are kept.
+- `teacher_id` uses `on delete cascade`, matching `homework_assignments.teacher_id`.
+- Save check order: not owned or unknown → `P0002`; null or over-length body → `22023`; student is not a recipient → `P0002`; student departed → `P0003`; homework not submitted → `P0003`. A blank body clears the feedback, but clearing is also blocked (`P0003`) for departed students.
+- The `anon` role has no execute grant, so it gets `42501`. An authenticated session without a user id gets `P0002`. pgTAP covers both cases.
+- The TS schemas reject `has_feedback=true` without a submission, and reject `feedback` without a submission or result.
+- `StudentHomeworkForm` sets `feedback: null` on a freshly submitted result-only result only to keep the types valid. Feedback display lands in Phase 4.
+- `npm test` ran with `--maxWorkers=2`. Under full parallel load, unrelated suites (exercises, HomeworkAssignmentForm, class-invitation-status) hit 5 s timeouts, and the failing set changed between runs. All 594 tests pass with lower contention.
+- Fixed two lint errors that already existed in untouched files so the lint gate could pass: `src/middleware.test.ts` (helper param type and needless optional chains) and Prettier formatting in `scripts/smoke.mjs`.
 
 ### Phase 2: Teacher review service and API
 

@@ -146,6 +146,7 @@ export async function listStudentHomework(client: RequestClient): Promise<Studen
     submittedAt: row.submitted_at,
     correctCount: row.correct_count,
     passed: row.passed,
+    hasFeedback: row.has_feedback,
   }));
   const result = studentHomeworkListSuccessSchema.safeParse({ assignments });
   if (!result.success) throw new StudentHomeworkServiceError("PERSISTENCE_FAILURE");
@@ -186,6 +187,9 @@ export async function getStudentHomework(
       })
     : null;
   if (submissionResult && !submissionResult.success) throw new StudentHomeworkServiceError("PERSISTENCE_FAILURE");
+  const feedback = detail.data.feedback
+    ? { body: detail.data.feedback.body, updatedAt: detail.data.feedback.updated_at }
+    : null;
 
   const result = studentHomeworkDetailSuccessSchema.safeParse(
     detail.data.kind === "result-only"
@@ -193,12 +197,14 @@ export async function getStudentHomework(
           kind: "result-only",
           assignment,
           result: submissionResult?.success ? submissionResult.data : null,
+          feedback,
         }
       : {
           kind: "prompts",
           assignment,
           exercises: detail.data.exercises.map(({ position, prompt }) => ({ position, prompt })),
           submission: submissionResult?.success ? submissionResult.data : null,
+          feedback,
         },
   );
   if (!result.success) throw new StudentHomeworkServiceError("PERSISTENCE_FAILURE");
