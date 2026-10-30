@@ -69,7 +69,7 @@ folder and moves through the fixed orchestrator vocabulary.
 | #   | Phase name                              | Goal (one line)                                                                                                                | Risks covered | Test types                         | Status      | Change folder                                   |
 | --- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------- | ---------------------------------- | ----------- | ----------------------------------------------- |
 | 1   | Authorization and invitation boundaries | Prove role/ownership denials and non-disclosing pre-enrollment invitation status; S-05 separately covers acceptance and replay | #1, #4        | API integration + database         | complete    | testing-authorization-and-invitation-boundaries |
-| 2   | Exercise trust and provider resilience  | Prove costly calls are bounded, approval evidence is trustworthy, and partial failures preserve settled work                   | #2, #3, #5    | unit + integration + contract      | implementing | testing-exercise-trust-and-provider-resilience |
+| 2   | Exercise trust and provider resilience  | Prove costly calls are bounded, approval evidence is trustworthy, and partial failures preserve settled work                   | #2, #3, #5    | unit + integration + contract      | complete    | testing-exercise-trust-and-provider-resilience  |
 | 3   | Assignment and scoring contracts        | Prove distinct fair assignments and the 50% result use immutable approved answers                                              | #6            | domain unit + database integration | not started | —                                               |
 | 4   | Critical-flow quality gates             | Enforce the shipped risk coverage and a minimal full-flow signal before production                                             | cross-cutting | CI gates + critical-flow smoke/e2e | not started | —                                               |
 
@@ -96,16 +96,20 @@ React components; five pgTAP database suites cover Supabase behavior.
 
 ## 5. Quality Gates
 
-Every planned gate is owned by Phase 4; no new hook, visual, or AI-native
-gate is justified because deterministic tests give cheaper signal for the
-ranked risks.
+Hooks and CI below are already in place. Making the remaining gates required
+in CI is Phase 4's job. No visual or AI-native gate is justified, because
+deterministic tests give cheaper signal for the ranked risks.
 
-| Gate                      | Where      | Required?                 | Catches                                                         |
-| ------------------------- | ---------- | ------------------------- | --------------------------------------------------------------- |
-| lint + production build   | local + CI | required                  | syntax, type-aware lint, and SSR build drift                    |
-| Vitest unit + integration | local + CI | required after §3 Phase 4 | domain, API, and provider-boundary regressions                  |
-| Supabase database tests   | local + CI | required after §3 Phase 4 | RLS, ownership, token, and persistence regressions              |
-| critical-flow smoke/e2e   | CI on PR   | required after §3 Phase 4 | broken role-separated homework paths across deployed boundaries |
+| Gate                                   | Where                                                                                      | Required?                                                          | Catches                                                                                                                 |
+| -------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| agent hook: per-edit file check        | agent `PostToolUse` (`.github/hooks/quality.json` → `quality.mjs`)                         | required (agent sessions)                                          | ESLint errors in edited `ts/tsx/astro` files; Prettier drift in edited files                                            |
+| agent hook: end-of-turn check          | agent `Stop` (`.github/hooks/quality.json` → `quality.mjs`)                                | required (agent sessions)                                          | ESLint/Prettier on changed files, `astro check` type errors, broken build                                               |
+| pre-commit (husky + lint-staged)       | local commit (`.husky/pre-commit`)                                                         | required                                                           | auto-fixable lint (`eslint --fix`) and formatting (`prettier --write`) drift                                            |
+| lint + type check + production build   | local + CI (`ci` job)                                                                      | required                                                           | syntax, type-aware lint, `astro check`, and SSR build drift                                                             |
+| Vitest unit + integration              | local + CI (`ci` job, `npm test`)                                                          | required                                                           | domain, API, and provider-boundary regressions                                                                          |
+| Supabase database tests                | local (`npm run db:test`)                                                                  | required after §3 Phase 4                                          | RLS, ownership, token, and persistence regressions                                                                      |
+| auth-flow + homework smoke             | CI on push/PR (`smoke` job, production preview + local Supabase)                           | required                                                           | broken auth redirects, class and homework paths across deployed boundaries                                              |
+| Playwright E2E (`npx playwright test`) | local, before PR (production preview + local Supabase; see [test-stack.md](test-stack.md)) | required for auth/role-gate changes; CI wiring owned by §3 Phase 4 | auth-gate round-trip (`seed.spec.ts`) and teacher-page role gates (`role-gate-teacher-pages.spec.ts`) in a real browser |
 
 ## 6. Cookbook Patterns
 
@@ -147,7 +151,7 @@ that establishes its canonical pattern.
 - Phase 1 shipped role/ownership denials and pre-enrollment invitation status/auth-continuation tests. These do not prove enrollment or replay safety.
 - S-05 separately shipped the atomic acceptance operation and pgTAP coverage for acceptance-time eligibility, membership creation, same-user retry, wrong-recipient denial, and replay denial. Keep these guarantees attributed to S-05 rather than retroactively expanding Phase 1's test scope.
 - The `exercise-trust-provider-resilience` change covers bounded generation admission for risk #2; reuse its tests without duplicating them here.
-- The `trustworthy-exercise-approval` change owns Risk #3 runtime authority and its direct tests. `testing-exercise-trust-and-provider-resilience` adds Risk #5 generation/API partial-batch coverage; existing verification-handler tests cover per-item success retention alongside a timeout. Phase 2 remains open until both changes complete.
+- The `trustworthy-exercise-approval` change owns Risk #3 runtime authority and its direct tests. `testing-exercise-trust-and-provider-resilience` adds Risk #5 generation/API partial-batch coverage; existing verification-handler tests cover per-item success retention alongside a timeout. Both changes were archived (2026-10-14 and 2026-10-18), so Phase 2 is complete.
 - Risk #3 authority coverage uses independent literal vectors in the TypeScript and database authority suites, then composes the production generator with deterministic verification while stubbing only provider fetch. Keep promotion and student-consumption proof in the real database suites. Focused commands: `npm test -- src/lib/exercises/arithmetic-authority.test.ts src/lib/services/arithmetic-exercise-verifier.test.ts src/lib/services/openrouter-exercise-generator.test.ts src/pages/api/exercises` and `npm run db:test`; do not infer release readiness until the maintenance-window, legacy-count, rollback, and manual student-flow evidence is recorded in the [change evidence record](../changes/trustworthy-exercise-approval/phase-5-evidence.md).
 
 ## 7. What We Deliberately Don't Test
@@ -159,6 +163,7 @@ that establishes its canonical pattern.
 
 - Strategy (§1–§5) last reviewed: 2026-10-03
 - Risk #4 and Phase 1 rollout status reconciled with roadmap S-05: 2026-10-07
+- Phase 2 status and §5 Quality Gates (hooks + Playwright E2E) reconciled: 2026-10-30
 - Stack versions last verified: 2026-10-03
 - AI-native tool references last verified: 2026-10-03
 
