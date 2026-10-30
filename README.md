@@ -201,6 +201,22 @@ npx wrangler deploy
 
 Set `SUPABASE_URL` and `SUPABASE_KEY` as secrets in your Cloudflare dashboard or via `npx wrangler secret put`.
 
+## Error tracking (Sentry, optional)
+
+Server-side errors can be sent to [Sentry](https://sentry.io). This follows Sentry's [Astro on Cloudflare](https://docs.sentry.io/platforms/javascript/guides/cloudflare/frameworks/astro/) guide and uses the server SDK only (`@sentry/cloudflare`).
+
+- `wrangler.jsonc` `main` points to `sentry.server.config.ts`, which wraps Astro's Cloudflare handler with `Sentry.withSentry`.
+- **Without `SENTRY_DSN` Sentry is off:** requests go straight to Astro's handler, Sentry is never initialized, and nothing is sent. Local dev, CI, tests and the smoke run need no Sentry setup.
+- `logError` (`src/lib/observability/log-error.ts`) always writes `console.error({ event, route, userId, ... }, error)` to Workers Logs. When Sentry is enabled, it also calls `Sentry.captureException` (or `captureMessage` when there's no error object). The `event`/`route` go in as tags, the user **id** (never the email) as the user, and the rest as `extra`. Other data collection (headers, cookies, IP) is left at the SDK v11 `dataCollection` defaults; review them before enabling in production.
+
+To turn it on:
+
+1. Create a Sentry project (platform: Cloudflare) and copy its DSN.
+2. Set the secret for the deployed Worker: `npx wrangler secret put SENTRY_DSN`. Optionally set `SENTRY_ENVIRONMENT` (for example `production`) as a variable.
+3. For a local preview, add `SENTRY_DSN=...` to `.dev.vars` (gitignored). Never commit a DSN.
+
+Not included yet: browser-side capture (`@sentry/astro` client config, see audit finding PL-5) and source-map upload (needs a `SENTRY_AUTH_TOKEN` at build time).
+
 ## OpenRouter exercise generation
 
 Exercise candidates are generated server-side. Keep provider values in the gitignored `.dev.vars` file for local Cloudflare development:

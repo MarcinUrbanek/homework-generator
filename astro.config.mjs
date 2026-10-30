@@ -24,6 +24,8 @@ export default defineConfig({
       RESEND_API_KEY: envField.string({ context: "server", access: "secret", optional: true }),
       RESEND_FROM_EMAIL: envField.string({ context: "server", access: "secret", optional: true }),
       PUBLIC_APP_ORIGIN: envField.string({ context: "server", access: "public", optional: true }),
+      // Read by the Worker entry (sentry.server.config.ts); Sentry stays off when unset.
+      SENTRY_DSN: envField.string({ context: "server", access: "secret", optional: true }),
     },
   },
 });
