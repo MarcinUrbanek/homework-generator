@@ -2,8 +2,8 @@
   "package": "@przeprogramowani/10x-cli",
   "version": "1.22.0",
   "manifestVersion": 3,
-  "lastApplied": "2026-10-30T06:12:48.675Z",
-  "lessonId": "m3l4",
+  "lastApplied": "2026-10-30T08:57:24.247Z",
+  "lessonId": "m3l5",
   "course": "10xdevs4",
   "tool": "copilot",
   "files": {
@@ -360,6 +360,24 @@
           "references/e2e-quality-rules.md": "443c864e6844729666e179e26f6cfcbc872898442f7f2c1d8d153be7bd08bef6",
           "references/mocking-external-apis.md": "9556f4e8dca141bf43eed56a3a86d813785043f383e94377396c227ac894b2cb",
           "references/seed-test-pattern.md": "775ef3244f7694739b6cbacd84ee79e6060f42af9abe61b8c59e8f94893a272c"
+        }
+      },
+      "10x-observability-audit": {
+        "files": [
+          "SKILL.md",
+          "references/auditor-briefs.md",
+          "references/gap-taxonomy.md",
+          "references/report-template.md",
+          "references/runtime-probes.md",
+          "scripts/fake-ingest.mjs"
+        ],
+        "contentHashes": {
+          "SKILL.md": "90fb098a9a2340cd4b4c0c56aef4ab0dff1334a99201a88a31609739153d03ce",
+          "references/auditor-briefs.md": "23d911f864d5d332567dd9eb5d1620032687f5f8f113504f57023b15e14349c7",
+          "references/gap-taxonomy.md": "53a93cc35b379e715c30ac2a3259557ec3de1db6ed7f0943f036389f94f33e2a",
+          "references/report-template.md": "62b899ba58760e8d4b00137db891df3db6ece79708df920569dbbd1f7cc082c5",
+          "references/runtime-probes.md": "5b2b2784874f1de693b41d312a01d519bc31b0e5632b6a3b9f5c7d771e76a1e1",
+          "scripts/fake-ingest.mjs": "ad5877bb0924a1faa42b5d186d05b314ed899fc973de422f200074237510bc12"
         }
       }
     },
@@ -2204,6 +2222,23 @@
       },
       "installedReleaseId": "r-5a881691e49bc76caa8246859885fd0f6213df0a3841d25e221fa9294a2b4673",
       "installedManifestHash": "11d85eaf9ca2fe01249cc24a43f5b6aca196b16fb79576a3d3a29bc08ba9863d"
+    },
+    "m3l5": {
+      "appliedAt": "2026-10-30T08:57:24.247Z",
+      "skills": {
+        "10x-observability-audit": {
+          "files": [
+            "SKILL.md",
+            "references/auditor-briefs.md",
+            "references/gap-taxonomy.md",
+            "references/report-template.md",
+            "references/runtime-probes.md",
+            "scripts/fake-ingest.mjs"
+          ]
+        }
+      },
+      "prompts": [],
+      "configs": []
     }
   },
   "managedRules": {

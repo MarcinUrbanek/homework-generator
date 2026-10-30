@@ -1,0 +1,178 @@
+diff --git a/src/components/ProbeThrow.astro b/src/components/ProbeThrow.astro
+new file mode 100644
+index 0000000..f596145
+--- /dev/null
++++ b/src/components/ProbeThrow.astro
+@@ -0,0 +1,7 @@
++---
++if (Astro.request.headers.get("x-probe") === "P10") {
++  throw new Error("probe-P10", { cause: new Error("probe-P10-cause") });
++}
++---
++
++<span hidden data-probe="P10-ok"></span>
+diff --git a/src/middleware.ts b/src/middleware.ts
+index 3bb35db..55f075f 100644
+--- a/src/middleware.ts
++++ b/src/middleware.ts
+@@ -1,5 +1,6 @@
+ import { defineMiddleware } from "astro:middleware";
+ import { createClient } from "@/lib/supabase";
++import { createServerClient, parseCookieHeader } from "@supabase/ssr";
+ 
+ const PROTECTED_ROUTES = ["/dashboard", "/exercises", "/classes", "/homework"];
+ 
+@@ -8,7 +9,21 @@ export const onRequest = defineMiddleware(async (context, next) => {
+     return new Response(null, { status: 404 });
+   }
+ 
+-  const supabase = createClient(context.request.headers, context.cookies);
++  // PROBE: separator request for log attribution
++  const probeMarker = context.request.headers.get("x-probe-marker");
++  if (probeMarker) {
++    // eslint-disable-next-line no-console
++    console.log(`PROBE-MARKER ${probeMarker}`);
++    return new Response(null, { status: 204 });
++  }
++  const probe = context.request.headers.get("x-probe");
++
++  const supabase =
++    probe === "P5b"
++      ? createServerClient("http://127.0.0.1:9", "probe-dead-key", {
++          cookies: { getAll: () => parseCookieHeader(context.request.headers.get("Cookie") ?? ""), setAll: () => {} },
++        })
++      : createClient(context.request.headers, context.cookies);
+ 
+   if (supabase) {
+     const {
+@@ -30,5 +45,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
+     }
+   }
+ 
++  if (probe === "P5") {
++    throw new Error("probe-P5");
++  }
++
+   return next();
+ });
+diff --git a/src/pages/api/exercises/request.ts b/src/pages/api/exercises/request.ts
+index 3099382..0eb8ae7 100644
+--- a/src/pages/api/exercises/request.ts
++++ b/src/pages/api/exercises/request.ts
+@@ -77,6 +77,36 @@ export function createExerciseRequestHandler(dependencies: ExerciseRequestHandle
+   };
+ 
+   return async (context) => {
++    const probe = context.request.headers.get("x-probe");
++    if (probe === "P1") {
++      throw new Error("probe-P1", { cause: new Error("probe-P1-cause") });
++    }
++    if (probe === "P7") {
++      void Promise.reject(new Error("probe-P7"));
++      return new Response(JSON.stringify({ ok: true, probe }), { status: 200 });
++    }
++    if (probe === "P8") {
++      const locals = context.locals as unknown as { cfContext?: { waitUntil(p: Promise<unknown>): void } };
++      if (!locals.cfContext) {
++        return new Response(JSON.stringify({ probe, cfContext: false }), { status: 200 });
++      }
++      locals.cfContext.waitUntil(
++        new Promise((_, reject) => setTimeout(() => reject(new Error("probe-P8-background")), 50)),
++      );
++      return new Response(JSON.stringify({ probe, cfContext: true }), { status: 200 });
++    }
++    if (probe === "P9") {
++      // eslint-disable-next-line no-console
++      console.error("probe-P9", new Error("probe-P9", { cause: new Error("probe-P9-cause") }));
++      return new Response(JSON.stringify({ probe }), { status: 500 });
++    }
++    const probeGenerate: GenerationFunction =
++      probe === "P4"
++        ? () => Promise.reject(new Error("probe-P4-openrouter-500 status=500"))
++        : () => Promise.reject(new Error("probe-no-real-openrouter"));
++    const probeAdmit: AdmissionFunction =
++      probe === "P4b" ? () => Promise.reject(new Error("probe-P4b-db-down")) : admit;
++
+     let requestValue: unknown;
+     try {
+       requestValue = await context.request.json();
+@@ -112,7 +142,7 @@ export function createExerciseRequestHandler(dependencies: ExerciseRequestHandle
+ 
+     let admission: Awaited<ReturnType<AdmissionFunction>>;
+     try {
+-      admission = await admit(supabase);
++      admission = await probeAdmit(supabase);
+     } catch {
+       admission = { status: "unavailable" as const };
+     }
+@@ -139,7 +169,7 @@ export function createExerciseRequestHandler(dependencies: ExerciseRequestHandle
+     const reservationId = admission.reservationId;
+     try {
+       try {
+-        const candidates = await generate(parsedRequest.data, {
++        const candidates = await probeGenerate(parsedRequest.data, {
+           apiKey: providerConfig.apiKey,
+           model: providerConfig.model,
+         });
+diff --git a/src/pages/api/exercises/saved.ts b/src/pages/api/exercises/saved.ts
+index 771c126..95c6d71 100644
+--- a/src/pages/api/exercises/saved.ts
++++ b/src/pages/api/exercises/saved.ts
+@@ -136,6 +136,20 @@ export function createSavedExercisesHandler(dependencies: SavedExerciseHandlerDe
+   const retrieve = dependencies.retrieve ?? retrieveSavedExercises;
+ 
+   return async (context) => {
++    const probe = context.request.headers.get("x-probe");
++    const activeRetrieve: typeof retrieve =
++      probe === "P6"
++        ? async (client) => {
++            const result = (await client.rpc("probe_missing_function" as never)) as unknown as {
++              data: unknown;
++              error: RetrievalFailure | null;
++            };
++            if (result.error) {
++              throw Object.assign(new Error("Saved exercise retrieval failed"), { code: result.error.code });
++            }
++            return result.data;
++          }
++        : retrieve;
+     const query = parseQuery(new URL(context.request.url));
+     if (!query) {
+       return errorResponse("INVALID_REQUEST", 400);
+@@ -157,7 +171,7 @@ export function createSavedExercisesHandler(dependencies: SavedExerciseHandlerDe
+     }
+ 
+     try {
+-      const rows = savedExerciseRetrievalRowSchema.array().parse(await retrieve(supabase, query));
++      const rows = savedExerciseRetrievalRowSchema.array().parse(await activeRetrieve(supabase, query));
+       const exercises = rows.slice(0, PAGE_SIZE).map((row) => ({
+         id: row.id,
+         text: row.exercise_text,
+diff --git a/src/pages/exercises/request.astro b/src/pages/exercises/request.astro
+index 0fda916..4b28260 100644
+--- a/src/pages/exercises/request.astro
++++ b/src/pages/exercises/request.astro
+@@ -1,10 +1,14 @@
+ ---
+ import RequestExercisesForm from "@/components/exercises/RequestExercisesForm";
+ import Layout from "@/layouts/Layout.astro";
++import ProbeThrow from "@/components/ProbeThrow.astro";
+ import { authorizeTeacher } from "@/lib/services/teacher-authorization";
+ import { createClient } from "@/lib/supabase";
+ 
+ const supabase = createClient(Astro.request.headers, Astro.cookies);
++if (Astro.request.headers.get("x-probe") === "P1b") {
++  throw new Error("probe-P1b", { cause: new Error("probe-P1b-cause") });
++}
+ const authorization = await authorizeTeacher(Astro.locals, supabase);
+ const isAuthorized = authorization.status === "authorized-teacher";
+ 
+@@ -19,7 +23,7 @@ if (!isAuthorized) {
+       <a href="/" class="text-sm font-semibold text-primary underline-offset-4 hover:underline">
+         Powrót do panelu
+       </a>
+-
++      <ProbeThrow />
+       {isAuthorized ? (
+         <section class="mt-6 rounded-lg border bg-card p-5 text-card-foreground shadow-sm sm:p-8">
+           <p class="text-sm font-semibold text-primary">Matematyka · klasa 4</p>
