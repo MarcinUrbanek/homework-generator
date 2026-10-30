@@ -6,11 +6,14 @@ import {
   exerciseApprovalRpcRowSchema,
   exerciseApprovalSuccessSchema,
 } from "@/lib/exercises/schemas";
+import { logError } from "@/lib/observability/log-error";
 import { authorizeTeacher } from "@/lib/services/teacher-authorization";
 import { createClient } from "@/lib/supabase";
 import type { ExerciseApprovalError, ExerciseApprovalErrorCode, ExerciseApprovalSuccess } from "@/types";
 
 export const prerender = false;
+
+const ROUTE = "/api/exercises/approve";
 
 const ERROR_MESSAGES: Record<ExerciseApprovalErrorCode, string> = {
   INVALID_REQUEST: "Nieprawidłowe dane żądania zatwierdzenia.",
@@ -53,7 +56,7 @@ async function approveVerifiedExercises(client: RequestClient, verificationIds: 
     error: ApprovalFailure | null;
   };
   if (result.error) {
-    throw Object.assign(new Error("Exercise approval failed"), { code: result.error.code });
+    throw Object.assign(new Error("Exercise approval failed", { cause: result.error }), { code: result.error.code });
   }
   return result.data;
 }
@@ -95,6 +98,7 @@ export function createExerciseApproveHandler(dependencies: ExerciseApproveHandle
       return errorResponse("DATABASE_UNAVAILABLE", 503);
     }
 
+    const userId = context.locals.user?.id ?? null;
     try {
       const rpcRows = exerciseApprovalRpcRowSchema
         .array()
@@ -103,6 +107,14 @@ export function createExerciseApproveHandler(dependencies: ExerciseApproveHandle
         rpcRows.length !== parsedRequest.data.verificationIds.length ||
         rpcRows.some((row, index) => row.verification_id !== parsedRequest.data.verificationIds[index])
       ) {
+        logError({
+          event: "exercise_approval_persistence_failed",
+          route: ROUTE,
+          userId,
+          reason: "rpc_rows_mismatch",
+          requestedCount: parsedRequest.data.verificationIds.length,
+          returnedCount: rpcRows.length,
+        });
         return errorResponse("PERSISTENCE_FAILURE", 500);
       }
 
@@ -123,8 +135,13 @@ export function createExerciseApproveHandler(dependencies: ExerciseApproveHandle
         return errorResponse("FORBIDDEN", 403);
       }
       if (isDatabaseUnavailable(failure)) {
+        logError(
+          { event: "exercise_approval_database_unavailable", route: ROUTE, userId, dbCode: failure.code },
+          error,
+        );
         return errorResponse("DATABASE_UNAVAILABLE", 503);
       }
+      logError({ event: "exercise_approval_persistence_failed", route: ROUTE, userId, dbCode: failure.code }, error);
       return errorResponse("PERSISTENCE_FAILURE", 500);
     }
   };

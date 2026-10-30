@@ -83,8 +83,8 @@ const providerExpressionSchema = {
 export class OpenRouterExerciseGeneratorError extends Error {
   readonly code: OpenRouterExerciseGeneratorErrorCode;
 
-  constructor(code: OpenRouterExerciseGeneratorErrorCode) {
-    super(code);
+  constructor(code: OpenRouterExerciseGeneratorErrorCode, options?: ErrorOptions) {
+    super(code, options);
     this.name = "OpenRouterExerciseGeneratorError";
     this.code = code;
   }
@@ -174,19 +174,19 @@ function parseCandidates(
 
   const envelope = providerEnvelopeSchema.safeParse(envelopeValue);
   if (!envelope.success) {
-    throw new OpenRouterExerciseGeneratorError("PROVIDER_FAILURE");
+    throw new OpenRouterExerciseGeneratorError("PROVIDER_FAILURE", { cause: envelope.error });
   }
 
   let contentValue: unknown;
   try {
     contentValue = JSON.parse(envelope.data.choices[0].message.content);
-  } catch {
-    throw new OpenRouterExerciseGeneratorError("PROVIDER_FAILURE");
+  } catch (error) {
+    throw new OpenRouterExerciseGeneratorError("PROVIDER_FAILURE", { cause: error });
   }
 
   const payload = providerPayloadSchema.safeParse(contentValue);
   if (!payload.success) {
-    throw new OpenRouterExerciseGeneratorError("PROVIDER_FAILURE");
+    throw new OpenRouterExerciseGeneratorError("PROVIDER_FAILURE", { cause: payload.error });
   }
 
   const seenTexts = new Set<string>();
@@ -240,16 +240,33 @@ async function makeAttempt(
     controller.abort();
   }, deadlineMs);
 
+  const body = JSON.stringify(buildRequestBody(request, config.model));
+
+  // Only transport and response-body failures are provider failures; errors from our own parsing
+  // and rendering code propagate unchanged so they are not misreported as PROVIDER_FAILURE.
+  const providerCall = async <T>(operation: () => Promise<T>): Promise<T> => {
+    try {
+      return await operation();
+    } catch (error) {
+      if (controller.signal.aborted || (error instanceof Error && error.name === "AbortError")) {
+        throw new OpenRouterExerciseGeneratorError("PROVIDER_TIMEOUT", { cause: error });
+      }
+      throw new OpenRouterExerciseGeneratorError("PROVIDER_FAILURE", { cause: error });
+    }
+  };
+
   try {
-    const response = await fetchImplementation(OPENROUTER_CHAT_COMPLETIONS_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${config.apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(buildRequestBody(request, config.model)),
-      signal: controller.signal,
-    });
+    const response = await providerCall(() =>
+      fetchImplementation(OPENROUTER_CHAT_COMPLETIONS_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body,
+        signal: controller.signal,
+      }),
+    );
 
     if (!response.ok) {
       if (response.status === 429 || response.status >= 500) {
@@ -258,16 +275,9 @@ async function makeAttempt(
       throw new OpenRouterExerciseGeneratorError("PROVIDER_FAILURE");
     }
 
-    const candidates = parseCandidates(await response.json(), request, createId);
+    const envelopeValue: unknown = await providerCall(() => response.json());
+    const candidates = parseCandidates(envelopeValue, request, createId);
     return candidates.length === 0 ? { retryableFailure: true } : { candidates };
-  } catch (error) {
-    if (controller.signal.aborted || (error instanceof Error && error.name === "AbortError")) {
-      throw new OpenRouterExerciseGeneratorError("PROVIDER_TIMEOUT");
-    }
-    if (error instanceof OpenRouterExerciseGeneratorError) {
-      throw error;
-    }
-    throw new OpenRouterExerciseGeneratorError("PROVIDER_FAILURE");
   } finally {
     clearTimeout(deadline);
   }
@@ -286,6 +296,7 @@ export async function generateOpenRouterExercises(
   const deadlineMs = dependencies.deadlineMs ?? DEFAULT_DEADLINE_MS;
   const createId = dependencies.createId ?? (() => crypto.randomUUID());
   let lastErrorCode: OpenRouterExerciseGeneratorErrorCode = "PROVIDER_FAILURE";
+  let lastError: unknown;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
@@ -294,16 +305,18 @@ export async function generateOpenRouterExercises(
         return result.candidates;
       }
       lastErrorCode = "PROVIDER_FAILURE";
+      lastError = undefined;
     } catch (error) {
       if (!(error instanceof OpenRouterExerciseGeneratorError)) {
         throw error;
       }
       lastErrorCode = error.code;
+      lastError = error;
       if (error.code !== "PROVIDER_TIMEOUT") {
         throw error;
       }
     }
   }
 
-  throw new OpenRouterExerciseGeneratorError(lastErrorCode);
+  throw new OpenRouterExerciseGeneratorError(lastErrorCode, lastError === undefined ? undefined : { cause: lastError });
 }

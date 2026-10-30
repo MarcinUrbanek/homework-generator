@@ -1,11 +1,14 @@
 import type { APIRoute } from "astro";
 
 import { studentHomeworkApiErrorSchema, studentHomeworkListSuccessSchema } from "@/lib/homework/schemas";
+import { logError } from "@/lib/observability/log-error";
 import { authorizeStudent, StudentHomeworkServiceError, listStudentHomework } from "@/lib/services/student-homework";
 import { createClient } from "@/lib/supabase";
 import type { StudentHomeworkApiError, StudentHomeworkApiErrorCode, StudentHomeworkListSuccess } from "@/types";
 
 export const prerender = false;
+
+const ROUTE = "/api/homework/list";
 
 type RequestClient = NonNullable<ReturnType<typeof createClient>>;
 
@@ -70,7 +73,8 @@ export function createStudentHomeworkListHandler(dependencies: StudentHomeworkLi
     let authorization: Awaited<ReturnType<typeof authorize>>;
     try {
       authorization = await authorize(context.locals, supabase);
-    } catch {
+    } catch (error) {
+      logError({ event: "student_homework_authorization_failed", route: ROUTE, userId: context.locals.user.id }, error);
       return errorResponse("DATABASE_UNAVAILABLE", 503);
     }
     if (authorization.status === "unauthenticated") return errorResponse("UNAUTHENTICATED", 401);
@@ -82,7 +86,11 @@ export function createStudentHomeworkListHandler(dependencies: StudentHomeworkLi
       if (!result.success) return errorResponse("PERSISTENCE_FAILURE", 500);
       return jsonResponse(result.data, 200);
     } catch (error) {
-      return serviceErrorResponse(error);
+      const response = serviceErrorResponse(error);
+      if (response.status >= 500) {
+        logError({ event: "student_homework_list_failed", route: ROUTE, userId: context.locals.user.id }, error);
+      }
+      return response;
     }
   };
 }

@@ -1,5 +1,5 @@
 import type { APIContext, APIRoute } from "astro";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderArithmeticExercise } from "@/lib/exercises/arithmetic-authority";
 import { verifyOpenRouterExercise } from "@/lib/services/openrouter-exercise-verifier";
@@ -142,6 +142,11 @@ async function invoke(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("POST /api/exercises/verify", () => {
@@ -393,5 +398,77 @@ describe("POST /api/exercises/verify", () => {
     expect(response.status).toBe(500);
     expect(body.error.code).toBe("VERIFICATION_FAILURE");
     expect(JSON.stringify(body)).not.toContain("internal evaluator detail");
+  });
+
+  it("logs a ledger write failure with the original error as cause before mapping to PERSISTENCE_FAILURE", async () => {
+    const databaseError = Object.assign(new Error("connection reset"), { code: "08006" });
+    const { handler } = handlerFor({ recordImplementation: () => Promise.reject(databaseError) });
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = await invoke(handler);
+
+    expect(response.status).toBe(500);
+    expect(await responseBody<ExerciseVerificationError>(response)).toEqual({
+      error: {
+        code: "PERSISTENCE_FAILURE",
+        message: "Nie udało się zapisać wyniku weryfikacji. Spróbuj ponownie później.",
+      },
+    });
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls[0][0]).toEqual({
+      event: "exercise_verification_persistence_failed",
+      route: "/api/exercises/verify",
+      userId: teacherId,
+      candidateCount: 1,
+    });
+    expect((log.mock.calls[0][1] as Error).cause).toBe(databaseError);
+  });
+
+  it("logs a ledger load failure with the original error before mapping to PERSISTENCE_FAILURE", async () => {
+    const loadError = new Error("relation does not exist");
+    const { handler, loadExisting } = handlerFor();
+    loadExisting.mockRejectedValue(loadError);
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = await invoke(handler);
+
+    expect(response.status).toBe(500);
+    expect((await responseBody<ExerciseVerificationError>(response)).error.code).toBe("PERSISTENCE_FAILURE");
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls[0][0]).toMatchObject({ event: "exercise_verification_unexpected_error", userId: teacherId });
+    expect(log.mock.calls[0][1]).toBe(loadError);
+  });
+
+  it("logs an evaluator failure with the original error as cause before mapping to VERIFICATION_FAILURE", async () => {
+    const evaluatorError = new RangeError("evaluator overflow");
+    const { handler } = handlerFor({ verifyImplementation: () => Promise.reject(evaluatorError) });
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = await invoke(handler);
+
+    expect(response.status).toBe(500);
+    expect(await responseBody<ExerciseVerificationError>(response)).toEqual({
+      error: {
+        code: "VERIFICATION_FAILURE",
+        message: "Nie udało się obliczyć wyniku weryfikacji. Spróbuj ponownie później.",
+      },
+    });
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls[0][0]).toMatchObject({ event: "exercise_verification_failed", userId: teacherId });
+    expect((log.mock.calls[0][1] as Error).cause).toBe(evaluatorError);
+  });
+
+  it("logs a writer configuration failure before mapping to PERSISTENCE_UNAVAILABLE", async () => {
+    const { handler, createWriterClient } = handlerFor({ writerThrows: true });
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = await invoke(handler);
+
+    expect(response.status).toBe(503);
+    expect((await responseBody<ExerciseVerificationError>(response)).error.code).toBe("PERSISTENCE_UNAVAILABLE");
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls[0][0]).toMatchObject({ event: "exercise_verification_writer_unavailable" });
+    expect((log.mock.calls[0][1] as Error).message).toBe("sensitive writer configuration detail");
+    expect(createWriterClient).toHaveBeenCalledTimes(1);
   });
 });

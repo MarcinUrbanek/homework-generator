@@ -48,4 +48,21 @@ describe("POST /api/classes/join-by-code", () => {
     expect(response.status).toBe(500);
     expect(JSON.stringify(body)).not.toContain("private database invitation detail");
   });
+
+  it("logs the original acceptance error before mapping it to PERSISTENCE_FAILURE", async () => {
+    const failure = new Error("private database invitation detail");
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const response = await createJoinByCodeHandler({
+      createSupabaseClient: vi.fn(() => ({}) as never),
+      acceptClass: vi.fn().mockRejectedValue(failure),
+    })(context(JSON.stringify({ classCode: "AB12CD34" })));
+
+    expect(response.status).toBe(500);
+    expect(((await response.json()) as { error: { code: string } }).error.code).toBe("PERSISTENCE_FAILURE");
+    expect(log).toHaveBeenCalledWith(
+      { event: "class_join_failed", route: "/api/classes/join-by-code", userId: "student" },
+      failure,
+    );
+    log.mockRestore();
+  });
 });

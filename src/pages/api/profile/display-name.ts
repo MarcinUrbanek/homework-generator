@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { z } from "zod";
 
 import { classApiErrorSchema, setTeacherDisplayNameRequestSchema } from "@/lib/classes/schemas";
+import { logError } from "@/lib/observability/log-error";
 import { authorizeTeacher } from "@/lib/services/teacher-authorization";
 import { createClient } from "@/lib/supabase";
 import type { ClassApiError, ClassApiErrorCode, DisplayNameUpdateSuccess } from "@/types";
@@ -38,7 +39,7 @@ function errorResponse(code: ClassApiErrorCode, status: number): Response {
 async function updateDisplayName(client: RequestClient, displayName: string): Promise<unknown> {
   const response: unknown = await client.rpc("set_teacher_display_name", { p_display_name: displayName });
   const { data, error } = supabaseResponseSchema.parse(response);
-  if (error) throw new Error("Display-name update failed");
+  if (error) throw new Error("Display-name update failed", { cause: error });
   return data;
 }
 
@@ -72,7 +73,15 @@ export function createDisplayNameHandler(dependencies: DisplayNameHandlerDepende
         .safeParse(await update(supabase, parsed.data.displayName));
       if (!result.success) return errorResponse("PERSISTENCE_FAILURE", 500);
       return jsonResponse({ displayName: result.data }, 200);
-    } catch {
+    } catch (error) {
+      logError(
+        {
+          event: "display_name_update_failed",
+          route: "/api/profile/display-name",
+          userId: context.locals.user?.id ?? null,
+        },
+        error,
+      );
       return errorResponse("PERSISTENCE_FAILURE", 500);
     }
   };

@@ -1,5 +1,5 @@
 import type { APIContext, APIRoute } from "astro";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TeacherAuthorizationResult } from "@/lib/services/teacher-authorization";
 import type { ExerciseApprovalError, ExerciseApprovalSuccess } from "@/types";
@@ -67,6 +67,11 @@ async function invoke(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("POST /api/exercises/approve", () => {
@@ -176,5 +181,81 @@ describe("POST /api/exercises/approve", () => {
 
     expect(response.status).toBe(500);
     expect((await responseBody<ExerciseApprovalError>(response)).error.code).toBe("PERSISTENCE_FAILURE");
+  });
+
+  it.each([
+    {
+      databaseCode: "XX000",
+      status: 500,
+      responseCode: "PERSISTENCE_FAILURE",
+      event: "exercise_approval_persistence_failed",
+    },
+    {
+      databaseCode: "08006",
+      status: 503,
+      responseCode: "DATABASE_UNAVAILABLE",
+      event: "exercise_approval_database_unavailable",
+    },
+  ])(
+    "logs the RPC error $databaseCode as cause before mapping it to $responseCode",
+    async ({ databaseCode, status, responseCode, event }) => {
+      const rpcError = { code: databaseCode, message: "sensitive database detail", details: null, hint: null };
+      const rpc = vi.fn().mockResolvedValue({ data: null, error: rpcError });
+      const handler = createExerciseApproveHandler({
+        authorize: vi.fn().mockResolvedValue({ status: "authorized-teacher" }),
+        createSupabaseClient: vi.fn(() => ({ rpc }) as never),
+      });
+      const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+      const response = await invoke(handler);
+      const body = await responseBody<ExerciseApprovalError>(response);
+
+      expect(response.status).toBe(status);
+      expect(body.error.code).toBe(responseCode);
+      expect(body.error.message).not.toContain("sensitive");
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(log.mock.calls[0][0]).toEqual({
+        event,
+        route: "/api/exercises/approve",
+        userId: teacherId,
+        dbCode: databaseCode,
+      });
+      const logged = log.mock.calls[0][1] as Error & { code?: string };
+      expect(logged.message).toBe("Exercise approval failed");
+      expect(logged.code).toBe(databaseCode);
+      expect(logged.cause).toBe(rpcError);
+    },
+  );
+
+  it("logs a partial RPC result with counts before mapping it to PERSISTENCE_FAILURE", async () => {
+    const approveImplementation = () =>
+      Promise.resolve([{ verification_id: verificationId, exercise_id: exerciseId, created: true }]);
+    const { handler } = handlerFor({ approveImplementation });
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = await invoke(handler, { verificationIds: [verificationId, secondVerificationId] });
+
+    expect(response.status).toBe(500);
+    expect((await responseBody<ExerciseApprovalError>(response)).error.code).toBe("PERSISTENCE_FAILURE");
+    expect(log).toHaveBeenCalledWith({
+      event: "exercise_approval_persistence_failed",
+      route: "/api/exercises/approve",
+      userId: teacherId,
+      reason: "rpc_rows_mismatch",
+      requestedCount: 2,
+      returnedCount: 1,
+    });
+  });
+
+  it("does not log expected domain denials such as an invalid selection", async () => {
+    const approveImplementation = (): Promise<unknown> =>
+      Promise.reject(Object.assign(new Error("invalid"), { code: "22023" }));
+    const { handler } = handlerFor({ approveImplementation });
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = await invoke(handler);
+
+    expect(response.status).toBe(422);
+    expect(log).not.toHaveBeenCalled();
   });
 });

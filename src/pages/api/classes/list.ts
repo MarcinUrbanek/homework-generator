@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { z } from "zod";
 
 import { classApiErrorSchema, classSummarySchema } from "@/lib/classes/schemas";
+import { logError } from "@/lib/observability/log-error";
 import { authorizeTeacher } from "@/lib/services/teacher-authorization";
 import { createClient } from "@/lib/supabase";
 import type { ClassApiError, ClassApiErrorCode, ListClassesSuccess } from "@/types";
@@ -82,7 +83,11 @@ export function createListClassesHandler(dependencies: ListClassesHandlerDepende
       );
       if (!classes.success) return errorResponse("PERSISTENCE_FAILURE", 500);
       return jsonResponse({ classes: classes.data }, 200);
-    } catch {
+    } catch (error) {
+      logError(
+        { event: "classes_list_failed", route: "/api/classes/list", userId: context.locals.user?.id ?? null },
+        error,
+      );
       return errorResponse("PERSISTENCE_FAILURE", 500);
     }
   };

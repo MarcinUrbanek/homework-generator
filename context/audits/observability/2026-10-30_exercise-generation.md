@@ -121,6 +121,15 @@ Re-run the probe suite (see §8) after steps 1–4. The target is P4, P5b and P6
 
 First run; no previous report.
 
+### Fixes applied (2026-10-30, fix-order item 2)
+
+- **Closed: EG-1, EG-3, EG-7, EG-8** — the 4 exercise handlers (`request.ts`, `verify.ts`, `approve.ts`, `saved.ts`) now call the shared `logError` helper (`src/lib/observability/log-error.ts`) in every 5xx mapping path. It runs `console.error({ event, route, userId, ...context }, err)` with the Error object as its own argument, so the stack and `[cause]` survive (P9 shape). Public status codes, error codes and messages are unchanged.
+- **Causes preserved:** re-wrapped errors use `new Error(msg, { cause })` (`VerificationPersistenceError`, `VerificationExecutionError`, approval/retrieval RPC errors, `OpenRouterExerciseGeneratorError`).
+- **Generator (`makeAttempt`):** only transport and response-body failures (fetch, `response.json()`) become `PROVIDER_FAILURE`/`PROVIDER_TIMEOUT`, with the original error as `cause`. Errors from our own parsing/rendering code now propagate unchanged. The handler logs them as `exercise_generation_unexpected_error` (not `…_provider_failure`) and keeps the public `502 PROVIDER_FAILURE` response.
+- **Partially addressed: EG-4, EG-5, PL-9** — the admission/release logs are no longer constant strings. They now include route, user id, the reservation id (release) and the thrown error. The service-level `reason` and PostgREST code (fix-order item 3) are still open.
+- **Closed: PL-8** — the same helper is applied to `classes/list`, `classes/join-by-code`, `classes/preview-code`, `homework/list` (5xx only) and `profile/display-name`, and the RPC errors there are re-thrown with `cause`.
+- **Still open:** EG-2, EG-6, EG-9 to EG-12, PL-1 to PL-7 (fix-order items 1 and 3–6). Re-run the probe suite to move P4 and P6 from _missed_ to _good_.
+
 ## 8. Method and limits
 
 - **Agents:** 1 area auditor (exercise-generation, read-only), 1 plumbing auditor (read-only), 1 runtime prober. The prober froze after injecting probes and building. The orchestrator then wrote and ran the suite directly.

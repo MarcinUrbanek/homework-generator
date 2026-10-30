@@ -8,6 +8,7 @@ import {
 } from "@/lib/exercises/schemas";
 import { ArithmeticAuthorityError, renderArithmeticExercise } from "@/lib/exercises/arithmetic-authority";
 import { verifyArithmeticExercise } from "@/lib/services/arithmetic-exercise-verifier";
+import { logError } from "@/lib/observability/log-error";
 import { authorizeTeacher } from "@/lib/services/teacher-authorization";
 import { createClient, createServiceClient } from "@/lib/supabase";
 import type {
@@ -20,6 +21,8 @@ import type {
 } from "@/types";
 
 export const prerender = false;
+
+const ROUTE = "/api/exercises/verify";
 
 const LEDGER_COLUMNS = [
   "id",
@@ -100,12 +103,12 @@ async function loadExistingVerifications(
     .in("candidate_id", candidateIds);
 
   if (error) {
-    throw new VerificationPersistenceError();
+    throw new VerificationPersistenceError("Verification ledger load failed", { cause: error });
   }
 
   const rows = exerciseVerificationLedgerRowSchema.array().safeParse(data);
   if (!rows.success) {
-    throw new VerificationPersistenceError();
+    throw new VerificationPersistenceError("Verification ledger rows have an unexpected shape", { cause: rows.error });
   }
   return rows.data;
 }
@@ -145,12 +148,12 @@ async function recordVerification(
         return existing[0];
       }
     }
-    throw new VerificationPersistenceError();
+    throw new VerificationPersistenceError("Verification ledger insert failed", { cause: error });
   }
 
   const row = exerciseVerificationLedgerRowSchema.safeParse(data);
   if (!row.success) {
-    throw new VerificationPersistenceError();
+    throw new VerificationPersistenceError("Verification ledger row has an unexpected shape", { cause: row.error });
   }
   return row.data;
 }
@@ -213,7 +216,7 @@ function currentAuthoritySnapshot(row: LedgerRow) {
     if (error instanceof ArithmeticAuthorityError) {
       return null;
     }
-    throw new VerificationPersistenceError();
+    throw new VerificationPersistenceError("Stored arithmetic structure could not be rendered", { cause: error });
   }
 }
 
@@ -244,10 +247,10 @@ function resultFromRow(row: LedgerRow): ExerciseVerificationResult {
     };
   }
   if (row.outcome !== "unique_answer" && row.outcome !== "answer_mismatch") {
-    throw new VerificationPersistenceError();
+    throw new VerificationPersistenceError(`Stored verification has an unexpected outcome: ${row.outcome}`);
   }
   if (row.verified_answer === null) {
-    throw new VerificationPersistenceError();
+    throw new VerificationPersistenceError("Stored verification is missing its verified answer");
   }
   return { ...base, outcome: row.outcome, verifiedAnswer: row.verified_answer };
 }
@@ -288,7 +291,11 @@ export function createExerciseVerifyHandler(dependencies: ExerciseVerifyHandlerD
     let writer: ServiceClient | null;
     try {
       writer = createWriterClient();
-    } catch {
+    } catch (error) {
+      logError(
+        { event: "exercise_verification_writer_unavailable", route: ROUTE, userId: context.locals.user.id },
+        error,
+      );
       return errorResponse("PERSISTENCE_UNAVAILABLE", 503);
     }
     if (!writer) {
@@ -305,7 +312,7 @@ export function createExerciseVerifyHandler(dependencies: ExerciseVerifyHandlerD
         candidates.map(({ id }) => id),
       );
       if (existingRows.some((row) => row.teacher_id !== teacherId)) {
-        throw new VerificationPersistenceError();
+        throw new VerificationPersistenceError("Verification ledger returned rows owned by another teacher");
       }
       const existingByCandidateId = new Map(existingRows.map((row) => [row.candidate_id, row]));
 
@@ -326,15 +333,15 @@ export function createExerciseVerifyHandler(dependencies: ExerciseVerifyHandlerD
           let evidence: ExerciseVerificationEvidence;
           try {
             evidence = await verify(candidate);
-          } catch {
-            throw new VerificationExecutionError();
+          } catch (error) {
+            throw new VerificationExecutionError("Exercise verification failed", { cause: error });
           }
 
           let row: LedgerRow;
           try {
             row = await record(writer, teacherId, candidate, evidence);
-          } catch {
-            throw new VerificationPersistenceError();
+          } catch (error) {
+            throw new VerificationPersistenceError("Verification ledger record failed", { cause: error });
           }
           if (!snapshotMatches(row, candidate)) {
             throw new CandidateConflictError();
@@ -350,8 +357,24 @@ export function createExerciseVerifyHandler(dependencies: ExerciseVerifyHandlerD
         return errorResponse("CANDIDATE_CONFLICT", 409);
       }
       if (error instanceof VerificationExecutionError) {
+        logError(
+          { event: "exercise_verification_failed", route: ROUTE, userId: teacherId, candidateCount: candidates.length },
+          error,
+        );
         return errorResponse("VERIFICATION_FAILURE", 500);
       }
+      logError(
+        {
+          event:
+            error instanceof VerificationPersistenceError
+              ? "exercise_verification_persistence_failed"
+              : "exercise_verification_unexpected_error",
+          route: ROUTE,
+          userId: teacherId,
+          candidateCount: candidates.length,
+        },
+        error,
+      );
       return errorResponse("PERSISTENCE_FAILURE", 500);
     }
   };

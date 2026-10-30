@@ -327,7 +327,14 @@ describe("POST /api/exercises/request", () => {
     expect(generate).not.toHaveBeenCalled();
     expect(release).not.toHaveBeenCalled();
     expect(log).toHaveBeenCalledTimes(1);
-    expect(log).toHaveBeenCalledWith("exercise_generation_admission_unavailable");
+    expect(log.mock.calls[0][0]).toEqual({
+      event: "exercise_generation_admission_unavailable",
+      route: "/api/exercises/request",
+      userId: teacherId,
+    });
+    if (options.admissionError) {
+      expect(log.mock.calls[0][1]).toBe(options.admissionError);
+    }
     expect(JSON.stringify(log.mock.calls)).not.toContain("raw database payload");
     expect(JSON.stringify(log.mock.calls)).not.toContain("test-secret");
   });
@@ -344,6 +351,71 @@ describe("POST /api/exercises/request", () => {
     expect(admit).toHaveBeenCalledTimes(1);
     expect(generate).not.toHaveBeenCalled();
     expect(release).not.toHaveBeenCalled();
+  });
+
+  it("logs the original provider error with its cause before mapping it to 502", async () => {
+    const providerCause = new Error("OpenRouter 401 invalid key");
+    const providerError = new OpenRouterExerciseGeneratorError("PROVIDER_FAILURE", { cause: providerCause });
+    const { handler, release } = handlerFor({ generationError: providerError });
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = await invoke(handler);
+
+    expect(response.status).toBe(502);
+    expect(await responseBody<ExerciseGenerationError>(response)).toEqual({
+      error: { code: "PROVIDER_FAILURE", message: "Nie udało się wygenerować zadań. Spróbuj ponownie później." },
+    });
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log).toHaveBeenCalledWith(
+      {
+        event: "exercise_generation_provider_failure",
+        route: "/api/exercises/request",
+        userId: teacherId,
+        reservationId,
+      },
+      providerError,
+    );
+    expect((log.mock.calls[0][1] as Error).cause).toBe(providerCause);
+    expect(release).toHaveBeenCalledWith(expect.anything(), reservationId);
+  });
+
+  it("logs a non-provider error as unexpected instead of a provider failure, keeping the public 502", async () => {
+    const bug = new TypeError("Cannot read properties of undefined (reading 'expression')");
+    const { handler, release } = handlerFor({ generationError: bug });
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = await invoke(handler);
+
+    expect(response.status).toBe(502);
+    expect(await responseBody<ExerciseGenerationError>(response)).toEqual({
+      error: { code: "PROVIDER_FAILURE", message: "Nie udało się wygenerować zadań. Spróbuj ponownie później." },
+    });
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls[0][0]).toMatchObject({ event: "exercise_generation_unexpected_error" });
+    expect(log.mock.calls[0][0]).not.toMatchObject({ event: "exercise_generation_provider_failure" });
+    expect(log.mock.calls[0][1]).toBe(bug);
+    expect(release).toHaveBeenCalledWith(expect.anything(), reservationId);
+  });
+
+  it("logs a composed provider transport failure with the network error preserved as cause", async () => {
+    const networkError = new TypeError("fetch failed");
+    const providerFetch = vi.fn<typeof fetch>().mockRejectedValue(networkError);
+    const { handler } = composedHandler(
+      { data: { status: "admitted", reservation_id: reservationId }, error: null },
+      providerFetch,
+    );
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = await invoke(handler);
+
+    expect(response.status).toBe(502);
+    expect((await responseBody<ExerciseGenerationError>(response)).error.code).toBe("PROVIDER_FAILURE");
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls[0][0]).toMatchObject({ event: "exercise_generation_provider_failure", reservationId });
+    const logged = log.mock.calls[0][1] as OpenRouterExerciseGeneratorError;
+    expect(logged).toBeInstanceOf(OpenRouterExerciseGeneratorError);
+    expect(logged.cause).toBe(networkError);
+    expect(JSON.stringify(log.mock.calls)).not.toContain("test-secret");
   });
 
   it("returns 502 for unusable provider output or upstream failure and releases the reservation", async () => {
@@ -461,12 +533,20 @@ describe("POST /api/exercises/request", () => {
       });
     }
     expect(log).toHaveBeenCalledTimes(1);
-    expect(log).toHaveBeenCalledWith("exercise_generation_release_unavailable");
+    expect(log.mock.calls[0][0]).toEqual({
+      event: "exercise_generation_release_unavailable",
+      route: "/api/exercises/request",
+      userId: teacherId,
+      reservationId,
+    });
+    if (releaseError) {
+      expect(log.mock.calls[0][1]).toBe(releaseError);
+    }
     expect(admit).toHaveBeenCalledTimes(1);
     expect(release).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(log.mock.calls)).not.toContain("raw release payload");
-    expect(JSON.stringify(log.mock.calls)).not.toContain(reservationId);
     expect(JSON.stringify(body)).not.toContain("raw release payload");
+    expect(JSON.stringify(body)).not.toContain(reservationId);
   });
 
   it("treats a validated stale-token result as a normal no-op", async () => {

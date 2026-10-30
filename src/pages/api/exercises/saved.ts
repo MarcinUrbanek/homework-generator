@@ -7,6 +7,7 @@ import {
   savedExerciseRetrievalRowSchema,
   savedExerciseSuccessSchema,
 } from "@/lib/exercises/schemas";
+import { logError } from "@/lib/observability/log-error";
 import { authorizeTeacher } from "@/lib/services/teacher-authorization";
 import { createClient } from "@/lib/supabase";
 import type {
@@ -18,6 +19,8 @@ import type {
 } from "@/types";
 
 export const prerender = false;
+
+const ROUTE = "/api/exercises/saved";
 
 const PAGE_SIZE = 20;
 const RETRIEVAL_LIMIT = PAGE_SIZE + 1;
@@ -121,7 +124,9 @@ async function retrieveSavedExercises(client: RequestClient, query: SavedExercis
     p_limit: RETRIEVAL_LIMIT,
   })) as { data: unknown; error: RetrievalFailure | null };
   if (result.error) {
-    throw Object.assign(new Error("Saved exercise retrieval failed"), { code: result.error.code });
+    throw Object.assign(new Error("Saved exercise retrieval failed", { cause: result.error }), {
+      code: result.error.code,
+    });
   }
   return result.data;
 }
@@ -156,6 +161,7 @@ export function createSavedExercisesHandler(dependencies: SavedExerciseHandlerDe
       return errorResponse("DATABASE_UNAVAILABLE", 503);
     }
 
+    const userId = context.locals.user?.id ?? null;
     try {
       const rows = savedExerciseRetrievalRowSchema.array().parse(await retrieve(supabase, query));
       const exercises = rows.slice(0, PAGE_SIZE).map((row) => ({
@@ -191,8 +197,10 @@ export function createSavedExercisesHandler(dependencies: SavedExerciseHandlerDe
         return errorResponse("FORBIDDEN", 403);
       }
       if (isDatabaseUnavailable(failure)) {
+        logError({ event: "saved_exercises_database_unavailable", route: ROUTE, userId, dbCode: failure.code }, error);
         return errorResponse("DATABASE_UNAVAILABLE", 503);
       }
+      logError({ event: "saved_exercises_retrieval_failed", route: ROUTE, userId, dbCode: failure.code }, error);
       return errorResponse("PERSISTENCE_FAILURE", 500);
     }
   };

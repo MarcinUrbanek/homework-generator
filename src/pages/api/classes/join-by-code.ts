@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { z } from "zod";
 
 import { classApiErrorSchema, previewClassByCodeRequestSchema } from "@/lib/classes/schemas";
+import { logError } from "@/lib/observability/log-error";
 import { createClient } from "@/lib/supabase";
 import type { ClassApiError, ClassApiErrorCode, ClassJoinSuccess } from "@/types";
 
@@ -37,7 +38,7 @@ function errorResponse(code: ClassApiErrorCode, status: number): Response {
 async function acceptClass(client: RequestClient, classCode: string): Promise<unknown> {
   const response: unknown = await client.rpc("accept_class_by_code", { p_class_code: classCode });
   const { data, error } = supabaseResponseSchema.parse(response);
-  if (error) throw new Error("Class acceptance failed");
+  if (error) throw new Error("Class acceptance failed", { cause: error });
   return data;
 }
 
@@ -63,7 +64,11 @@ export function createJoinByCodeHandler(dependencies: JoinByCodeHandlerDependenc
       const result = acceptanceResultSchema.safeParse(await accept(supabase, parsed.data.classCode));
       if (!result.success || !result.data[0]) return errorResponse("PERSISTENCE_FAILURE", 500);
       return jsonResponse({ redirectTo: "/classes/joined", alreadyMember: result.data[0].already_member }, 200);
-    } catch {
+    } catch (error) {
+      logError(
+        { event: "class_join_failed", route: "/api/classes/join-by-code", userId: context.locals.user.id },
+        error,
+      );
       return errorResponse("PERSISTENCE_FAILURE", 500);
     }
   };

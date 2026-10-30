@@ -8,11 +8,14 @@ import {
   OpenRouterExerciseGeneratorError,
 } from "@/lib/services/openrouter-exercise-generator";
 import { admitExerciseGeneration, releaseExerciseGeneration } from "@/lib/services/exercise-generation-admission";
+import { logError } from "@/lib/observability/log-error";
 import { authorizeTeacher } from "@/lib/services/teacher-authorization";
 import { createClient } from "@/lib/supabase";
 import type { ExerciseGenerationError, ExerciseGenerationErrorCode, ExerciseGenerationSuccess } from "@/types";
 
 export const prerender = false;
+
+const ROUTE = "/api/exercises/request";
 
 const ERROR_MESSAGES: Record<ExerciseGenerationErrorCode, string> = {
   INVALID_REQUEST: "Nieprawidłowe dane żądania.",
@@ -110,11 +113,14 @@ export function createExerciseRequestHandler(dependencies: ExerciseRequestHandle
       return errorResponse("PROVIDER_NOT_CONFIGURED", 503);
     }
 
+    const userId = context.locals.user?.id ?? null;
+
     let admission: Awaited<ReturnType<AdmissionFunction>>;
     try {
       admission = await admit(supabase);
-    } catch {
-      admission = { status: "unavailable" as const };
+    } catch (error) {
+      logError({ event: "exercise_generation_admission_unavailable", route: ROUTE, userId }, error);
+      return errorResponse("ADMISSION_UNAVAILABLE", 503);
     }
 
     if (admission.status === "forbidden") {
@@ -131,8 +137,7 @@ export function createExerciseRequestHandler(dependencies: ExerciseRequestHandle
       });
     }
     if (admission.status === "unavailable") {
-      // eslint-disable-next-line no-console -- Emit only a sanitized admission failure signal.
-      console.error("exercise_generation_admission_unavailable");
+      logError({ event: "exercise_generation_admission_unavailable", route: ROUTE, userId });
       return errorResponse("ADMISSION_UNAVAILABLE", 503);
     }
 
@@ -144,6 +149,13 @@ export function createExerciseRequestHandler(dependencies: ExerciseRequestHandle
           model: providerConfig.model,
         });
         if (candidates.length < 1 || candidates.length > 5) {
+          logError({
+            event: "exercise_generation_provider_failure",
+            route: ROUTE,
+            userId,
+            reason: "candidate_count_out_of_range",
+            candidateCount: candidates.length,
+          });
           return errorResponse("PROVIDER_FAILURE", 502);
         }
         const validCount = candidates.length as 1 | 2 | 3 | 4 | 5;
@@ -162,18 +174,29 @@ export function createExerciseRequestHandler(dependencies: ExerciseRequestHandle
         if (error instanceof OpenRouterExerciseGeneratorError && error.code === "UNSUPPORTED_TOPIC") {
           return errorResponse("UNSUPPORTED_TOPIC", 422);
         }
+        // The public contract stays 502 PROVIDER_FAILURE; the log tells provider failures apart from our own bugs.
+        logError(
+          {
+            event:
+              error instanceof OpenRouterExerciseGeneratorError
+                ? "exercise_generation_provider_failure"
+                : "exercise_generation_unexpected_error",
+            route: ROUTE,
+            userId,
+            reservationId,
+          },
+          error,
+        );
         return errorResponse("PROVIDER_FAILURE", 502);
       }
     } finally {
       try {
         const releaseResult = await release(supabase, reservationId);
         if (releaseResult === "unavailable") {
-          // eslint-disable-next-line no-console -- Emit only a sanitized release failure signal.
-          console.error("exercise_generation_release_unavailable");
+          logError({ event: "exercise_generation_release_unavailable", route: ROUTE, userId, reservationId });
         }
-      } catch {
-        // eslint-disable-next-line no-console -- Emit only a sanitized release failure signal.
-        console.error("exercise_generation_release_unavailable");
+      } catch (error) {
+        logError({ event: "exercise_generation_release_unavailable", route: ROUTE, userId, reservationId }, error);
       }
     }
   };

@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { z } from "zod";
 
 import { classApiErrorSchema, classJoinPreviewSchema, previewClassByCodeRequestSchema } from "@/lib/classes/schemas";
+import { logError } from "@/lib/observability/log-error";
 import { createClient } from "@/lib/supabase";
 import type { ClassApiError, ClassApiErrorCode, ClassJoinPreview } from "@/types";
 
@@ -46,7 +47,7 @@ function errorResponse(code: ClassApiErrorCode, status: number): Response {
 async function previewClass(client: RequestClient, classCode: string): Promise<unknown> {
   const response: unknown = await client.rpc("preview_class_by_code", { p_class_code: classCode });
   const { data, error } = supabaseResponseSchema.parse(response);
-  if (error) throw new Error("Class preview failed");
+  if (error) throw new Error("Class preview failed", { cause: error });
   return data;
 }
 
@@ -79,7 +80,11 @@ export function createPreviewCodeHandler(dependencies: PreviewCodeHandlerDepende
       });
       if (!result.success) return errorResponse("PERSISTENCE_FAILURE", 500);
       return jsonResponse({ class: result.data }, 200);
-    } catch {
+    } catch (error) {
+      logError(
+        { event: "class_preview_failed", route: "/api/classes/preview-code", userId: context.locals.user.id },
+        error,
+      );
       return errorResponse("PERSISTENCE_FAILURE", 500);
     }
   };

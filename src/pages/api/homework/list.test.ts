@@ -175,6 +175,26 @@ describe("GET /api/homework/list", () => {
     expect(JSON.stringify(body)).not.toContain(assignmentId);
   });
 
+  it("logs 5xx service failures with the original error but not expected 4xx denials", async () => {
+    const failure = Object.assign(new Error("sensitive SQL detail"), { code: "XX000" });
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const failed = await handlerFor({ listImplementation: () => Promise.reject(failure) }).handler(context());
+    expect(failed.status).toBe(500);
+    expect(log).toHaveBeenCalledWith(
+      { event: "student_homework_list_failed", route: "/api/homework/list", userId: "student" },
+      failure,
+    );
+
+    log.mockClear();
+    const denied = await handlerFor({
+      listImplementation: () => Promise.reject(new StudentHomeworkServiceError("FORBIDDEN")),
+    }).handler(context());
+    expect(denied.status).toBe(403);
+    expect(log).not.toHaveBeenCalled();
+    log.mockRestore();
+  });
+
   it("rejects malformed service output without serializing unexpected fields", async () => {
     const { handler } = handlerFor({
       listImplementation: () =>

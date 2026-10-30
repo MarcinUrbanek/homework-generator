@@ -298,4 +298,40 @@ describe("generateOpenRouterExercises", () => {
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("wraps a provider transport failure as PROVIDER_FAILURE and preserves the original error as cause", async () => {
+    const networkError = new TypeError("fetch failed");
+    const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(networkError);
+
+    const generation = generateOpenRouterExercises(request, config, { fetch: fetchMock });
+
+    await expect(generation).rejects.toBeInstanceOf(OpenRouterExerciseGeneratorError);
+    await expect(generation).rejects.toMatchObject({ code: "PROVIDER_FAILURE", cause: networkError });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves the parse failure as cause for a malformed provider envelope", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ choices: [] }));
+
+    const error = await generateOpenRouterExercises(request, config, { fetch: fetchMock }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(OpenRouterExerciseGeneratorError);
+    expect((error as OpenRouterExerciseGeneratorError).cause).toBeInstanceOf(Error);
+  });
+
+  it("does not report a non-provider error from our own code as PROVIDER_FAILURE", async () => {
+    const bug = new Error("id generator bug");
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(providerResponse(validExercises(1)));
+
+    const error = await generateOpenRouterExercises(request, config, {
+      fetch: fetchMock,
+      createId: () => {
+        throw bug;
+      },
+    }).catch((e: unknown) => e);
+
+    expect(error).toBe(bug);
+    expect(error).not.toBeInstanceOf(OpenRouterExerciseGeneratorError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

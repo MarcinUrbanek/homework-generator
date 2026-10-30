@@ -1,5 +1,5 @@
 import type { APIContext, APIRoute } from "astro";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TeacherAuthorizationResult } from "@/lib/services/teacher-authorization";
 import type { SavedExerciseError, SavedExerciseSuccess } from "@/types";
@@ -64,6 +64,11 @@ async function invoke(handler: APIRoute, query?: string, userId = teacherId): Pr
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("GET /api/exercises/saved", () => {
@@ -227,5 +232,56 @@ describe("GET /api/exercises/saved", () => {
     expect(response.status).toBe(status);
     expect(body.error.code).toBe(code);
     expect(body.error.message).not.toContain("sensitive");
+  });
+
+  it.each([
+    { databaseCode: "08006", status: 503, code: "DATABASE_UNAVAILABLE", event: "saved_exercises_database_unavailable" },
+    { databaseCode: "42883", status: 500, code: "PERSISTENCE_FAILURE", event: "saved_exercises_retrieval_failed" },
+  ])(
+    "logs the RPC error $databaseCode as cause before mapping it to $code",
+    async ({ databaseCode, status, code, event }) => {
+      const rpcError = { code: databaseCode, message: "function get_saved_exercises does not exist" };
+      const rpc = vi.fn().mockResolvedValue({ data: null, error: rpcError });
+      const handler = createSavedExercisesHandler({
+        authorize: vi.fn().mockResolvedValue({ status: "authorized-teacher" }),
+        createSupabaseClient: vi.fn(() => ({ rpc }) as never),
+      });
+      const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+      const response = await invoke(handler);
+
+      expect(response.status).toBe(status);
+      expect((await responseBody<SavedExerciseError>(response)).error.code).toBe(code);
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(log.mock.calls[0][0]).toEqual({
+        event,
+        route: "/api/exercises/saved",
+        userId: teacherId,
+        dbCode: databaseCode,
+      });
+      const logged = log.mock.calls[0][1] as Error;
+      expect(logged.message).toBe("Saved exercise retrieval failed");
+      expect(logged.cause).toBe(rpcError);
+    },
+  );
+
+  it("logs a malformed RPC result with the parse error before mapping it to PERSISTENCE_FAILURE", async () => {
+    const { handler } = handlerFor({
+      retrieveImplementation: () => Promise.resolve([{ ...row(), exercise_text: "" }]),
+    });
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = await invoke(handler);
+
+    expect(response.status).toBe(500);
+    expect(await responseBody<SavedExerciseError>(response)).toEqual({
+      error: {
+        code: "PERSISTENCE_FAILURE",
+        message: "Nie udało się pobrać zapisanych zadań. Spróbuj ponownie później.",
+      },
+    });
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls[0][0]).toMatchObject({ event: "saved_exercises_retrieval_failed", userId: teacherId });
+    expect(log.mock.calls[0][1]).toBeInstanceOf(Error);
   });
 });
