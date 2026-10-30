@@ -260,6 +260,63 @@ describe("Copilot quality hooks", () => {
     expect(output.hookSpecificOutput.additionalContext).toContain("HOOK_LINT_ERROR");
   });
 
+  test("blocks a high-risk edit whose related Vitest tests fail", () => {
+    const root = fixtureRoot;
+    const file = writeSource(root, "src/lib/services/risky.ts", "export const risky = 1;\n");
+    const log = path.join(os.tmpdir(), `copilot-agent-hook-log-${randomUUID()}.txt`);
+    fixtures.push(log);
+    const result = runHook(root, postEvent(root, { filePath: file }), {
+      env: { HOOK_TEST_LOG: log, HOOK_FAIL_VITEST: "1" },
+    });
+    const output = outputObject(result);
+
+    expect(result.status).toBe(0);
+    expect(output.hookSpecificOutput.hookEventName).toBe("PostToolUse");
+    expect(output.hookSpecificOutput.additionalContext).toContain("Related Vitest tests failed");
+    expect(output.hookSpecificOutput.additionalContext).toContain("risky.ts");
+    expect(output.hookSpecificOutput.additionalContext).toContain("HOOK_VITEST_ERROR");
+    expect(readFileSync(log, "utf8")).toContain("vitest:related src/lib/services/risky.ts --run");
+  });
+
+  it.each([
+    "src/lib/services/passing.ts",
+    "src/lib/exercises/passing.ts",
+    "src/lib/homework/passing.ts",
+    "src/pages/api/passing.ts",
+  ])(
+    "runs related Vitest tests and passes silently for a clean high-risk edit: %s",
+    (relativePath) => {
+      const root = fixtureRoot;
+      const file = writeSource(root, relativePath, "export const passing = 1;\n");
+      const log = path.join(os.tmpdir(), `copilot-agent-hook-log-${randomUUID()}.txt`);
+      fixtures.push(log);
+      const result = runHook(root, postEvent(root, { filePath: file }), { env: { HOOK_TEST_LOG: log } });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe("");
+      expect(readFileSync(log, "utf8")).toContain(`vitest:related ${relativePath} --run`);
+    },
+    30_000,
+  );
+
+  it.each(["src/components/outside.ts", "src/lib/utils-outside.ts", "src/lib/services-lookalike/outside.ts"])(
+    "does not run tests for an edit outside the high-risk areas: %s",
+    (relativePath) => {
+      const root = fixtureRoot;
+      const file = writeSource(root, relativePath, "export const outside = 1;\n");
+      const log = path.join(os.tmpdir(), `copilot-agent-hook-log-${randomUUID()}.txt`);
+      fixtures.push(log);
+      const result = runHook(root, postEvent(root, { filePath: file }), {
+        env: { HOOK_TEST_LOG: log, HOOK_FAIL_VITEST: "1" },
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe("");
+      expect(readFileSync(log, "utf8")).not.toContain("vitest:");
+    },
+    30_000,
+  );
+
   test("does not silently pass when ESLint is missing", () => {
     const root = fixtureRoot;
     rmSync(path.join(root, "node_modules", "eslint"), { recursive: true, force: true });

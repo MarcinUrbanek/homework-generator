@@ -9,6 +9,8 @@ const SCRIPT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 const CODE_EXTENSIONS = new Set([".astro", ".cjs", ".js", ".jsx", ".mjs", ".ts", ".tsx"]);
 const FORMAT_EXTENSIONS = new Set([".css", ".json", ".md"]);
 const PATH_KEYS = new Set(["file_path", "filepath", "path"]);
+const TEST_EXTENSIONS = new Set([".js", ".jsx", ".mjs", ".ts", ".tsx"]);
+const HIGH_RISK_DIRECTORIES = ["src/lib/services/", "src/lib/exercises/", "src/lib/homework/", "src/pages/api/"];
 
 function parseInput(raw) {
   try {
@@ -178,6 +180,18 @@ function checkEditedFile(root, file) {
   return { ok: true, output: "" };
 }
 
+function highRiskRelativePath(root, file) {
+  if (!TEST_EXTENSIONS.has(path.extname(file).toLowerCase())) return null;
+  const relative = path.relative(root, file).split(path.sep).join("/");
+  return HIGH_RISK_DIRECTORIES.some((directory) => relative.startsWith(directory)) ? relative : null;
+}
+
+function runRelatedTests(root, file) {
+  const relative = highRiskRelativePath(root, file);
+  if (!relative) return { ok: true, output: "" };
+  return runPackage(root, "vitest", ["related", relative, "--run", "--passWithNoTests"]);
+}
+
 function postToolUse(input) {
   if (isReadOnlyTool(input.tool_name ?? input.toolName)) return [];
 
@@ -201,6 +215,17 @@ function postToolUse(input) {
       }
     } catch (error) {
       failures.push(`${path.relative(repository.root, file)} could not be checked:\n${error.message}`);
+    }
+
+    try {
+      const result = runRelatedTests(repository.root, file);
+      if (!result.ok) {
+        failures.push(`Related Vitest tests failed for ${path.relative(repository.root, file)}:\n${result.output}`);
+      }
+    } catch (error) {
+      failures.push(
+        `Related Vitest tests could not run for ${path.relative(repository.root, file)}:\n${error.message}`,
+      );
     }
   }
   return failures;
