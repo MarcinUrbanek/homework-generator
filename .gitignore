@@ -41,3 +41,11 @@ pnpm-debug.log*
 
 #md files
 .md/
+
+# Playwright
+playwright/.auth/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+.playwright-cli/
